@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "BothBot"
+version = "0.1.0"
+description = "BothBot"
+authors = []
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.7.3"
+nonebot2 = "^2.0.0-beta.1"
+
+[tool.poetry.dev-dependencies]
+nb-cli = "^0.6.0"
+
+[tool.nonebot]
+plugins = ["nonebot_plugin_apscheduler"]
+plugin_dirs = ["src/plugins"]
+# plugin_dirs = ["src/test"]
+
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
