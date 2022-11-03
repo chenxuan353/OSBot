@@ -33,7 +33,7 @@ class BaiduEngine(Engine):
         alllangs = [
             'zh-cn', 'zh-tw', 'zh-yue', 'zh-wyw', 'ja', "ko", "es", "fr", "th",
             "ar", "ru", "pt", "de", "it", "el", "nl", "pl", "bg", "et", "da",
-            "fi", "cs", "ro", "sl", "swe", "hu", "vi"
+            "fi", "cs", "ro", "sl", "swe", "hu", "vi", "en"
         ]
         allowDict = {}
         for lang in alllangs:
