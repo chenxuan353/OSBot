@@ -1,20 +1,14 @@
-from dataclasses import dataclass
 import json
 import os
-from collections import UserDict
 from time import time
 from typing import Any, Dict, List, Optional, Type
 from typing_extensions import Self
 from tortoise.exceptions import DoesNotExist
-from nonebot import require
-from .logger import logger
+from nonebot_plugin_apscheduler import scheduler
 from .config import config
 from .exception import StoreException
 from .model.session import SessionModel
 
-require("nonebot_plugin_apscheduler")
-
-from nonebot_plugin_apscheduler import scheduler
 
 
 class StoreSerializable:
@@ -48,7 +42,7 @@ class StoreSerializable:
             rtn[key] = val
         return rtn
 
-    def __init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         """
             初始化实例，该方法在加载时自动调用。
 
@@ -64,7 +58,7 @@ class StoreSerializable:
             
             **非必要请勿覆写此方法**
         """
-        return cls().__init_from_dict(self_dict)
+        return cls()._init_from_dict(self_dict)
 
 
 class StoreEncoder(json.JSONEncoder):
@@ -94,7 +88,7 @@ class Session(StoreSerializable):
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, **kws)
-        self._key: str = key
+        self._key: str = f"{key}_{self.__class__.__name__}"  # 兼容多Session
         self._keep: bool = False
         self._session_manage: "SessionManage" = None  # type: ignore
 
@@ -138,7 +132,7 @@ class Session(StoreSerializable):
         await self._unlock()
         await self.save()
 
-    def __init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         """
             初始化实例，该方法在加载时自动调用。
 
@@ -188,7 +182,7 @@ class FileStore(BaseStore):
             base_path: str 文件存储基准路径
         """
         super().__init__()
-        self.base_path: str = os.path.join(config.bb_data_path, "session")
+        self.base_path: str = os.path.join(config.os_data_path, "session")
         self.encoding: str = "utf-8"
 
         if not os.path.isdir(self.base_path):
@@ -288,9 +282,9 @@ class SessionManage:
         self.__sessions: Dict[str, Session] = {}
 
         self.store: BaseStore = self.__STORE_MAP[
-            config.bb_session_save_model]()
+            config.os_session_save_model]()
 
-        self.timeout = config.bb_session_timeout * 60
+        self.timeout = config.os_session_timeout * 60
         self.timeout_map: Dict[str, float] = {}
 
         if self.timeout < 60:

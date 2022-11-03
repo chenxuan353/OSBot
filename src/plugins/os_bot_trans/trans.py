@@ -17,8 +17,8 @@ from .engine.caiyun_engine import CaiyunEngine
 from .engine.google_engine import GoogleEngine
 from .engine.tencent_engine import TencentEngine
 from .engine.baidu_engine import BaiduEngine
-from ..os_bot_base.depends import Session, ArgMatch as ArgMatchDepend
-from ..os_bot_base import ArgMatch, Field, STATE_ARGMATCH, matcher_exception_try, BaseAdapter, AdapterDepend
+from ..os_bot_base.depends import SessionDepend, ArgMatchDepend
+from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend
 from ..os_bot_base import only_command
 
 on_command = partial(on_command, block=True)
@@ -87,6 +87,9 @@ class TransArgs(ArgMatch):
                           self.target])  # type: ignore
 
 
+http_match = re.compile(r'[http|https]*://[a-zA-Z0-9.?/&=:]*', re.S)
+
+
 async def trans_before_handle(source, target, text, deftarget="ja"):
     """
         在翻译之前对语言进行简单识别
@@ -94,7 +97,11 @@ async def trans_before_handle(source, target, text, deftarget="ja"):
         用于优化用户体验及翻译准确度
     """
     if not config.trena_lang_optimize:
-        return source, target
+        return source, target, text
+    text = http_match.sub('', text)  # 移除网址
+    text = text.strip()  # 移除空白字符串
+    if not text:
+        return source, target, text
     if source == 'auto' and target == 'zh-cn':
         if not re.search(r'[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7A3]', text):
             target = deftarget
@@ -110,19 +117,60 @@ async def trans_before_handle(source, target, text, deftarget="ja"):
             target = 'zh-cn'
         else:
             pass
-    return source, target
+    return source, target, text
 
 
-trans = on_command("翻译", aliases={"机翻"}, state={STATE_ARGMATCH: TransArgs})
+class DefTransArgs(ArgMatch):
+
+    class Meta(ArgMatch.Meta):  # noqa F811
+        name = "机翻参数"
+        des = "匹配机翻引擎参数"
+
+    target: str = Field.Keys("目标语言",
+                             keys=base_langs,
+                             default="ja",
+                             require=False)
+
+    def __init__(self) -> None:
+        super().__init__([self.target])  # type: ignore
+
+
+set_def_trans = on_command("设置默认翻译语言",
+                           aliases={"设置默认语言"},
+                           priority=2,
+                           permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
+
+
+@set_def_trans.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            arg: DefTransArgs = ArgMatchDepend(DefTransArgs),
+            session: TransSession = SessionDepend()):
+    if session.default_trans == arg.target:
+        finish_msgs = ["重复啦", "没有变化哟", "重 复 啦"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    async with session:
+        session.default_trans = arg.target
+    lang_cn = getLangCN(arg.target)
+    finish_msgs = [f"已设置为{lang_cn}了哦", "设置完毕！", "已完成调整>>"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+trans = on_command("翻译", aliases={"机翻"})
 
 trans_msg = on_startswith("机翻", priority=4)
 
 
-async def trans_handle(matcher: Matcher, arg: TransArgs):
+async def trans_handle(matcher: Matcher, arg: TransArgs,
+                       session: TransSession):
     engine: Engine = engines[arg.engine]
     source = arg.source
     target = arg.target
     text = arg.tail.strip()
+    source, target, text = await trans_before_handle(source, target, text,
+                                                     session.default_trans)
     if not text:
         await matcher.finish()
     if not engine.check_source_lang(source):
@@ -131,7 +179,6 @@ async def trans_handle(matcher: Matcher, arg: TransArgs):
         await matcher.finish(
             F"{engine.name}的{getLangCN(source)}语言，不支持翻译到{getLangCN(target)}哦")
     try:
-        source, target = await trans_before_handle(source, target, text, "en")
         res = await engine.trans(source, target, text)
         logger.debug(
             F"{engine.name}引擎翻译({source}->{target})：{text} -> {res.strip()}")
@@ -143,20 +190,24 @@ async def trans_handle(matcher: Matcher, arg: TransArgs):
 
 @trans.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, arg: TransArgs = ArgMatchDepend()):
-    await trans_handle(matcher, arg)
+async def _(matcher: Matcher,
+            arg: TransArgs = ArgMatchDepend(TransArgs),
+            session: TransSession = SessionDepend()):
+    await trans_handle(matcher, arg, session)
 
 
 @trans_msg.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, event: Event):
+async def _(matcher: Matcher,
+            event: Event,
+            session: TransSession = SessionDepend()):
     text = event.get_plaintext().strip()
     if text.startswith("机翻"):
         text = text[len("机翻"):]
     else:
         await matcher.finish()
     arg = TransArgs()(text)
-    await trans_handle(matcher, arg)
+    await trans_handle(matcher, arg, session)
 
 
 class StreamArgs(ArgMatch):
@@ -167,14 +218,20 @@ class StreamArgs(ArgMatch):
 
     switch: bool = Field.Bool("状态", require=False)
 
-    unit_uuid: str = Field.Regex("开启流式翻译的对象",
-                                 regex="[0-9]{0,11}",
-                                 require=False)
+    unit_uuid: int = Field.Int("开启流式翻译的对象",
+                               min=9999,
+                               max=99999999999,
+                               require=False)
 
     engine: str = Field.Keys("引擎",
                              keys=engines_limit,
                              default=default_engine_name,
                              help=engine_help,
+                             require=False)
+
+    source: str = Field.Keys("源语言",
+                             keys=base_langs,
+                             default="auto",
                              require=False)
 
     target: str = Field.Keys("目标语言",
@@ -183,9 +240,9 @@ class StreamArgs(ArgMatch):
                              require=False)
 
     def __init__(self) -> None:
-        super().__init__(
-            [self.switch, self.unit_uuid, self.engine,
-             self.target])  # type: ignore
+        super().__init__([
+            self.switch, self.unit_uuid, self.engine, self.source, self.target
+        ])  # type: ignore
 
 
 stream = on_command("流式翻译",
@@ -200,8 +257,8 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.MessageEvent,
             message: v11.Message = CommandArg(),
-            session: TransSession = Session(TransSession),
-            adapter: BaseAdapter = AdapterDepend()):
+            session: TransSession = SessionDepend(),
+            adapter: Adapter = AdapterDepend()):
     arg: StreamArgs = StreamArgs()
     text = ""
     for msgseg in message:
@@ -213,7 +270,7 @@ async def _(matcher: Matcher,
     arg = arg(text)
 
     streamlist = session.stream_list
-    unit_uuit: Optional[int] = int(arg.unit_uuid) if arg.unit_uuid else None
+    unit_uuit: Optional[int] = arg.unit_uuid if arg.unit_uuid else None
     if unit_uuit is None:
         unit_uuit = event.user_id
     if arg.switch is None:
@@ -241,7 +298,7 @@ async def _(matcher: Matcher,
 
     # 开启流式翻译
     engine: Engine = engines[arg.engine]
-    source = "auto"
+    source = arg.source
     target = arg.target
     oprate_log = f"{await adapter.mark(bot, event)}_{time.strftime('%Y-%m-%d %H:%M:%S')}"  # 溯源信息
     if not engine.check_source_lang(source):
@@ -272,8 +329,8 @@ stream_list = on_command("查看流式翻译列表",
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: v11.Bot,
-            session: TransSession = Session(),
-            adapter: BaseAdapter = AdapterDepend()):
+            session: TransSession = SessionDepend(),
+            adapter: Adapter = AdapterDepend()):
     streamlist = session.stream_list
     if len(streamlist) == 0:
         finish_msgs = ["列表空荡荡……", "空空如也", "列表就像咱的钱包，空荡荡♪"]
@@ -287,7 +344,7 @@ async def _(matcher: Matcher,
 
     nicks = []
     for uid in streamlist:
-        nicks.append(await adapter.get_unit_nick(uid, bot))
+        nicks.append(f"{await adapter.get_unit_nick(uid, bot)}")
     await matcher.finish(f"列表！\n{'、'.join(nicks)}")
 
 
@@ -300,7 +357,7 @@ stream_clear = on_command("清空流式翻译列表",
 
 @stream_clear.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, session: TransSession = Session()):
+async def _(matcher: Matcher, session: TransSession = SessionDepend()):
     streamlist = session.stream_list
     if len(streamlist) == 0:
         finish_msgs = ["列表空荡荡……", "空空如也", "列表就像咱的钱包，空荡荡♪"]
@@ -316,7 +373,7 @@ async def _(matcher: Matcher, session: TransSession = Session()):
 @matcher_exception_try()
 async def _(matcher: Matcher,
             message: v11.Message = CommandArg(),
-            session: TransSession = Session()):
+            session: TransSession = SessionDepend()):
     streamlist = session.stream_list
     msg = str(message).strip()
     if msg == "确认清空":
@@ -334,9 +391,10 @@ stream_spy = on_message(priority=5, block=False, rule=None)
 
 
 @stream_spy.handle()
-async def _(bot: v11.Bot,
+async def _(matcher: Matcher,
+            bot: v11.Bot,
             event: v11.MessageEvent,
-            session: TransSession = Session()):
+            session: TransSession = SessionDepend()):
     streamlist = session.stream_list
     if event.user_id in streamlist:
         item = streamlist[event.user_id]
@@ -345,13 +403,13 @@ async def _(bot: v11.Bot,
         target = item.target
         msg = event.get_plaintext().strip()
         msg = msg.replace("{", "").replace("}", "").strip()
+        source, target, msg = await trans_before_handle(source, target, msg)
         if not msg:
-            return
+            await matcher.finish()
         try:
-            source, target = await trans_before_handle(source, target, msg)
             res = await engine.trans(source, target, msg)
             res = res.replace("{", "").replace("}", "")
         except EngineError as e:
             logger.warning(F"翻译引擎异常：{repr(e)}")
-            return
-        await bot.send(event, f"翻:{res}")
+            await matcher.finish()
+        await matcher.finish(f"翻:{res}")

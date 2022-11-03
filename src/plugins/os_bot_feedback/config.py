@@ -13,13 +13,13 @@ class Config(BaseSettings):
 
 
 __plugin_meta__ = PluginMetadata(
-    name="OSBot反馈",
-    description="反馈插件",
+    name="反馈",
+    description="OSBot反馈插件",
     usage="使用`反馈 你想说的`",
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
-        META_ADMIN_USAGE: "什么都没有~"  # 管理员可以获取的帮助
+        META_ADMIN_USAGE: "可用：反馈列表、历史反馈、清空反馈、处理反馈 反馈ID、查看反馈 反馈ID"
     },
 )
 

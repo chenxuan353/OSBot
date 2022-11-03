@@ -6,7 +6,7 @@ from ..os_bot_base import DatabaseManage
 class Feedback(Model):
 
     class Meta:
-        table = "bb_feedback"
+        table = "os_feedback"
         table_description = "反馈表"
 
     id = fields.IntField(pk=True)

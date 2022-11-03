@@ -4,15 +4,16 @@ import os
 import random
 from typing_extensions import Self
 from nonebot import get_bots, on_command
+from nonebot.params import CommandArg
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
-from typing import Any, List, Union
+from typing import Any, List, Optional, Union
 from .config import config
 from .logger import logger
 from .cache.onebot import OnebotCache
 from .exception import InfoCacheException
-from .util import matcher_exception_try
+from .util import matcher_exception_try, only_command
 
 
 class BotSend:
@@ -91,14 +92,23 @@ class UrgentNotice:
 
         - 实现了`Onebot`端的群聊与私聊推送
     """
-    instance: Self
+    instance: Optional[Self] = None
 
     def __init__(self) -> None:
         self.onebot_notify: List[int] = []
         self.onebot_group_notify: List[int] = []
 
-        self.base_path = os.path.join(config.bb_data_path, "cache", "notice")
+        self.base_path = os.path.join(config.os_data_path, "cache", "notice")
         self.file_base = os.path.join(self.base_path, "notice")
+
+        if not os.path.isdir(self.base_path):
+            try:
+                os.makedirs(self.base_path)
+            except IOError as e:
+                raise InfoCacheException("目录创建失败！", e)
+        
+        # 加载通知人
+        self.load()
 
     @classmethod
     def get_instance(cls):
@@ -113,6 +123,9 @@ class UrgentNotice:
 
             `send_group` 是否发送给群聊（默认否）
         """
+        if not message:
+            logger.debug(f"尝试广播空消息！")
+            return
         ins = cls.get_instance()
         # 发送私聊消息
         for uid in ins.onebot_notify:
@@ -137,6 +150,18 @@ class UrgentNotice:
             if not success:
                 logger.warning(f"尝试给`{gid}`发送群聊通知失败，消息内容：{message}")
             await asyncio.sleep(1 + random.randint(20, 100) / 100)
+
+    @classmethod
+    def has_onebot_notify(cls, pid: int):
+        pid = int(pid)
+        ins = cls.get_instance()
+        return pid in ins.onebot_notify
+
+    @classmethod
+    def has_onebot_notify_group(cls, gid: int):
+        gid = int(gid)
+        ins = cls.get_instance()
+        return gid in ins.onebot_group_notify
 
     @classmethod
     def add_onebot_notify(cls, pid: int):
@@ -165,6 +190,18 @@ class UrgentNotice:
         ins = cls.get_instance()
         ins.onebot_group_notify.remove(gid)
         ins.__save("onebot_group", ins.onebot_group_notify)
+
+    @classmethod
+    def clear(cls):
+        ins = cls.get_instance()
+        ins.onebot_group_notify = []
+        ins.onebot_notify = []
+        ins.save()
+
+    @classmethod
+    def empty(cls) -> bool:
+        ins = cls.get_instance()
+        return not ins.onebot_group_notify and not ins.onebot_notify
 
     @classmethod
     def reload(cls):
@@ -226,9 +263,39 @@ class UrgentNotice:
         self.onebot_group_notify = self.__read("onebot_group")
 
 
+notify_clear = on_command("清空紧急通知列表",
+                          block=True,
+                          rule=only_command(),
+                          permission=SUPERUSER)
+
+
+@notify_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    if UrgentNotice.empty():
+        await matcher.finish("通知列表就是空的哟")
+    finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
+    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+@notify_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, message: v11.Message = CommandArg()):
+    msg = str(message).strip()
+    if msg == "确认清空":
+        UrgentNotice.clear()
+        finish_msgs = ["已清空！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["确认……失败。", "无法确认"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
 notify_reload = on_command("重载通知配置",
                            aliases={"reload_notify", "重新加载紧急通知配置", "重新加载通知配置"},
                            block=True,
+                           rule=only_command(),
                            permission=SUPERUSER)
 
 
@@ -240,3 +307,163 @@ async def _(matcher: Matcher):
         f"已经完成了哦！在记录的数量"
         f"{len(UrgentNotice.get_instance().onebot_notify)}"
         f"+{len(UrgentNotice.get_instance().onebot_group_notify)}(组)")
+
+
+notify_add = on_command(
+    "增加紧急通知人",
+    aliases={"增加紧急通知", "添加紧急通知", "加入紧急通知", "添加紧急通知人", "加入紧急通知人"},
+    block=True,
+    permission=SUPERUSER,
+)
+
+
+@notify_add.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = CommandArg()):
+    pid = message.extract_plain_text().strip()
+    if pid:
+        try:
+            pid = int(pid)
+        except Exception:
+            await matcher.finish("Q号看起来有问题……？")
+    else:
+        pid = event.user_id
+    if UrgentNotice.has_onebot_notify(pid):
+        await matcher.finish("已经在列表中了哦！")
+    notice = UrgentNotice.get_instance()
+    cache = OnebotCache.get_instance()
+    notice.add_onebot_notify(pid)
+    await matcher.finish(f"{cache.get_unit_nick(pid)}加入列表")
+
+
+notify_add_group = on_command(
+    "增加紧急通知组",
+    aliases={"添加紧急通知组", "加入紧急通知组", "添加紧急通知群", "加入紧急通知群", "增加紧急通知群"},
+    block=True,
+    permission=SUPERUSER,
+)
+
+
+@notify_add_group.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = CommandArg()):
+    gid = message.extract_plain_text().strip()
+    if gid:
+        try:
+            gid = int(gid)
+        except Exception:
+            await matcher.finish("群号看起来有问题……？")
+    else:
+        await matcher.finish("群号不能为空哦！")
+    if UrgentNotice.has_onebot_notify_group(gid):
+        await matcher.finish("已经在组列表中了哦！")
+    notice = UrgentNotice.get_instance()
+    cache = OnebotCache.get_instance()
+    notice.add_onebot_group_notify(gid)
+    await matcher.finish(f"{cache.get_group_nick(gid)}加入列表")
+
+
+notify_del = on_command(
+    "减少紧急通知",
+    aliases={"移除紧急通知人", "移出紧急通知人", "移除紧急通知", "移出紧急通知"},
+    block=True,
+    permission=SUPERUSER,
+)
+
+
+@notify_del.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = CommandArg()):
+    pid = message.extract_plain_text().strip()
+    if pid:
+        try:
+            pid = int(pid)
+        except Exception:
+            await matcher.finish("Q号看起来有问题……？")
+    else:
+        pid = event.user_id
+    if not UrgentNotice.has_onebot_notify(pid):
+        await matcher.finish("不在列表中哦！")
+    notice = UrgentNotice.get_instance()
+    cache = OnebotCache.get_instance()
+    notice.del_onebot_notify(pid)
+    await matcher.finish(f"{cache.get_unit_nick(pid)}加入列表")
+
+
+notify_del_group = on_command(
+    "减少紧急通知组",
+    aliases={"移除紧急通知组", "移出紧急通知组", "移除紧急通知群", "移出紧急通知群", "减少紧急通知群"},
+    block=True,
+    permission=SUPERUSER,
+)
+
+
+@notify_del_group.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = CommandArg()):
+    gid = message.extract_plain_text().strip()
+    if gid:
+        try:
+            gid = int(gid)
+        except Exception:
+            await matcher.finish("群号看起来有问题……？")
+    else:
+        await matcher.finish("群号不能为空哦！")
+    if not UrgentNotice.has_onebot_notify_group(gid):
+        await matcher.finish("不在组列表中哦！")
+    notice = UrgentNotice.get_instance()
+    cache = OnebotCache.get_instance()
+    notice.del_onebot_group_notify(gid)
+    await matcher.finish(f"{cache.get_group_nick(gid)}加入列表")
+
+
+notify_list = on_command("紧急通知列表",
+                         aliases={"查看紧急通知列表", "打开紧急通知列表"},
+                         block=True,
+                         permission=SUPERUSER,
+                         rule=only_command())
+
+
+@notify_list.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, event: v11.PrivateMessageEvent):
+    notice = UrgentNotice.get_instance()
+    cache = OnebotCache.get_instance()
+    if UrgentNotice.empty():
+        await matcher.finish("通知列表是空的！")
+    msg = f"通知人：{'、'.join({cache.get_unit_nick(uid) for uid in notice.onebot_notify})}"
+    msg += f"\n通知组：{'、'.join({cache.get_group_nick(gid) for gid in notice.onebot_group_notify})}"
+    await matcher.finish(msg)
+
+
+notify_send = on_command("发送紧急通知",
+                         block=True,
+                         permission=SUPERUSER)
+
+
+@notify_send.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, event: v11.PrivateMessageEvent, message: v11.Message = CommandArg()):
+    await UrgentNotice.send(str(message))
+    await matcher.finish("投递成功~")
+
+
+
+notify_send_group = on_command("发送紧急通知组",
+                         block=True,
+                         permission=SUPERUSER)
+
+
+@notify_send_group.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, event: v11.PrivateMessageEvent, message: v11.Message = CommandArg()):
+    await UrgentNotice.send_group(str(message))
+    await matcher.finish("投递成功~")

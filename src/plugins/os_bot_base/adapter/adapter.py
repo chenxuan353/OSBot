@@ -3,7 +3,7 @@ from typing_extensions import Self
 from nonebot.adapters import Event, Bot
 
 
-class BaseAdapter:
+class Adapter:
     """
         适配器基类
     """
@@ -23,7 +23,7 @@ class BaseAdapter:
 
             **标识说明**
 
-            驱动组标识-驱动标识-消息组父标识-消息组子标识-消息发送源父标识-消息发送源子标识
+            驱动组标识-驱动ID-消息组父标识-消息组子标识-消息发送源父标识-消息发送源子标识
 
             **例**
 
@@ -39,7 +39,7 @@ class BaseAdapter:
 
             **标识说明**
 
-            驱动组标识-驱动标识-消息组父标识-消息组子标识
+            驱动组标识-驱动ID-消息组父标识-消息组子标识
 
             **例**
 
@@ -49,35 +49,67 @@ class BaseAdapter:
         """
         raise NotImplementedError("need implemented function!")
 
-    async def mark_without_drive(self, bot: Bot, event: Event) -> str:
+    async def mark_only_unit(self, bot: Bot, event: Event) -> str:
         """
-            获取事件的唯一标识（不含驱动）
+            获取事件的用户唯一标识
 
             **标识说明**
 
-            消息组父标识-消息组子标识-消息发送源父标识-消息发送源子标识
+            驱动组标识-驱动ID-global-global-消息发送源父标识-消息发送源子标识
 
             **例**
 
-            `group-66543201-normal-65468248`
+            `cqhttp-123456-global-global-normal-65468248`
 
-            `private-12345-system-12345`
+            `cqhttp-123456-global-global-system-12345`
+        """
+        raise NotImplementedError("need implemented function!")
+
+    async def mark_only_unit_without_drive(self, bot: Bot, event: Event) -> str:
+        """
+            获取事件的用户唯一标识
+
+            **标识说明**
+
+            驱动组标识-global-global-global-消息发送源父标识-消息发送源子标识
+
+            **例**
+
+            `cqhttp-global-global-global-normal-65468248`
+
+            `cqhttp-global-global-global-system-12345`
+        """
+        raise NotImplementedError("need implemented function!")
+
+    async def mark_without_drive(self, bot: Bot, event: Event) -> str:
+        """
+            获取事件的唯一标识（不含驱动标识）
+
+            **标识说明**
+
+            驱动组标识-global-消息组父标识-消息组子标识-消息发送源父标识-消息发送源子标识
+
+            **例**
+
+            `cqhttp-global-group-66543201-normal-65468248`
+
+            `cqhttp-global-private-12345-system-12345`
         """
         raise NotImplementedError("need implemented function!")
 
     async def mark_group_without_drive(self, bot: Bot, event: Event) -> str:
         """
-            获取组的唯一标识（不含驱动）
+            获取组的唯一标识（不含驱动标识）
 
             **标识说明**
 
-            消息组父标识-消息组子标识
+            驱动组标识-global-消息组父标识-消息组子标识
 
             **例**
 
-            `group-66543201`
+            `cqhttp-global-group-66543201`
 
-            `private-12345`
+            `cqhttp-global-private-12345`
         """
         raise NotImplementedError("need implemented function!")
 
@@ -87,7 +119,7 @@ class BaseAdapter:
 
             **标识说明**
 
-            驱动组标识-驱动标识
+            驱动组标识-驱动ID
 
             **例**
 

@@ -35,26 +35,34 @@ class StreamUnit(StoreSerializable):
 
 class TransSession(Session):
     stream_list: Dict[int, StreamUnit]
+    default_trans: str
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
         self.stream_list = {}
+        self.default_trans = "ja"
 
-    def __init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
-        self.data.update(self_dict)
-        for key in self.stream_list:
-            del self.stream_list[key]
-            stream = StreamUnit()
-            stream.__init_from_dict(**self.stream_list[key])  # type: ignore
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+        self.__dict__.update(self_dict)
+        tmp_list: Dict[str, Any] = self.stream_list  # type: ignore
+        self.stream_list = {}
+        for key in tmp_list:
+            stream = StreamUnit._load_from_dict(tmp_list[key])  # type: ignore
             self.stream_list[int(key)] = stream
 
         return self
 
 
 __plugin_meta__ = PluginMetadata(
-    name="OSBot多引擎翻译",
-    description="支持多个翻译引擎翻译的插件",
-    usage="暂无",
+    name="翻译",
+    description="OSBot多引擎翻译，支持多个翻译引擎翻译的插件",
+    usage="""
+        使用`翻译 引擎 源语言 目标语言 内容`来进行翻译，除了内容以外都是可选的~
+        引擎或许支持谷歌、腾讯、百度，语言的话就看各个引擎本身是否支持了。
+        管理员可通过`流式翻译 目标 引擎 源语言 目标语言`来启用自动翻译，除了目标以外都可选(推荐使用默认配置)。
+        可以通过`流式翻译@对象`来进行定向开关。
+        管理员如果需要修改默认翻译语言可以使用`设置默认翻译语言 语言`的命令(默认为日语)
+    """,
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",

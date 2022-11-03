@@ -8,7 +8,7 @@ class SessionModel(Model):
     """
 
     class Meta:
-        table = "bb_session"
+        table = "os_session"
         table_description = "session表"
 
     id = fields.IntField(pk=True, generated=True)

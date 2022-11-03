@@ -7,6 +7,7 @@ from typing_extensions import Self
 from nonebot import get_driver
 from tortoise import Tortoise
 from tortoise.models import Model
+from .exception import BaseException
 from .config import config
 
 driver = get_driver()
@@ -19,19 +20,22 @@ class DatabaseManage:
     databaseManage: Optional[Self] = None
 
     def __init__(self) -> None:
-        self.base_path: str = os.path.join(config.bb_data_path, "database")
+        self.base_path: str = os.path.join(config.os_data_path, "database")
         self.models: Set[str] = set()
         self.db_url: str = f"sqlite://{os.path.join(self.base_path, 'data.sqlite3')}"
-        if config.bb_database:
-            self.db_url = config.bb_database
+        if config.os_database:
+            self.db_url = config.os_database
         self.__kws: Dict[str, Any] = {
             "db_url": self.db_url,
             "modules": {
                 'models': []
             }
         }
-        if not os.path.isdir(self.base_path):
-            os.makedirs(self.base_path)
+        try:
+            if not os.path.isdir(self.base_path):
+                os.makedirs(self.base_path)
+        except Exception as e:
+            raise BaseException("数据目录创建失败", cause=e)
 
     def add_model(self, model: Type[Model]) -> None:
         """

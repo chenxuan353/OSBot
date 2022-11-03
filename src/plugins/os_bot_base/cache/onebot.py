@@ -38,6 +38,47 @@ class BaseRecord(StoreSerializable):
         for key in self.__dict__:
             if key in merge_dict:
                 self.__dict__[key] = merge_dict[key]
+    
+    def _serializable(self) -> Dict[str, Any]:
+        """
+            序列化对象，该方法在保存时自动调用（通过JSONEncode）
+            
+            忽略以`_`或`tmp_`起始的属性。
+            
+            不以下划线开始且值为基础类型或实现了StoreSerializable的字段
+        """
+        rtn = {}
+
+        for key in self.__dict__:
+            if key.startswith("_") or key.startswith("tmp_"):
+                continue
+            val = self.__dict__[key]
+            if not (val is None or isinstance(val, StoreSerializable)
+                    or isinstance(val, int) or isinstance(val, str)
+                    or isinstance(val, dict) or isinstance(val, float)
+                    or isinstance(val, list) or isinstance(val, tuple)
+                    or isinstance(val, bool)):
+                # 如果不是基本类型或者实现了StoreSerializable则会被忽略
+                continue
+            if isinstance(val, StoreSerializable):
+                val = val._serializable()
+            rtn[key] = val
+        return rtn
+
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+        """
+            初始化实例，该方法在加载时自动调用。
+
+            如若需要自定义加载，请覆盖此方法。
+        """
+        self.__dict__.update(self_dict)
+        return self
+
+    @classmethod
+    def _load_from_dict(cls, self_dict: Dict[str, Any]) -> Self:
+        if "id" in self_dict:
+            return cls(self_dict["id"])._init_from_dict(self_dict)  # type: ignore
+        return cls()._init_from_dict(self_dict)
 
 
 @dataclass
@@ -125,7 +166,7 @@ class GroupRecord(BaseRecord):
             self.users[id] = GroupInfoCard(id)
         return self.users[id]
 
-    def __init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         """
             初始化实例，该方法在加载时自动调用。
 
@@ -222,7 +263,7 @@ class BotRecord(BaseRecord):
             return None
         return self.friends[id]
 
-    def __init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         """
             初始化实例，该方法在加载时自动调用。
 
@@ -268,7 +309,7 @@ class OnebotCache:
         self.cache_groups: Dict[int, GroupRecord] = {}
         self.cache_bots: Dict[int, BotRecord] = {}
 
-        self.base_path = os.path.join(config.bb_data_path, "cache", "info")
+        self.base_path = os.path.join(config.os_data_path, "cache", "info")
         self.file_base = os.path.join(self.base_path, "onebot")
 
         if not os.path.isdir(self.base_path):
@@ -314,7 +355,8 @@ class OnebotCache:
             with open(file_path, mode='w', encoding="utf-8") as fw:
                 fw.write(json_str)
         except Exception as e:
-            raise InfoCacheException(f"数据文件`{file_path}`写入异常", cause=e)
+            logger.opt(exception=True).error(f"数据文件`{file_path}`写入异常。信息：{e}")
+
 
     def __read(self, key: str, Cls: Type[T_Record]) -> Dict[int, T_Record]:
         file_path = f"{self.file_base}_{key}.json"
@@ -326,8 +368,7 @@ class OnebotCache:
                 data = json.loads(json_str)
                 result: Dict[int, T_Record] = {}
                 for index in data:
-                    index: int = int(index)
-                    result[index] = Cls._load_from_dict(data[index])
+                    result[int(index)] = Cls._load_from_dict(data[index])
                 return result
         except Exception as e:
             now_e = e
@@ -335,7 +376,8 @@ class OnebotCache:
                 self.backup_file(key)
             except Exception as e:
                 now_e = e
-            raise InfoCacheException(f"数据文件`{file_path}`读取异常。", cause=now_e)
+            logger.opt(exception=True).error(f"数据文件`{file_path}`读取异常。信息：{now_e}")
+            return {}
 
     def save(self) -> None:
         self.__save("bots", self.cache_bots)
@@ -464,7 +506,7 @@ def _conversion_to_card_info(user_card: GroupInfoCard, data: Dict[str, Any]):
 
 
 @driver.on_bot_connect
-async def __on_bot_connect(bot: Bot):
+async def _(bot: Bot):
     if not isinstance(bot, Bot):
         return
     bot_record = OnebotCache.get_instance().get_or_create_bot_record(bot)
@@ -509,7 +551,7 @@ async def __on_bot_connect(bot: Bot):
 
 
 @driver.on_bot_disconnect
-async def __on_bot_disconnect(bot: Bot):
+async def _(bot: Bot):
     if not isinstance(bot, Bot):
         return
     bot_record = OnebotCache.get_instance().get_bot_record(int(bot.self_id))
@@ -527,7 +569,7 @@ async def __on_bot_disconnect(bot: Bot):
 
 
 @event_preprocessor
-async def __event_preprocessor(bot: Bot):
+async def _(bot: Bot):
     """
         这个钩子函数会在 Event 上报到 NoneBot2 时运行
     """
@@ -540,11 +582,10 @@ async def __event_preprocessor(bot: Bot):
 
 
 meta_matcher = on_metaevent(priority=1, block=False)
-message_matcher = on_message(priority=1, block=False)
 
 
 @meta_matcher.handle()
-async def __on_metaevent(bot: Bot):
+async def _(bot: Bot):
     if not isinstance(bot, Bot):
         return
     bot_record = OnebotCache.get_instance().get_bot_record(int(bot.self_id))
@@ -552,7 +593,7 @@ async def __on_metaevent(bot: Bot):
         logger.debug(f"元事件来自未处于缓存中的来源 - {bot.self_id}")
 
 
-@message_matcher.handle()
+@event_preprocessor
 async def _(bot: Bot, event: GroupMessageEvent):
     if event.sub_type != "normal":
         logger.debug(
@@ -574,7 +615,7 @@ async def _(bot: Bot, event: GroupMessageEvent):
     __merge_group_info_to_global(group_record)
 
 
-@message_matcher.handle()
+@event_preprocessor
 async def _(bot: Bot, event: PrivateMessageEvent):
     if not event.sub_type == "friend":
         logger.debug(
@@ -598,7 +639,7 @@ async def _(bot: Bot, event: PrivateMessageEvent):
 
 
 @Bot.on_calling_api
-async def __on_calling_api(bot: BaseBot, api: str, data: Dict[str, Any]):
+async def _(bot: BaseBot, api: str, data: Dict[str, Any]):
     """
         API 请求前
     """
@@ -612,7 +653,7 @@ async def __on_calling_api(bot: BaseBot, api: str, data: Dict[str, Any]):
 
 
 @Bot.on_called_api
-async def __on_called_api(bot: BaseBot, exception: Optional[Exception],
+async def _(bot: BaseBot, exception: Optional[Exception],
                           api: str, data: Dict[str, Any], result: Any):
     """
         API 请求后

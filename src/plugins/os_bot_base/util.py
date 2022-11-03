@@ -3,11 +3,50 @@ from typing import List, Tuple
 from functools import wraps
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
+from nonebot.adapters.onebot import v11
 from nonebot.params import CommandArg
 from nonebot.exception import NoneBotException
 from .exception import MatcherErrorFinsh
 from .argmatch import FieldMatchError
 from .logger import logger
+from .model import PluginModel, PluginSwitchModel
+from .cache import OnebotCache
+
+
+async def plug_is_disable(name: str, group_mark: str) -> bool:
+    """
+        用于获取指定插件是否被禁用
+
+        被禁用则返回`False`
+
+        - `name` 插件标识名
+        - `group_mark` 需要判断的组标识(一般通过`adapter.mark_group_without_drive(bot, event)`获取)
+    """
+    try:
+        plugModel = await PluginModel.get_or_none(name=name)
+        if not plugModel:
+            return False
+        if not plugModel.load:
+            return True
+        plugSwitchModel = await PluginSwitchModel.get_or_none(
+            **{
+                "name": name,
+                "group_mark": group_mark
+            })
+        if plugModel and not plugModel.switch:
+            return True
+
+        if plugSwitchModel:
+            if plugSwitchModel.switch:
+                return False
+            else:
+                return True
+        if plugModel and not plugModel.default_switch:
+            return True
+        return False
+    except Exception as e:
+        logger.opt(exception=True).debug(f"在检查{name} - {group_mark}是否被禁用时异常。")
+        raise e
 
 
 def matcher_exception_try():
@@ -61,3 +100,17 @@ def only_command():
         return not msg
 
     return checker
+
+
+def message_to_str(message: v11.Message) -> str:
+    msg_str = ""
+    for msgseg in message:
+        if msgseg.is_text():
+            msg_str += msgseg.data.get("text")  # type: ignore
+        elif msgseg.type == "at":
+            msg_str += f"@{OnebotCache.get_instance().get_unit_nick(msgseg.data.get('qq'))} "  # type: ignore
+        elif msgseg.type == "image":
+            msg_str += f"[图片]"
+        else:
+            msg_str += f"[{msgseg.type}]"
+    return msg_str

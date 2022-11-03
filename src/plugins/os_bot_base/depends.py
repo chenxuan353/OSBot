@@ -4,26 +4,28 @@
 from typing import Any, Optional, Type
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
-from nonebot.params import Depends
-from nonebot.plugin import Plugin
-from nonebot.typing import T_State
+from nonebot.params import Depends, CommandArg
+from nonebot.plugin import Plugin, PluginMetadata
 from nonebot.adapters.onebot import v11
 
-from .session import SessionManage, Session as BaseSession
-from .adapter import AdapterFactory, BaseAdapter
-from .consts import META_SESSION_KEY, SESSION_SCOPE_PLUGIN, STATE_ARGMATCH_RESULT
+from .session import SessionManage, Session
+from .adapter import AdapterFactory, Adapter
+from .consts import META_SESSION_KEY, SESSION_SCOPE_PLUGIN
 from .cache.onebot import OnebotCache, BotRecord, GroupRecord, UnitRecord as UserRecord
-from .argmatch import ArgMatch as ArgMatchCls
+from .argmatch import ArgMatch
+from .argmatch.exception import MatchError, FieldMatchError
+from .exception import DependException
+from .logger import logger
 
 
 def __session_check(matcher: Matcher) -> bool:
     plugin: Optional[Plugin] = matcher.plugin
     return (not plugin or not plugin.metadata or not not plugin.metadata.extra
-            or META_SESSION_KEY not in plugin.metadata.extra or not issubclass(
-                plugin.metadata.extra[META_SESSION_KEY], BaseSession))
+            or META_SESSION_KEY not in plugin.metadata.extra or
+            not issubclass(plugin.metadata.extra[META_SESSION_KEY], Session))
 
 
-async def __session_get(mark: str, matcher: Matcher) -> Optional[BaseSession]:
+async def __session_get(mark: str, matcher: Matcher, SessionType: Optional[Type[Session]]) -> Optional[Session]:
     """
         获取基于插件`SessionType`的`Session`
 
@@ -34,39 +36,41 @@ async def __session_get(mark: str, matcher: Matcher) -> Optional[BaseSession]:
     assert matcher.plugin
     plugin: Plugin = matcher.plugin
     assert plugin.metadata
-    SessionType: Type[BaseSession] = plugin.metadata.extra[META_SESSION_KEY]
+    if not SessionType:
+        SessionType = plugin.metadata.extra.get(META_SESSION_KEY)
+        if not SessionType:
+            raise DependException("缺少`Session`定义，请检查是否提供此资源。")
     sm = SessionManage.get_instance()
     domain = SessionType.domain() or plugin.name
     return await sm.get(mark, domain, SessionType)
 
 
-def Session(SessionType: Type[BaseSession] = BaseSession) -> Any:
+def SessionDepend(SessionType: Optional[Type[Session]] = None) -> Any:
     """
         获取当前事件`session`，组粒度。
     """
 
-    async def _depend(bot: Bot, matcher: Matcher,
-                      event: Event) -> "SessionType":
+    async def _depend(bot: Bot, matcher: Matcher, event: Event):
         adapter = AdapterFactory.get_adapter(bot)
         return await __session_get(await adapter.mark_group(bot, event),
-                                   matcher)  # type: ignore
+                                   matcher, SessionType)
 
     return Depends(_depend)
 
 
-def SessionUnit() -> Any:
+def SessionUnitDepend(SessionType: Optional[Type[Session]] = None) -> Any:
     """
         获取当前事件`session`，源粒度。
     """
 
     async def _depend(bot: Bot, matcher: Matcher, event: Event) -> Any:
         adapter = AdapterFactory.get_adapter(bot)
-        return await __session_get(await adapter.mark(bot, event), matcher)
+        return await __session_get(await adapter.mark(bot, event), matcher, SessionType)
 
     return Depends(_depend)
 
 
-def SessionDrive() -> Any:
+def SessionDriveDepend(SessionType: Type[Session]) -> Any:
     """
         获取当前适配器`session`。
     """
@@ -74,35 +78,36 @@ def SessionDrive() -> Any:
     async def _depend(bot: Bot, matcher: Matcher, event: Event) -> Any:
         adapter = AdapterFactory.get_adapter(bot)
         return await __session_get(await adapter.mark_drive(bot, event),
-                                   matcher)
+                                   matcher, SessionType)
 
     return Depends(_depend)
 
 
-def SessionPlugin() -> Any:
+def SessionPluginDepend(SessionType: Type[Session]) -> Any:
     """
         获取当前插件`session`
     """
 
-    async def _depend(bot: Bot, matcher: Matcher, event: Event) -> Any:
-        adapter = AdapterFactory.get_adapter(bot)
-        return await __session_get(SESSION_SCOPE_PLUGIN, matcher)
+    async def _depend() -> Any:
+        sm = SessionManage.get_instance()
+        domain = SessionType.domain() or SessionType.__module__
+        return await sm.get(SESSION_SCOPE_PLUGIN, domain, SessionType)
 
     return Depends(_depend)
 
 
-def Adapter() -> Any:
+def AdapterDepend() -> Any:
     """
         获取BB插件的适配器
     """
 
-    async def _depend(bot: Bot) -> BaseAdapter:
+    async def _depend(bot: Bot) -> Adapter:
         return AdapterFactory.get_adapter(bot)
 
     return Depends(_depend)
 
 
-def OBCache() -> Any:
+def OBCacheDepend() -> Any:
     """
         获取缓存实例
     """
@@ -113,9 +118,9 @@ def OBCache() -> Any:
     return Depends(_depend)
 
 
-def OBCacheBot() -> Any:
+def OBCacheBotDepend() -> Any:
     """
-        获取缓存实例
+        获取当前链接bot的缓存实例
     """
 
     async def _depend(bot: v11.Bot) -> Optional[BotRecord]:
@@ -125,9 +130,9 @@ def OBCacheBot() -> Any:
     return Depends(_depend)
 
 
-def OBCacheOBGroup() -> Any:
+def OBCacheOBGroupDepend() -> Any:
     """
-        获取缓存实例
+        获取当前组的缓存实例
     """
 
     async def _depend(bot: v11.Bot,
@@ -141,9 +146,9 @@ def OBCacheOBGroup() -> Any:
     return Depends(_depend)
 
 
-def OBCacheGroupUser() -> Any:
+def OBCacheGroupUserDepend() -> Any:
     """
-        获取群缓存实例
+        获取当前群成员缓存实例
     """
 
     async def _depend(bot: v11.Bot,
@@ -160,7 +165,7 @@ def OBCacheGroupUser() -> Any:
     return Depends(_depend)
 
 
-def OBCachePrivateUser() -> Any:
+def OBCachePrivateUserDepend() -> Any:
     """
         获取好友缓存实例
     """
@@ -176,9 +181,9 @@ def OBCachePrivateUser() -> Any:
     return Depends(_depend)
 
 
-def OBCacheGlobalGroup() -> Any:
+def OBCacheGlobalGroupDepend() -> Any:
     """
-        获取缓存实例
+        获取缓存全局当前群组实例
     """
 
     async def _depend(event: v11.GroupMessageEvent) -> Optional[GroupRecord]:
@@ -188,9 +193,9 @@ def OBCacheGlobalGroup() -> Any:
     return Depends(_depend)
 
 
-def OBCacheGlobalGroupUser() -> Any:
+def OBCacheGlobalGroupUserDepend() -> Any:
     """
-        获取全局群缓存实例
+        获取全局群组成员缓存实例
     """
 
     async def _depend(event: v11.GroupMessageEvent) -> Optional[UserRecord]:
@@ -203,7 +208,7 @@ def OBCacheGlobalGroupUser() -> Any:
     return Depends(_depend)
 
 
-def OBCacheGlobalUser() -> Any:
+def OBCacheGlobalUserDepend() -> Any:
     """
         获取全局用户缓存实例
     """
@@ -215,12 +220,50 @@ def OBCacheGlobalUser() -> Any:
     return Depends(_depend)
 
 
-def ArgMatch() -> Any:
+def ArgMatchDepend(ArgMatchChild: Type[ArgMatch]) -> Any:
     """
         获取参数解析器实例
     """
 
-    async def _depend(state: T_State) -> Optional[ArgMatchCls]:
-        return state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+    async def _depend(
+        matcher: Matcher,
+        bot: Bot,
+        event: v11.MessageEvent,
+        message: "v11.Message" = CommandArg()
+    ) -> ArgMatchChild:
+        if not issubclass(ArgMatchChild, ArgMatch):
+            raise MatchError(
+                f"解析参数时发现问题，解析器`{ArgMatchChild.__name__}`未继承`ArgMatch`类")
+        try:
+            argmatch_ins = ArgMatchChild()  # type: ignore
+        except Exception as e:
+            logger.warning(
+                f"解析参数时异常，实例化参数解析器`{ArgMatchChild.__name__}`时错误，可能的原因：未覆写init方法。"
+            )
+            raise e
+        # 进行消息转换
+        msg_str = ""
+        for msgseg in message:
+            if msgseg.is_text():
+                msg_str += msgseg.data.get("text")  # type: ignore
+            elif msgseg.type == "at":
+                msg_str += f"{OnebotCache.get_instance().get_unit_nick(msgseg.data.get('qq'))}"  # type: ignore
+            elif msgseg.type == "image":
+                msg_str += f"[图片]"
+            else:
+                msg_str += f"[{msgseg.type}]"
+        try:
+            argmatch_ins(msg_str)
+        except FieldMatchError as e:
+            logger.debug(
+                f"解析参数不成功，{e.msg} 源 [{bot.self_id}-{event.user_id}-{event.message_id}] - {event.get_plaintext()}"
+            )
+            await matcher.finish(f"{e.msg}")
+        except Exception as e:
+            logger.warning(
+                f"解析参数时异常，参数解析器解析错误 [{bot.self_id}-{event.user_id}-{event.message_id}] - {event.get_plaintext()}"
+            )
+            raise e
+        return argmatch_ins  # type: ignore
 
     return Depends(_depend)

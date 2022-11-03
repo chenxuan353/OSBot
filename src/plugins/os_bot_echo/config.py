@@ -22,8 +22,8 @@ class UtilSession(Session):
 
 
 __plugin_meta__ = PluginMetadata(
-    name="OSBot工具",
-    description="一些实用工具？",
+    name="echo",
+    description="OSBot Echo 说些什么",
     usage="""
         爪巴、ping、在吗 等命令用于测试
     """,

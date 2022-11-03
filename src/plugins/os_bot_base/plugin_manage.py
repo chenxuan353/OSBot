@@ -6,23 +6,25 @@
     当插件存在复杂逻辑时，完整的开关需要配合本插件管理器的`API`使用。
 """
 from functools import partial
+from json import load
 import math
+import random
 import textwrap
 from typing import Dict, List
 from nonebot.exception import IgnoredException
 from nonebot.adapters import Bot, Event
 from nonebot.message import run_preprocessor
 from nonebot.matcher import Matcher
-from nonebot.typing import T_State
 from nonebot.permission import SUPERUSER
 from nonebot import get_driver, get_loaded_plugins, on_command
 from .model.plugin_manage import PluginModel, PluginSwitchModel
-from .util import matcher_exception_try, match_suggest, only_command
+from .util import matcher_exception_try, match_suggest, only_command, plug_is_disable
+from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH
+from .depends import AdapterDepend, ArgMatchDepend
 from .exception import MatcherErrorFinsh
-from .adapter import AdapterFactory
+from .adapter import AdapterFactory, Adapter
 from .argmatch import ArgMatch, Field, PageArgMatch
 from .logger import logger
-from .consts import STATE_ARGMATCH, META_NO_MANAGE, STATE_ARGMATCH_RESULT, META_ADMIN_USAGE, META_AUTHOR_KEY
 
 on_command = partial(on_command, block=True)
 driver = get_driver()
@@ -37,7 +39,7 @@ async def plugin_manage_on_startup():
     cache_plugin_keys.clear()
     try:
         plugins = get_loaded_plugins()
-        await PluginModel.filter().all().update(enable=False)
+        await PluginModel.filter().all().update(load=False)
         for plugin in plugins:
             meta = plugin.metadata
             if meta and meta.extra.get(META_NO_MANAGE):
@@ -46,18 +48,21 @@ async def plugin_manage_on_startup():
                 continue
             plugModel, _ = await PluginModel.get_or_create(name=plugin.name)
             plugModel.module_name = plugin.module_name
-            plugModel.enable = True
+            plugModel.load = True
             if meta:
                 if meta.extra.get(META_AUTHOR_KEY) == "ChenXuan":
                     meta.usage = textwrap.dedent(meta.usage).strip()
                     if meta.extra.get(META_ADMIN_USAGE):
-                        meta.extra[META_ADMIN_USAGE] = textwrap.dedent(meta.extra[META_ADMIN_USAGE]).strip()
+                        meta.extra[META_ADMIN_USAGE] = textwrap.dedent(
+                            meta.extra[META_ADMIN_USAGE]).strip()
 
                 plugModel.display_name = meta.name
                 plugModel.des = meta.description
                 plugModel.usage = meta.usage
                 plugModel.admin_usage = meta.extra.get(META_ADMIN_USAGE)
                 plugModel.author = meta.extra.get(META_AUTHOR_KEY)
+                plugModel.default_switch = meta.extra.get(
+                    META_DEFAULT_SWITCH, True)
             if plugModel.display_name:
                 cache_plugin_key_map[plugModel.display_name] = plugModel.name
                 cache_plugin_keys.append(plugModel.display_name)
@@ -66,48 +71,6 @@ async def plugin_manage_on_startup():
             await plugModel.save()
     except Exception as e:
         logger.opt(exception=True).debug(f"执行插件管理-插件开关启动初始化时异常")
-        raise e
-
-
-async def is_disable(name: str, group_mark: str) -> bool:
-    """
-        用于获取指定插件是否被禁用
-
-        被禁用则返回`False`
-
-        - `name` 插件标识名
-        - `group_mark` 需要判断的组标识(一般通过`adapter.mark_group_without_drive(bot, event)`获取)
-    """
-    try:
-        plugModel = await PluginModel.get_or_none(name=name)
-        if not plugModel:
-            return False
-        if not plugModel.enable:
-            return True
-        plugSwitchModel = await PluginSwitchModel.get_or_none(
-            **{
-                "name": name,
-                "group_mark": group_mark
-            })
-        if not plugSwitchModel:
-            return False
-        if plugModel and plugModel.enable is not None:
-            if not plugModel.enable:
-                return True
-
-        if plugSwitchModel and plugSwitchModel.switch is not None:
-            if not plugSwitchModel.switch:
-                return True
-            else:
-                return False
-        if plugModel and plugModel.switch is not None:
-            if not plugModel.switch:
-                return True
-            else:
-                return False
-        return False
-    except Exception as e:
-        logger.opt(exception=True).debug(f"在检查{name} - {group_mark}是否被禁用时异常。")
         raise e
 
 
@@ -130,9 +93,9 @@ async def __run_preprocessor(bot: Bot, event: Event, matcher: Matcher):
         if not plugModel:
             logger.debug(f"开关预处理 `{bot.self_id}` `{plugin.name}` 插件缺失主记录")
             return
-        if not plugModel.enable:
+        if not plugModel.load:
             logger.warning(
-                f"开关预处理 `{bot.self_id}` `{plugin.name}` 插件缺失已禁用，但仍然在处理消息。")
+                f"开关预处理 `{bot.self_id}` `{plugin.name}` 插件缺失未加载，但仍然在处理消息。")
             raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件主记录)!")
         group_mark = await adapter.mark_group_without_drive(bot, event)
         plugSwitchModel = await PluginSwitchModel.get_or_none(
@@ -140,24 +103,20 @@ async def __run_preprocessor(bot: Bot, event: Event, matcher: Matcher):
                 "name": plugin.name,
                 "group_mark": group_mark
             })
-        if not plugSwitchModel:
-            logger.debug(f"开关预处理 `{bot.self_id}` `{plugin.name}` 插件无开关记录")
-            return
-        if plugModel and plugModel.enable is not None:
-            if not plugModel.enable:
-                raise IgnoredException(f"插件管理器已禁用`{plugin.name}`(插件全局)!")
+        if plugModel and not plugModel.switch:
+            raise IgnoredException(f"插件管理器已禁用`{plugin.name}`(插件全局)!")
 
-        if plugSwitchModel and plugSwitchModel.switch is not None:
-            if not plugSwitchModel.switch:
+        if plugSwitchModel:
+            if plugSwitchModel.switch:
+                logger.debug(
+                    f"插件管理器已放行`{plugin.name}`(组设置)! group={group_mark}")
+                return
+            else:
                 raise IgnoredException(
-                    f"插件管理器已限制`{plugin.name}`(群组默认值)! group={group_mark}")
-            else:
-                return
-        if plugModel and plugModel.switch is not None:
-            if not plugModel.switch:
-                raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)!")
-            else:
-                return
+                    f"插件管理器已限制`{plugin.name}`(组设置)! group={group_mark}")
+        if plugModel and not plugModel.default_switch:
+            raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)!")
+
     except IgnoredException as e:
         logger.debug(e.reason)
         raise e
@@ -177,8 +136,10 @@ class ManageArg(ArgMatch):
             "private": ["p", "private", "私聊", "好友", "私"],
         })  # type: ignore
     group_id: int = Field.Int("组ID", min=9999, max=99999999999)
-    plugin_name: str = Field.Keys("插件名称", cache_plugin_keys)
+    plugin_name: str = Field.Keys("插件名称",
+                                  keys_generate=lambda: cache_plugin_key_map)
     switch: bool = Field.Bool("状态", require=False)
+
     def __init__(self) -> None:
         super().__init__(
             [self.group_type, self.group_id, self.plugin_name,
@@ -191,8 +152,8 @@ class PlugArg(ArgMatch):
         name = "插件名参数"
         des = "匹配插件名"
 
-    plugin_name: str = Field.Keys(
-        "插件名称", keys_generate=lambda: cache_plugin_key_map)
+    plugin_name: str = Field.Keys("插件名称",
+                                  keys_generate=lambda: cache_plugin_key_map)
 
     def __init__(self) -> None:
         super().__init__([self.plugin_name])  # type: ignore
@@ -203,10 +164,10 @@ async def get_plugin_suggest(name: str) -> List[str]:
 
 
 async def get_plugin(name: str) -> PluginModel:
-    pluginModel = await PluginModel.get_or_none(name=name, enable=True)
+    pluginModel = await PluginModel.get_or_none(name=name, load=True)
     if pluginModel is None:
         pluginModel = await PluginModel.get_or_none(display_name=name,
-                                                    enable=True)
+                                                    load=True)
     if pluginModel is None:
         suggest = await get_plugin_suggest(name)
         if suggest:
@@ -215,25 +176,24 @@ async def get_plugin(name: str) -> PluginModel:
     return pluginModel
 
 
-manage = on_command("插件管理",
-                    aliases={
-                        "管理插件",
-                    },
-                    permission=SUPERUSER,
-                    state={STATE_ARGMATCH: ManageArg})
+manage = on_command("插件管理", aliases={
+    "管理插件",
+}, permission=SUPERUSER)
 
 
 @manage.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: ManageArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: ManageArg = ArgMatchDepend(ManageArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     adapter = AdapterFactory.get_adapter(bot)
     if arg.group_type == "group":
         group_nick = await adapter.get_group_nick(arg.group_id)
     else:
         group_nick = await adapter.get_unit_nick(arg.group_id)
-    mark = f"{await adapter.mark_drive(bot, event)}-{arg.group_type}-{arg.group_id}"
+    mark = f"{arg.group_type}-{arg.group_id}"
     entity = {"name": arg.plugin_name, "group_mark": mark}
     switchModel, _ = await PluginSwitchModel.get_or_create(**entity)
     if switchModel.switch == arg.switch:
@@ -248,100 +208,137 @@ async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
 
 
 disable_plug = on_command("全局禁用插件",
-                          aliases={"全局插件禁用", "全局关闭插件", ""},
-                          permission=SUPERUSER,
-                          state={STATE_ARGMATCH: PlugArg})
+                          aliases={"全局插件禁用", "全局关闭插件"},
+                          permission=SUPERUSER)
 
 
 @disable_plug.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: PlugArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher, bot: Bot,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     adapter = AdapterFactory.get_adapter(bot)
     if pluginModel.switch == False:
         await matcher.finish(f"{pluginModel.display_name}关得不能再关啦")
     pluginModel.switch = False
     await pluginModel.save()
-    await matcher.finish(f"{pluginModel.display_name}>完全禁止<")
+    await matcher.finish(f"{pluginModel.display_name} >完全禁止<")
 
 
 enable_plug = on_command("全局启用插件",
-                         aliases={"全局插件启用", "全局打开插件", ""},
-                         permission=SUPERUSER,
-                         state={STATE_ARGMATCH: PlugArg})
+                         aliases={"全局插件启用", "全局打开插件"},
+                         permission=SUPERUSER)
 
 
 @enable_plug.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: PlugArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher, bot: Bot,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     adapter = AdapterFactory.get_adapter(bot)
     if pluginModel.switch == True:
-        await matcher.finish(f"{pluginModel.display_name}")
+        await matcher.finish(f"{pluginModel.display_name}开过啦")
     pluginModel.switch = True
     await pluginModel.save()
-    await matcher.finish(f"{pluginModel.display_name}>完全禁止<")
+    await matcher.finish(f"{pluginModel.display_name} >已开启<")
+
+
+def_disable_plug = on_command("默认禁用插件",
+                              aliases={"默认插件禁用", "默认关闭插件"},
+                              permission=SUPERUSER)
+
+
+@def_disable_plug.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, bot: Bot,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
+    pluginModel = await get_plugin(arg.plugin_name)
+    adapter = AdapterFactory.get_adapter(bot)
+    if pluginModel.default_switch == False:
+        await matcher.finish(f"{pluginModel.display_name}默认就是关闭的哦！")
+    pluginModel.default_switch = False
+    await pluginModel.save()
+    await matcher.finish(f"{pluginModel.display_name} >默认禁止<")
+
+
+def_enable_plug = on_command("默认启用插件",
+                             aliases={"默认插件启用", "默认打开插件"},
+                             permission=SUPERUSER)
+
+
+@def_enable_plug.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, bot: Bot,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
+    pluginModel = await get_plugin(arg.plugin_name)
+    adapter = AdapterFactory.get_adapter(bot)
+    if pluginModel.default_switch == True:
+        await matcher.finish(f"{pluginModel.display_name}默认就是打开的哦！")
+    pluginModel.default_switch = True
+    await pluginModel.save()
+    await matcher.finish(f"{pluginModel.display_name} >默认启用<")
 
 
 disable_plug = on_command("禁用插件",
-                          aliases={"插件禁用", "关闭插件", ""},
-                          permission=SUPERUSER,
-                          state={STATE_ARGMATCH: PlugArg})
+                          aliases={"插件禁用", "关闭插件"},
+                          permission=SUPERUSER)
 
 
 @disable_plug.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: PlugArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     adapter = AdapterFactory.get_adapter(bot)
-    mark = await adapter.mark_group(bot, event)
+    mark = await adapter.mark_group_without_drive(bot, event)
     entity = {"name": arg.plugin_name, "group_mark": mark}
     switchModel, _ = await PluginSwitchModel.get_or_create(**entity)
     if switchModel.switch == False:
         await matcher.finish(f"{pluginModel.display_name}不能再关了…")
     switchModel.switch = False
     await switchModel.save()
-    await matcher.finish(f"已经关掉{pluginModel.display_name}咯！")
+    await matcher.finish(f"{pluginModel.display_name} >关闭<")
 
 
 enable_plug = on_command("启用插件",
-                         aliases={"插件启用", "打开插件", ""},
-                         permission=SUPERUSER,
-                         state={STATE_ARGMATCH: PlugArg})
+                         aliases={"插件启用", "打开插件"},
+                         permission=SUPERUSER)
 
 
 @enable_plug.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: PlugArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     if pluginModel.switch == False:
         await matcher.finish(f"{pluginModel.display_name}在哪里都不能用哦。")
     adapter = AdapterFactory.get_adapter(bot)
-    mark = await adapter.mark_group(bot, event)
+    mark = await adapter.mark_group_without_drive(bot, event)
     entity = {"name": arg.plugin_name, "group_mark": mark}
     switchModel, _ = await PluginSwitchModel.get_or_create(**entity)
     if switchModel.switch == True:
         await matcher.finish(f"{pluginModel.display_name}已经开了哦")
     switchModel.switch = True
     await switchModel.save()
-    await matcher.finish(f"{pluginModel.display_name}>启动<")
+    await matcher.finish(f"{pluginModel.display_name} >启动<")
 
 
-plug_list = on_command("插件列表",
-                       aliases={"pluglist", "功能列表"},
-                       state={STATE_ARGMATCH: PageArgMatch})
+plug_list = on_command("插件列表", aliases={"pluglist", "功能列表"})
 
 
 @plug_list.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, state: T_State):
-    arg: PageArgMatch = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
-    size = 10
-    count = await PluginModel.filter(enable=True).count()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            adapter: Adapter = AdapterDepend(),
+            arg: PageArgMatch = ArgMatchDepend(PageArgMatch)):
+    size = 5
+    count = await PluginModel.filter(load=True).count()
     maxpage = math.ceil(count / size)
 
     if maxpage == 0:
@@ -349,30 +346,29 @@ async def _(matcher: Matcher, state: T_State):
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
 
-    plugs = await PluginModel.filter(enable=True).offset(
+    plugs = await PluginModel.filter(load=True).offset(
         (arg.page - 1) * size).limit(size)
     msg = f"{arg.page}/{maxpage}"
     for plug in plugs:
-        status = "O"
-        if plug.switch is True:
-            status = "√"
-        if plug.switch is False:
-            status = "X"
-        msg += f"\n{plug.display_name or plug.name}[{status}] - {plug.des or '没有描述'}"
+        disable = await plug_is_disable(
+            plug.name, await adapter.mark_group_without_drive(bot, event))
+        msg += f"\n{plug.display_name or plug.name}[{'X' if disable else '√'}] - {plug.des or '没有描述'}"
     await matcher.finish(msg)
 
 
-admin_help = on_command(
+admin_plug_help = on_command(
     "管理员插件帮助",
-    aliases={"超管帮助", "超级管理员帮助", "超管功能", "超级管理员功能", "管理员功能帮助", "adminhelp"},
-    permission=SUPERUSER,
-    state={STATE_ARGMATCH: PlugArg})
+    aliases={"超管功能", "超级管理员功能", "管理员功能帮助", "adminplughelp"},
+    priority=3,
+    permission=SUPERUSER)
 
 
-@admin_help.handle()
+@admin_plug_help.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: PlugArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     try:
         adapter = AdapterFactory.get_adapter(bot)
@@ -395,15 +391,15 @@ async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
     await matcher.finish(f"{status}\n{pluginModel.admin_usage or '空空如也'}")
 
 
-plug_help = on_command("插件帮助",
-                       aliases={"plughelp", "功能帮助"},
-                       state={STATE_ARGMATCH: PlugArg})
+plug_help = on_command("插件帮助", aliases={"plughelp", "功能帮助"})
 
 
 @plug_help.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
-    arg: PlugArg = state.get(STATE_ARGMATCH_RESULT)  # type: ignore
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
     try:
         adapter = AdapterFactory.get_adapter(bot)
@@ -413,10 +409,14 @@ async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
                 "name": pluginModel.name,
                 "group_mark": group_mark
             })
-        status = "绝赞运转中>>"
+        status_msgs = ["绝赞运转中>>", "running...", "诸事顺利", "万事大吉"]
+        status = status_msgs[random.randint(0, len(status_msgs) - 1)]
         if plugSwitchModel:
             if plugSwitchModel.switch is False:
                 status = "关掉了呢，关掉了。"
+            else:
+                if not pluginModel.default_switch:
+                    status = "no running..."
         if pluginModel.switch is False:
             status = "啊……完全关掉了。"
     except Exception as e:
@@ -427,11 +427,11 @@ async def _(matcher: Matcher, bot: Bot, event: Event, state: T_State):
 
 
 help_msg = """
-OSBot
+OSBot v0.1beta
 大概能有点用吧（
 维护者：晨轩(3309003591)
 
-使用`功能列表 页码(可略)`及`功能帮助 插件名`来查看对应帮助
+使用`功能列表 页码(可略)`及`功能帮助 插件名`来查看帮助信息
 """.strip()
 
 help = on_command("帮助", aliases={
@@ -443,3 +443,26 @@ help = on_command("帮助", aliases={
 @matcher_exception_try()
 async def _(matcher: Matcher):
     await matcher.finish(help_msg)
+
+
+admin_help_msg = """
+OSBot v0.1beta
+
+使用`超管功能帮助 插件名`来查看超级管理员专属帮助（大部分插件应该都没有）
+可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理
+需要远程控制插件状态可以通过`插件管理 组标识 组ID 插件名称 状态`来远程设置
+通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
+通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
+""".strip()
+
+admin_help = on_command("管理员帮助",
+                        aliases={"超管帮助", "超级管理员帮助", "adminhelp"},
+                        priority=2,
+                        rule=only_command(),
+                        permission=SUPERUSER)
+
+
+@admin_help.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    await matcher.finish(admin_help_msg)

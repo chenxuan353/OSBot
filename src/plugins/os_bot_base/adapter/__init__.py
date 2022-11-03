@@ -6,7 +6,7 @@
 from typing import Dict, Type
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
-from .adapter import BaseAdapter
+from .adapter import Adapter
 from .onebot import V11Adapter
 from ..exception import AdapterException
 
@@ -17,10 +17,10 @@ class AdapterFactory:
 
         用于获取实例映射
     """
-    _ADAPTER_MAP: Dict[Type[Bot], Type[BaseAdapter]] = {V11Bot: V11Adapter}
+    _ADAPTER_MAP: Dict[Type[Bot], Type[Adapter]] = {V11Bot: V11Adapter}
 
     @classmethod
-    def get_adapter(cls, bot: Bot) -> BaseAdapter:
+    def get_adapter(cls, bot: Bot) -> Adapter:
         if bot.__class__ not in cls._ADAPTER_MAP:
             raise AdapterException(f"不兼容的适配类型{bot.__class__.__name__}")
         return cls._ADAPTER_MAP[bot.__class__].get_instance()

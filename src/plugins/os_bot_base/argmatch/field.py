@@ -57,6 +57,7 @@ class Field:
         "str": "字符串",
         "regex": "正则表达式",
         "keys": "关键词",
+        "relate_time": "相对时间",
         "custom": "自定义",
     }
 
@@ -236,9 +237,8 @@ class Field:
         """
             构造一个字符串类型参数匹配器
 
-            min 最小值 数值限定范围，字符串限制长度
-
-            max 最大值 数值限定范围，字符串限制长度
+            - `min` 最小值 数值限定范围，字符串限制长度
+            - `max` 最大值 数值限定范围，字符串限制长度
 
             具体可参见`class Field`构造器
         """
@@ -253,13 +253,13 @@ class Field:
                 t_msg = t_msg[1:-1]
                 t_msg = t_msg.replace("\\\"", "\"")
             if field._min is not None and length < field._min:
-                raise ValidationError(msg="{name} 参数最小长度为 " + f"{field._min}",
+                raise ValidationError(msg="{name}至少" + f"{field._min}个字符哦",
                                       field=field)
 
             if field._max is not None and length > field._max:
                 if strFlag or ProcessTool.isStrict(field, am) or tail.strip():
-                    raise ValidationError(msg="{name} 参数最大长度为 " +
-                                          f"{field._max}",
+                    raise ValidationError(msg="{name}最多" +
+                                          f"{field._max}个字符哦",
                                           field=field)
                 # 有长度限制且非严格模式，后续无参数的情况下则切分字符串
                 tail = t_msg[field._max:]
@@ -302,13 +302,13 @@ class Field:
                 # 非严格模式、后续参数为空、参数不以双引号包裹则尝试二次分离参数
                 result = re.match(regex, t_msg)
                 if not result:
-                    raise ValidationError(msg="{name} 参数正则不匹配！", field=field)
+                    raise ValidationError(msg="{name}正则不匹配！", field=field)
                 t_msg = msg[0:result.end()]
                 tail = msg[result.end():]
             else:
                 result = re.match(regex, t_msg)
                 if not result:
-                    raise ValidationError(msg="{name} 参数正则不匹配！", field=field)
+                    raise ValidationError(msg="{name}正则不匹配！", field=field)
             ProcessTool.setVal(t_msg, field, am)
             return tail
 
@@ -327,9 +327,8 @@ class Field:
         """
             构造一个整数型参数匹配器
 
-            min 最小值 限定范围，保证结果不小于min。
-
-            max 最大值 限定范围，保证结果不大于max。
+            - `min` 最小值 限定范围，保证结果不小于min。
+            - `max` 最大值 限定范围，保证结果不大于max。
 
             具体可参见`class Field`构造器
         """
@@ -337,26 +336,26 @@ class Field:
         def process(msg: str, field: "Field", am: "ArgMatch"):
             t_msg, tail = ProcessTool.splitArg(msg, field, am)
             if t_msg.startswith("\"") and t_msg.endswith("\""):
-                raise ValidationError(msg="{name} 参数必须为合法整数", field=field)
+                raise ValidationError(msg="{name}需要是整数哦", field=field)
             if not tail and not ProcessTool.isStrict(field, am):
                 # 非严格模式、后续参数为空、参数不以双引号包裹则尝试二次分离参数
                 # regex = u"""[0-9,]+\\.[0-9]*"""
                 regex = u"""(\\+|-)?[0-9,]+"""
                 result = re.match(regex, t_msg)
                 if not result:
-                    raise ValidationError(msg="{name} 参数必须为合法整数！", field=field)
+                    raise ValidationError(msg="{name}需要是整数哦", field=field)
                 tail = t_msg[result.end():]
                 t_msg = t_msg[0:result.end()]
             t_msg = t_msg.replace(",", "")
             try:
                 val = int(float(t_msg))
             except Exception:
-                raise ValidationError(msg="{name} 参数必须为合法整数", field=field)
+                raise ValidationError(msg="{name}需要是整数哦", field=field)
             if field._min is not None and val < field._min:
-                raise ValidationError(msg="{name} 参数需要大于 " + f"{field._min}",
+                raise ValidationError(msg="{name}太小啦，至少要大于" + f"{field._min}哦！",
                                       field=field)
             if field._max is not None and val > field._max:
-                raise ValidationError(msg="{name} 参数需要小于 " + f"{field._max}",
+                raise ValidationError(msg="{name}太大了，需要小于" + f"{field._max}哦！",
                                       field=field)
             ProcessTool.setVal(val, field, am)
             return tail
@@ -378,9 +377,8 @@ class Field:
         """
             构造一个数值型参数匹配器
 
-            min 最小值 数值限定范围，字符串限制长度
-
-            max 最大值 数值限定范围，字符串限制长度
+            - `min` 最小值 数值限定范围，字符串限制长度
+            - `max` 最大值 数值限定范围，字符串限制长度
 
             具体可参见`class Field`构造器
         """
@@ -388,25 +386,25 @@ class Field:
         def process(msg: str, field: "Field", am: "ArgMatch"):
             t_msg, tail = ProcessTool.splitArg(msg, field, am)
             if t_msg.startswith("\"") and t_msg.endswith("\""):
-                raise ValidationError(msg="{name} 参数必须为合法整数", field=field)
+                raise ValidationError(msg="{name}要是数值哦。", field=field)
             if not tail and not ProcessTool.isStrict(field, am):
                 # 非严格模式、后续参数为空、参数不以双引号包裹则尝试二次分离参数
                 regex = u"""(\\+|-)?([0-9,]+)?(\\.[0-9]*)?"""
                 # regex = u"""[0-9,]+"""
                 result = re.match(regex, t_msg)
                 if not result or result.end() == 0:
-                    raise ValidationError(msg="{name} 参数必须为合法数值！", field=field)
+                    raise ValidationError(msg="{name}要是数值哦。", field=field)
                 tail = t_msg[result.end():]
                 t_msg = t_msg[0:result.end()]
             try:
                 val = float(t_msg)
             except Exception:
-                raise ValidationError(msg="{name} 参数必须为合法数值", field=field)
+                raise ValidationError(msg="{name}要是数值哦。", field=field)
             if field._min is not None and val < field._min:
-                raise ValidationError(msg="{name} 参数需要大于 " + f"{field._min}",
+                raise ValidationError(msg="{name}太小啦，至少要大于" + f"{field._min}哦！",
                                       field=field)
             if field._max is not None and val > field._max:
-                raise ValidationError(msg="{name} 参数需要小于 " + f"{field._max}",
+                raise ValidationError(msg="{name}太大了，需要小于" + f"{field._max}哦！",
                                       field=field)
             ProcessTool.setVal(val, field, am)
             return tail
@@ -427,7 +425,7 @@ class Field:
         """
             构造一个布尔型参数匹配器
 
-            `keys`关键词字典或列表，用于映射关键词与对应值
+            - `keys`关键词字典或列表，用于映射关键词与对应值，默认使用内置参数
 
             具体可参见`class Field`构造器
         """
@@ -445,7 +443,7 @@ class Field:
 
         def process(msg: str, field: "Field", am: "ArgMatch"):
             for key in field._keys:
-                t_msg = msg
+                t_msg = msg.strip()
                 # 忽略大小写？
                 if "ignoreCase" in field.am_config and field.am_config[
                         "ignoreCase"]:
@@ -462,12 +460,213 @@ class Field:
                     if t_msg.startswith(key + am.Meta.separator):
                         return msg[len(key + am.Meta.separator):]
                     return msg[len(key):]
-            raise ValidationError(msg="{name} 无法转换为布尔类型", field=field)
+            raise ValidationError(msg="哦呀，{name}需要是开关值哦，是或否之类的。", field=field)
 
         return Field(name=name,
                      type="bool",
                      keys=keys,
                      process=process,
+                     default=default,
+                     **kws)  # type: ignore
+
+    @staticmethod
+    def RelateTime(name,
+                   min: Optional[int] = 0,
+                   max: Optional[int] = None,
+                   default: Optional[int] = None,
+                   **kws) -> "Field" and int:
+        """
+            相对时间解析器，返回单位为秒
+
+            - `keys`关键词字典或列表，用于映射关键词与对应值，默认使用内置参数
+            - `min`最小值，默认从0开始
+            - `max`最大值
+            - `errmsg`错误信息，此类型推荐覆盖
+
+            具体可参见`class Field`构造器
+        """
+        basic_regex = re.compile(u"[0-9〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰]+(y|year|年|mom|月|个月|d|day|天|h|hour|小时|时|m|min|分|分钟|s|sec|秒|秒钟)?")
+        convert_cndigit_regex = re.compile(
+            r'[〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰千仟万萬亿億兆]+')
+        time_parse_regex_y = re.compile(r'(-?[1-9][0-9]*)(?:y|year|年)')
+        time_parse_regex_month = re.compile(r'([1-9][0-9]*)(?:mom|月|个月)')
+        time_parse_regex_d = re.compile(r'(-?[1-9][0-9]*)(?:d|day|天)')
+        time_parse_regex_h = re.compile(r'(-?[1-9][0-9]*)(?:h|hour|小时|时)')
+        time_parse_regex_m = re.compile(r'(-?[1-9][0-9]*)(?:m|min|分|分钟)')
+        time_parse_regex_s = re.compile(r'(-?[1-9][0-9]*)(?:s|sec|秒|秒钟)')
+        time_parse_regex = re.compile(r'(-?[1-9][0-9]*)')
+
+        def convert_cndigit(s: str):
+            """
+                将字符串起始部分可能存在的中文数字转换为阿拉伯数字，并返回转换后的结果
+            """
+            CN_NUM = {
+                '〇': 0,
+                '一': 1,
+                '二': 2,
+                '三': 3,
+                '四': 4,
+                '五': 5,
+                '六': 6,
+                '七': 7,
+                '八': 8,
+                '九': 9,
+                '零': 0,
+                '壹': 1,
+                '贰': 2,
+                '叁': 3,
+                '肆': 4,
+                '伍': 5,
+                '陆': 6,
+                '柒': 7,
+                '捌': 8,
+                '玖': 9,
+                '貮': 2,
+                '两': 2,
+            }
+
+            CN_UNIT = {
+                '十': 10,
+                '拾': 10,
+                '百': 100,
+                '佰': 100,
+                '千': 1000,
+                '仟': 1000,
+                '万': 10000,
+                '萬': 10000,
+                '亿': 100000000,
+                '億': 100000000,
+                '兆': 1000000000000,
+            }
+
+            regex_result = convert_cndigit_regex.search(s.lstrip())
+            if regex_result:
+                wd_str = regex_result.group()
+            else:
+                return s
+            result = 0
+            result_list = []
+            unit = 0
+            control = 0
+            for i, d in enumerate(wd_str):
+                if d in '零百佰千仟万萬亿億兆〇' and i == 0:
+                    return s
+                if d in CN_NUM:  # 如果为单个数字直接赋值
+                    result += CN_NUM[d]
+                elif d in CN_UNIT:
+                    if unit == 0:
+                        unit_1 = CN_UNIT[d]
+                        # 这里的处理主要是考虑到类似于二十三亿五千万这种数
+                        if result == 0:
+                            result = CN_UNIT[d]
+                        else:
+                            result *= CN_UNIT[d]
+                        unit = CN_UNIT[d]
+                        result_1 = result
+                    elif unit > CN_UNIT[d]:
+                        result -= CN_NUM[wd_str[i - 1]]
+                        result += CN_NUM[wd_str[i - 1]] * CN_UNIT[d]
+                        unit = CN_UNIT[d]
+                    elif unit <= CN_UNIT[d]:
+                        if (CN_UNIT[d] < unit_1) and (len(result_list)  # type: ignore
+                                                      == control):
+                            result_list.append(result_1)  # type: ignore
+                            result = (result - result_1) * CN_UNIT[d]  # type: ignore
+                            control += 1
+                        else:
+                            result *= CN_UNIT[d]
+                        unit = CN_UNIT[d]
+                        # 处理二十三亿五千万和壹兆零六百二十三亿五千五百万五百这种数，及时截断
+                        if len(result_list) == control:
+                            unit_1 = unit
+                            result_1 = result
+                else:
+                    return s
+            return f"{sum(result_list) + result}{s.lstrip()[regex_result.span()[1]:]}"
+
+        def time_parse(s: str) -> int:
+            s = s.strip()
+            if not s:
+                return 0
+            if s == "永久":
+                return 0
+            if s == "半年":
+                return int(365 * 86400 / 2)
+            if s == "半个月":
+                return 86400 * 15
+            if s == "半天":
+                return 12 * 3600
+            if s == "半小时":
+                return 1800
+            if s == "半分钟":
+                return 30
+            s = convert_cndigit(s)
+            result = time_parse_regex_y.search(s)
+            if result:
+                num = int(result.group(1))
+                return num * 86400 * 365
+            result = time_parse_regex_month.search(s)
+            if result:
+                num = int(result.group(1))
+                return num * 86400 * 30
+            result = time_parse_regex_d.search(s)
+            if result:
+                num = int(result.group(1))
+                return num * 86400
+            result = time_parse_regex_h.search(s)
+            if result:
+                num = int(result.group(1))
+                return num * 3600
+            result = time_parse_regex_m.search(s)
+            if result:
+                num = int(result.group(1))
+                return num * 60
+            result = time_parse_regex_s.search(s)
+            if result:
+                num = int(result.group(1))
+                return num
+            result = time_parse_regex.search(s)
+            if result:
+                num = int(result.group(1))
+                return num
+            return 0
+
+        def process(msg: str, field: "Field", am: "ArgMatch"):
+            t_msg, tail = ProcessTool.splitArg(msg, field, am)
+            
+            result = basic_regex.search(t_msg.strip())
+            if not result:
+                raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)", field=field)
+
+            if ProcessTool.isStrict(field, am):
+                # 严格模式下禁止二次分离
+                if result.span()[1] != len(t_msg.strip()):
+                    raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)", field=field)
+            
+            if result.span()[1] != len(t_msg.lstrip()):
+                tail = t_msg[result.span()[1]:] + tail
+                t_msg = t_msg[:result.span()[1]]
+
+            t_msg = t_msg.strip()
+
+            try:
+                val = time_parse(t_msg)
+            except Exception:
+                raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)", field=field)
+            if field._min is not None and val < field._min:
+                raise ValidationError(msg="{name}太小啦，至少要大于" + f"{field._min}秒哦！",
+                                      field=field)
+            if field._max is not None and val > field._max:
+                raise ValidationError(msg="{name}太大了，需要小于" + f"{field._max}秒哦！",
+                                      field=field)
+            ProcessTool.setVal(val, field, am)
+            return tail
+
+        return Field(name=name,
+                     type="relate_time",
+                     process=process,
+                     min=min,
+                     max=max,
                      default=default,
                      **kws)  # type: ignore
 

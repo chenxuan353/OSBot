@@ -7,7 +7,9 @@
 
 持久化作用域Session、数据库统一维护、插件工具、插件管理(非侵入式)、插件帮助（基于插件元数据）、权限管理（侵入式）、数据缓存中心（昵称、群名片、群列表、成员列表、好友列表等）
 """
-from nonebot import get_driver
+from nonebot import get_driver, require
+
+require("nonebot_plugin_apscheduler")
 
 # 保证初始化
 from . import logger
@@ -16,18 +18,19 @@ from . import plugin_manage
 from . import session
 from . import cache
 from . import database
+from . import blacklist
 
 from .exception import BaseException, StoreException
 
 from .session import SessionManage, Session
 from .cache import OnebotCache
-from .adapter import AdapterFactory, AdapterException, BaseAdapter
+from .adapter import AdapterFactory, AdapterException, Adapter
 from .argmatch import ArgMatch, PageArgMatch, IntArgMatch, Field
-from .consts import META_ADMIN_USAGE, META_NO_MANAGE, META_AUTHOR_KEY, META_SESSION_KEY, STATE_ARGMATCH
+from .consts import META_ADMIN_USAGE, META_NO_MANAGE, META_AUTHOR_KEY, META_SESSION_KEY, META_DEFAULT_SWITCH
 from .database import DatabaseManage
-from .depends import ArgMatch as ArgMatchDepend, Session as SessionDepend, Adapter as AdapterDepend
-from .util import matcher_exception_try, match_suggest, only_command
-from .plugin_manage import is_disable as plug_is_disable
+from .depends import ArgMatchDepend, SessionDepend, AdapterDepend
+from .util import matcher_exception_try, match_suggest, only_command, plug_is_disable, message_to_str
+
 
 # 注入模型
 from . import model

@@ -1,31 +1,17 @@
 from typing import Optional
 from nonebot.adapters.onebot import v11
-from .adapter import BaseAdapter
+from .adapter import Adapter
 from ..exception import AdapterException
 from ..cache.onebot import OnebotCache
 
 
-class V11Adapter(BaseAdapter):
+class V11Adapter(Adapter):
 
     @classmethod
     def get_type(cls) -> str:
         return "ob11"
 
     async def mark(self, bot: v11.Bot, event: v11.Event) -> str:
-        """
-            获取事件的完整唯一标识
-
-            **标识说明**
-
-            驱动组标识-驱动标识-消息组父标识-消息组子标识-消息发送源父标识-消息发送源子标识
-
-            **例**
-
-            `ob11-123456-group-66543201-normal-65468248`
-
-            `ob11-123456-private-12345-system-12345`
-            ``
-        """
         if isinstance(event, v11.MetaEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}-subtype-{event.meta_event_type}"
         if isinstance(event, v11.RequestEvent):
@@ -43,19 +29,6 @@ class V11Adapter(BaseAdapter):
         )
 
     async def mark_group(self, bot: v11.Bot, event: v11.Event) -> str:
-        """
-            获取事件的组唯一标识
-
-            **标识说明**
-
-            驱动组标识-驱动标识-消息组父标识-消息组子标识
-
-            **例**
-
-            `ob11-123456-group-66543201`
-
-            `ob11-123456-private-12345`
-        """
         if isinstance(event, v11.MetaEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}"
         if isinstance(event, v11.RequestEvent):
@@ -64,7 +37,7 @@ class V11Adapter(BaseAdapter):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}"
         if isinstance(event, v11.MessageEvent):
             if isinstance(event, v11.PrivateMessageEvent):
-                return f"{self.type}-{bot.self_id}-private-{event.post_type}"
+                return f"{self.type}-{bot.self_id}-private-{event.user_id}"
             if isinstance(event, v11.GroupMessageEvent):
                 return f"{self.type}-{bot.self_id}-group-{event.group_id}"
 
@@ -72,32 +45,40 @@ class V11Adapter(BaseAdapter):
             f"onebot-v11适配器不支持的事件类型`{self.type}-{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
         )
 
-    async def mark_without_drive(self, bot: v11.Bot, event: v11.Event) -> str:
-        """
-            获取事件的完整唯一标识
-
-            **标识说明**
-
-            驱动组标识-驱动标识-消息组父标识-消息组子标识-消息发送源父标识-消息发送源子标识
-
-            **例**
-
-            `ob11-123456-group-66543201-normal-65468248`
-
-            `ob11-123456-private-12345-system-12345`
-            ``
-        """
-        if isinstance(event, v11.MetaEvent):
-            return f"event-{event.post_type}-subtype-{event.meta_event_type}"
-        if isinstance(event, v11.RequestEvent):
-            return f"event-{event.post_type}-subtype-{event.request_type}"
-        if isinstance(event, v11.NoticeEvent):
-            return f"event-{event.post_type}-subtype-{event.notice_type}"
+    async def mark_only_unit(self, bot: v11.Bot, event: v11.Event) -> str:
         if isinstance(event, v11.MessageEvent):
             if isinstance(event, v11.PrivateMessageEvent):
-                return f"private-{event.post_type}-{event.sub_type}-{event.user_id}"
+                return f"{self.type}-{bot.self_id}-global-unit-user-{event.user_id}"
             if isinstance(event, v11.GroupMessageEvent):
-                return f"group-{event.group_id}-{event.sub_type}-{event.user_id}"
+                return f"{self.type}-{bot.self_id}-global-unit-user-{event.user_id}"
+
+        raise AdapterException(
+            f"onebot-v11适配器不支持的事件类型`{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
+        )
+
+    async def mark_only_unit_without_drive(self, bot: v11.Bot, event: v11.Event) -> str:
+        if isinstance(event, v11.MessageEvent):
+            if isinstance(event, v11.PrivateMessageEvent):
+                return f"{self.type}-global-global-unit-user-{event.user_id}"
+            if isinstance(event, v11.GroupMessageEvent):
+                return f"{self.type}-global-global-unit-user-{event.user_id}"
+
+        raise AdapterException(
+            f"onebot-v11适配器不支持的事件类型`{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
+        )
+
+    async def mark_without_drive(self, bot: v11.Bot, event: v11.Event) -> str:
+        if isinstance(event, v11.MetaEvent):
+            return f"{self.type}-global-event-{event.post_type}-subtype-{event.meta_event_type}"
+        if isinstance(event, v11.RequestEvent):
+            return f"{self.type}-global-event-{event.post_type}-subtype-{event.request_type}"
+        if isinstance(event, v11.NoticeEvent):
+            return f"{self.type}-global-event-{event.post_type}-subtype-{event.notice_type}"
+        if isinstance(event, v11.MessageEvent):
+            if isinstance(event, v11.PrivateMessageEvent):
+                return f"{self.type}-global-private-{event.post_type}-{event.sub_type}-{event.user_id}"
+            if isinstance(event, v11.GroupMessageEvent):
+                return f"{self.type}-global-group-{event.group_id}-{event.sub_type}-{event.user_id}"
 
         raise AdapterException(
             f"onebot-v11适配器不支持的事件类型`{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
@@ -105,30 +86,17 @@ class V11Adapter(BaseAdapter):
 
     async def mark_group_without_drive(self, bot: v11.Bot,
                                        event: v11.Event) -> str:
-        """
-            获取事件的组唯一标识
-
-            **标识说明**
-
-            驱动组标识-驱动标识-消息组父标识-消息组子标识
-
-            **例**
-
-            `ob11-123456-group-66543201`
-
-            `ob11-123456-private-12345`
-        """
         if isinstance(event, v11.MetaEvent):
-            return f"event-{event.post_type}"
+            return f"{self.type}-global-event-{event.post_type}"
         if isinstance(event, v11.RequestEvent):
-            return f"event-{event.post_type}"
+            return f"{self.type}-global-event-{event.post_type}"
         if isinstance(event, v11.NoticeEvent):
-            return f"event-{event.post_type}"
+            return f"{self.type}-global-event-{event.post_type}"
         if isinstance(event, v11.MessageEvent):
             if isinstance(event, v11.PrivateMessageEvent):
-                return f"private-{event.post_type}"
+                return f"{self.type}-global-private-{event.user_id}"
             if isinstance(event, v11.GroupMessageEvent):
-                return f"group-{event.group_id}"
+                return f"{self.type}-global-group-{event.group_id}"
 
         raise AdapterException(
             f"onebot-v11适配器不支持的事件类型`{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
