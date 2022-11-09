@@ -18,8 +18,6 @@ from ..logger import logger
 from ..session import StoreSerializable, StoreEncoder
 from ..exception import InfoCacheException
 
-require("nonebot_plugin_apscheduler")
-
 from nonebot_plugin_apscheduler import scheduler
 
 driver = get_driver()
@@ -38,7 +36,7 @@ class BaseRecord(StoreSerializable):
         for key in self.__dict__:
             if key in merge_dict:
                 self.__dict__[key] = merge_dict[key]
-    
+
     def _serializable(self) -> Dict[str, Any]:
         """
             序列化对象，该方法在保存时自动调用（通过JSONEncode）
@@ -77,7 +75,8 @@ class BaseRecord(StoreSerializable):
     @classmethod
     def _load_from_dict(cls, self_dict: Dict[str, Any]) -> Self:
         if "id" in self_dict:
-            return cls(self_dict["id"])._init_from_dict(self_dict)  # type: ignore
+            return cls(self_dict["id"])._init_from_dict(  # type: ignore
+                self_dict)
         return cls()._init_from_dict(self_dict)
 
 
@@ -357,7 +356,6 @@ class OnebotCache:
         except Exception as e:
             logger.opt(exception=True).error(f"数据文件`{file_path}`写入异常。信息：{e}")
 
-
     def __read(self, key: str, Cls: Type[T_Record]) -> Dict[int, T_Record]:
         file_path = f"{self.file_base}_{key}.json"
         if not os.path.isfile(file_path):
@@ -376,7 +374,8 @@ class OnebotCache:
                 self.backup_file(key)
             except Exception as e:
                 now_e = e
-            logger.opt(exception=True).error(f"数据文件`{file_path}`读取异常。信息：{now_e}")
+            logger.opt(
+                exception=True).error(f"数据文件`{file_path}`读取异常。信息：{now_e}")
             return {}
 
     def save(self) -> None:
@@ -653,8 +652,8 @@ async def _(bot: BaseBot, api: str, data: Dict[str, Any]):
 
 
 @Bot.on_called_api
-async def _(bot: BaseBot, exception: Optional[Exception],
-                          api: str, data: Dict[str, Any], result: Any):
+async def _(bot: BaseBot, exception: Optional[Exception], api: str,
+            data: Dict[str, Any], result: Any):
     """
         API 请求后
     """
@@ -762,7 +761,7 @@ async def sessions_check_and_recycling():
 
 
 @scheduler.scheduled_job("interval", minutes=60)
-async def __refresh_login_info():
+async def _():
     for key in driver.bots:
         bot = driver.bots[key]
         if not isinstance(bot, Bot):
@@ -774,7 +773,7 @@ async def __refresh_login_info():
 
 
 @scheduler.scheduled_job("interval", minutes=20)
-async def __refresh_group_list():
+async def _():
     for key in driver.bots:
         bot = driver.bots[key]
         if not isinstance(bot, Bot):
@@ -786,7 +785,7 @@ async def __refresh_group_list():
 
 
 @scheduler.scheduled_job("interval", minutes=20)
-async def __refresh_friend_list():
+async def _():
     for key in driver.bots:
         bot = driver.bots[key]
         if not isinstance(bot, Bot):

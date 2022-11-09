@@ -3,8 +3,6 @@ from .session import Session
 from .consts import META_SESSION_KEY, META_AUTHOR_KEY, META_NO_MANAGE, META_ADMIN_USAGE
 from .config import Config
 
-
-
 __plugin_meta__ = PluginMetadata(
     name="OSBot核心",
     description="OSBot插件组的核心插件",

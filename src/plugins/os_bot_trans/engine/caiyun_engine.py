@@ -26,6 +26,7 @@ class CaiyunEngineError(EngineError):
 
 
 class CaiyunEngine(Engine):
+
     def __init__(self) -> None:
         super().__init__("彩云小译",
                          config.trans_caiyun_enable,

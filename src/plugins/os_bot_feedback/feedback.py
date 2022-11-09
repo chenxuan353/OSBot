@@ -81,7 +81,7 @@ async def _(matcher: Matcher,
     count = await Feedback.filter(deal=False).count()
     maxpage = math.ceil(count / size)
 
-    if maxpage == 0:
+    if count == 0:
         await matcher.finish(f"唔……什么也没有？")
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
@@ -106,7 +106,7 @@ async def _(matcher: Matcher,
     count = await Feedback.filter(deal=True).count()
     maxpage = math.ceil(count / size)
 
-    if maxpage == 0:
+    if count == 0:
         await matcher.finish(f"唔……什么也没有？")
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")

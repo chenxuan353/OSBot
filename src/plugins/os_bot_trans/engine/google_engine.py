@@ -4,11 +4,14 @@ import random
 from . import Engine, EngineError
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
+from ..exception import RatelimitException
+from ...os_bot_base.util import AsyncTokenBucket
 
 
 class Config(BaseSettings):
     # Your Config Here
     trans_google_enable: bool = Field(default=False)
+    trans_google_ratelimit: int = Field(default=1)
     trans_google_baseurl: str = Field(default="https://translate.google.cn")
 
     class Config:
@@ -27,6 +30,7 @@ class GoogleEngineError(EngineError):
 
 
 class GoogleEngine(Engine):
+
     def __init__(self) -> None:
         alllangs = [
             'af', 'sq', 'am', 'ar', 'hy', 'az', 'eu', 'be', 'bn', 'bs', 'bg',
@@ -48,6 +52,8 @@ class GoogleEngine(Engine):
         super().__init__("谷歌", config.trans_google_enable, allowDict, {},
                          ["google", "谷歌翻译"])
         self._trans_google_baseurl = config.trans_google_baseurl
+        self.bucket = AsyncTokenBucket(config.trans_google_ratelimit, 1, 0,
+                                       int(config.trans_google_ratelimit) or 1)
 
     @staticmethod
     def randUserAgent():
@@ -107,6 +113,8 @@ class GoogleEngine(Engine):
     async def trans(self, source: str, target: str, content: str) -> str:
         if not self.enable:
             raise EngineError("引擎未启用", replay="引擎未启用")
+        if not await self.bucket.wait_consume(1, 5):
+            raise RatelimitException("速率限制！")
         source = self.conversion_lang(source)
         target = self.conversion_lang(target)
         return await self.google_MachineTrans(content, source, target)

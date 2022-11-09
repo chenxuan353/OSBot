@@ -4,13 +4,10 @@
 from typing import Any, Dict, Optional, Set, Type
 import os
 from typing_extensions import Self
-from nonebot import get_driver
 from tortoise import Tortoise
 from tortoise.models import Model
 from .exception import BaseException
 from .config import config
-
-driver = get_driver()
 
 
 class DatabaseManage:

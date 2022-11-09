@@ -12,7 +12,7 @@ from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
 from nonebot.adapters.onebot import v11
 from .config import config, TransSession, StreamUnit
 from .logger import logger
-from .engine import Engine, langs as base_langs, EngineError
+from .engine import Engine, langs as base_langs, EngineError, deal_trans_text
 from .engine.caiyun_engine import CaiyunEngine
 from .engine.google_engine import GoogleEngine
 from .engine.tencent_engine import TencentEngine
@@ -87,9 +87,6 @@ class TransArgs(ArgMatch):
                           self.target])  # type: ignore
 
 
-http_match = re.compile(r'[http|https]*://[a-zA-Z0-9.?/&=:]*', re.S)
-
-
 async def trans_before_handle(source, target, text, deftarget="ja"):
     """
         在翻译之前对语言进行简单识别
@@ -98,8 +95,7 @@ async def trans_before_handle(source, target, text, deftarget="ja"):
     """
     if not config.trena_lang_optimize:
         return source, target, text
-    text = http_match.sub('', text)  # 移除网址
-    text = text.strip()  # 移除空白字符串
+    text = deal_trans_text(text)  # 处理字符串
     if not text:
         return source, target, text
     if source == 'auto' and target == 'zh-cn':

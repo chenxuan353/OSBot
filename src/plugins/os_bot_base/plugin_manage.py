@@ -5,18 +5,20 @@
 
     当插件存在复杂逻辑时，完整的开关需要配合本插件管理器的`API`使用。
 """
-from functools import partial
 from json import load
 import math
 import random
 import textwrap
 from typing import Dict, List
+from functools import partial
 from nonebot.exception import IgnoredException
 from nonebot.adapters import Bot, Event
 from nonebot.message import run_preprocessor
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot import get_driver, get_loaded_plugins, on_command
+from cacheout import LRUCache
+from cacheout.memoization import lru_memoize
 from .model.plugin_manage import PluginModel, PluginSwitchModel
 from .util import matcher_exception_try, match_suggest, only_command, plug_is_disable
 from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH
@@ -46,7 +48,9 @@ async def plugin_manage_on_startup():
                 continue
             if plugin.name == "nonebot_plugin_apscheduler":
                 continue
-            plugModel, _ = await PluginModel.get_or_create(name=plugin.name)
+            plugModel = await PluginModel.get_or_none(name=plugin.name)
+            if not plugModel:
+                plugModel = PluginModel(name=plugin.name)
             plugModel.module_name = plugin.module_name
             plugModel.load = True
             if meta:
@@ -61,8 +65,9 @@ async def plugin_manage_on_startup():
                 plugModel.usage = meta.usage
                 plugModel.admin_usage = meta.extra.get(META_ADMIN_USAGE)
                 plugModel.author = meta.extra.get(META_AUTHOR_KEY)
-                plugModel.default_switch = meta.extra.get(
-                    META_DEFAULT_SWITCH, True)
+                if plugModel.default_switch is None:
+                    plugModel.default_switch = meta.extra.get(
+                        META_DEFAULT_SWITCH, True)
             if plugModel.display_name:
                 cache_plugin_key_map[plugModel.display_name] = plugModel.name
                 cache_plugin_keys.append(plugModel.display_name)
@@ -74,8 +79,33 @@ async def plugin_manage_on_startup():
         raise e
 
 
+@lru_memoize(maxsize=128)
+async def _get_plug_model(name: str):
+    return await PluginModel.get_or_none(name=name)
+
+
+@lru_memoize(maxsize=1024)
+async def _get_plug_switch_model(name: str, group_mark: str):
+    return await PluginSwitchModel.get_or_none(**{
+        "name": name,
+        "group_mark": group_mark
+    })
+
+
+def plug_model_cache_clear():
+    """
+        清除插件管理的模型缓存
+
+        此插件已通过内存lrc_cache进行了简单缓存，故出现状态变更后需要刷新缓存。
+    """
+    cache: LRUCache = _get_plug_model.cache
+    cache.clear()
+    cache: LRUCache = _get_plug_switch_model.cache
+    cache.clear()
+
+
 @run_preprocessor
-async def __run_preprocessor(bot: Bot, event: Event, matcher: Matcher):
+async def _(bot: Bot, event: Event, matcher: Matcher):
     """
         这个钩子函数会在 NoneBot2 运行 matcher 前运行。
     """
@@ -89,7 +119,7 @@ async def __run_preprocessor(bot: Bot, event: Event, matcher: Matcher):
         return
     try:
         adapter = AdapterFactory.get_adapter(bot)
-        plugModel = await PluginModel.get_or_none(name=plugin.name)
+        plugModel = await _get_plug_model(plugin.name)
         if not plugModel:
             logger.debug(f"开关预处理 `{bot.self_id}` `{plugin.name}` 插件缺失主记录")
             return
@@ -98,11 +128,7 @@ async def __run_preprocessor(bot: Bot, event: Event, matcher: Matcher):
                 f"开关预处理 `{bot.self_id}` `{plugin.name}` 插件缺失未加载，但仍然在处理消息。")
             raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件主记录)!")
         group_mark = await adapter.mark_group_without_drive(bot, event)
-        plugSwitchModel = await PluginSwitchModel.get_or_none(
-            **{
-                "name": plugin.name,
-                "group_mark": group_mark
-            })
+        plugSwitchModel = await _get_plug_switch_model(plugin.name, group_mark)
         if plugModel and not plugModel.switch:
             raise IgnoredException(f"插件管理器已禁用`{plugin.name}`(插件全局)!")
 
@@ -117,6 +143,7 @@ async def __run_preprocessor(bot: Bot, event: Event, matcher: Matcher):
         if plugModel and not plugModel.default_switch:
             raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)!")
 
+        logger.debug(f"插件管理器已放行`{plugin.name}`(插件默认值)! group={group_mark}")
     except IgnoredException as e:
         logger.debug(e.reason)
         raise e
@@ -195,12 +222,15 @@ async def _(matcher: Matcher,
         group_nick = await adapter.get_unit_nick(arg.group_id)
     mark = f"{arg.group_type}-{arg.group_id}"
     entity = {"name": arg.plugin_name, "group_mark": mark}
-    switchModel, _ = await PluginSwitchModel.get_or_create(**entity)
-    if switchModel.switch == arg.switch:
+    switchModel = await PluginSwitchModel.get_or_none(**entity)
+    if not switchModel:
+        switchModel = PluginSwitchModel(**entity)
+    elif switchModel.switch == arg.switch:
         await matcher.finish(f"{group_nick}的{pluginModel.display_name}的状态没有变化哦"
                              )
     switchModel.switch = arg.switch
     await switchModel.save()
+    plug_model_cache_clear()
     if not switchModel.switch:
         await matcher.finish(f"已经关掉{group_nick}的{pluginModel.display_name}了~")
     else:
@@ -222,6 +252,7 @@ async def _(matcher: Matcher, bot: Bot,
         await matcher.finish(f"{pluginModel.display_name}关得不能再关啦")
     pluginModel.switch = False
     await pluginModel.save()
+    plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >完全禁止<")
 
 
@@ -240,6 +271,7 @@ async def _(matcher: Matcher, bot: Bot,
         await matcher.finish(f"{pluginModel.display_name}开过啦")
     pluginModel.switch = True
     await pluginModel.save()
+    plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >已开启<")
 
 
@@ -258,6 +290,7 @@ async def _(matcher: Matcher, bot: Bot,
         await matcher.finish(f"{pluginModel.display_name}默认就是关闭的哦！")
     pluginModel.default_switch = False
     await pluginModel.save()
+    plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >默认禁止<")
 
 
@@ -276,6 +309,7 @@ async def _(matcher: Matcher, bot: Bot,
         await matcher.finish(f"{pluginModel.display_name}默认就是打开的哦！")
     pluginModel.default_switch = True
     await pluginModel.save()
+    plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >默认启用<")
 
 
@@ -294,11 +328,14 @@ async def _(matcher: Matcher,
     adapter = AdapterFactory.get_adapter(bot)
     mark = await adapter.mark_group_without_drive(bot, event)
     entity = {"name": arg.plugin_name, "group_mark": mark}
-    switchModel, _ = await PluginSwitchModel.get_or_create(**entity)
-    if switchModel.switch == False:
+    switchModel = await PluginSwitchModel.get_or_none(**entity)
+    if not switchModel:
+        switchModel = PluginSwitchModel(**entity)
+    elif switchModel.switch == False:
         await matcher.finish(f"{pluginModel.display_name}不能再关了…")
     switchModel.switch = False
     await switchModel.save()
+    plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >关闭<")
 
 
@@ -319,11 +356,14 @@ async def _(matcher: Matcher,
     adapter = AdapterFactory.get_adapter(bot)
     mark = await adapter.mark_group_without_drive(bot, event)
     entity = {"name": arg.plugin_name, "group_mark": mark}
-    switchModel, _ = await PluginSwitchModel.get_or_create(**entity)
-    if switchModel.switch == True:
+    switchModel = await PluginSwitchModel.get_or_none(**entity)
+    if not switchModel:
+        switchModel = PluginSwitchModel(**entity)
+    elif switchModel.switch == True:
         await matcher.finish(f"{pluginModel.display_name}已经开了哦")
     switchModel.switch = True
     await switchModel.save()
+    plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >启动<")
 
 
@@ -341,7 +381,7 @@ async def _(matcher: Matcher,
     count = await PluginModel.filter(load=True).count()
     maxpage = math.ceil(count / size)
 
-    if maxpage == 0:
+    if count == 0:
         await matcher.finish(f"唔……什么也没有？")
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
@@ -454,6 +494,7 @@ OSBot v0.1beta
 需要远程控制插件状态可以通过`插件管理 组标识 组ID 插件名称 状态`来远程设置
 通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
 通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
+通过`还得是你`切换优先响应
 """.strip()
 
 admin_help = on_command("管理员帮助",

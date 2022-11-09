@@ -13,3 +13,6 @@ META_ADMIN_USAGE: str = "os_admin_usage"
 SESSION_SCOPE_PLUGIN: str = "plugin"
 
 BASE_PLUGIN_NAME: str = "OSBot核心"
+
+# state 里占用的键
+STATE_STATISTICE_DEAL: str = "os_bot_statistics_deal"

@@ -35,8 +35,7 @@ class PluginModel(Model):
     admin_usage: Optional[str] = fields.TextField(null=True,
                                                   description="管理员帮助")
     default_switch: Optional[bool] = fields.BooleanField(
-        description="默认开关, 决定插件开启时的默认状态", default=True,
-        null=True)  # type: ignore
+        description="默认开关, 决定插件开启时的默认状态", null=True)  # type: ignore
     switch: Optional[bool] = fields.BooleanField(description="全局开关，决定插件是否响应操作",
                                                  default=True,
                                                  null=True)  # type: ignore

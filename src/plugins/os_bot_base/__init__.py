@@ -19,6 +19,8 @@ from . import session
 from . import cache
 from . import database
 from . import blacklist
+from . import statistics
+from . import load_balancing
 
 from .exception import BaseException, StoreException
 
@@ -31,7 +33,6 @@ from .database import DatabaseManage
 from .depends import ArgMatchDepend, SessionDepend, AdapterDepend
 from .util import matcher_exception_try, match_suggest, only_command, plug_is_disable, message_to_str
 
-
 # 注入模型
 from . import model
 
@@ -40,7 +41,7 @@ driver = get_driver()
 
 
 @driver.on_startup
-async def __on_startup():
+async def _():
     from .plugin_manage import plugin_manage_on_startup
     # 初始化缓存
     OnebotCache.get_instance()
@@ -49,7 +50,7 @@ async def __on_startup():
 
 
 @driver.on_shutdown
-async def __on_shutdown():
+async def _():
     await DatabaseManage.get_instance()._close_()
 
 

@@ -37,4 +37,6 @@ async def _(matcher: Matcher, event: MessageEvent):
     if delay == 0:
         delay = ""
     finish_msgs = ('pang!', '咚!', "duang!", "哼!")
-    await matcher.finish(f"{finish_msgs[random.randint(0, len(finish_msgs) - 1)]}{delay}")
+    await matcher.finish(
+        f"{finish_msgs[random.randint(0, len(finish_msgs) - 1)]} {delay}".
+        strip())

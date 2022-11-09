@@ -5,11 +5,14 @@ from hashlib import md5
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
 from . import Engine, EngineError
+from ..exception import RatelimitException
+from ...os_bot_base.util import AsyncTokenBucket
 
 
 class Config(BaseSettings):
     # Your Config Here
     trans_baidu_enable: bool = Field(default=False)
+    trans_baidu_ratelimit: int = Field(default=1)
     trans_baidu_id: str = Field(default="")
     trans_baidu_secret: str = Field(default="")
 
@@ -29,6 +32,7 @@ class BaiduEngineError(EngineError):
 
 
 class BaiduEngine(Engine):
+
     def __init__(self) -> None:
         alllangs = [
             'zh-cn', 'zh-tw', 'zh-yue', 'zh-wyw', 'ja', "ko", "es", "fr", "th",
@@ -67,6 +71,8 @@ class BaiduEngine(Engine):
         self._secret_key = config.trans_baidu_secret
         if self.enable and (not self._secret_id or not self._secret_key):
             raise EngineError("请设置密钥后再启用此引擎！")
+        self.bucket = AsyncTokenBucket(config.trans_baidu_ratelimit, 1, 0,
+                                       int(config.trans_baidu_ratelimit) or 1)
 
     async def baidu_errcode(self, code):
         """
@@ -144,6 +150,8 @@ class BaiduEngine(Engine):
     async def trans(self, source: str, target: str, content: str) -> str:
         if not self.enable:
             raise EngineError("引擎未启用", replay="引擎未启用")
+        if not await self.bucket.wait_consume(1, 5):
+            raise RatelimitException("速率限制！")
         source = self.conversion_lang(source)
         target = self.conversion_lang(target)
         try:

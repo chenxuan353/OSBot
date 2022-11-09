@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import json
-import re
 import time
 import random
 import aiohttp
@@ -11,31 +10,15 @@ import base64
 from . import Engine, EngineError
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
-
-try:
-    # Wide UCS-4 build
-    emoji_regex = re.compile(u'['
-        u'\U0001F300-\U0001F64F'
-        u'\U0001F680-\U0001F6FF'
-        u'\u2600-\u2B55]+',
-        re.UNICODE)
-except re.error:
-    # Narrow UCS-2 build
-    emoji_regex = re.compile(u'('
-        u'\ud83c[\udf00-\udfff]|'
-        u'\ud83d[\udc00-\ude4f\ude80-\udeff]|'
-        u'[\u2600-\u2B55])+',
-        re.UNICODE)
-
-def filter_emoji(desstr, restr='') -> str:
-    # 过滤表情
-    return emoji_regex.sub(restr, desstr)
+from ..exception import RatelimitException
+from ...os_bot_base.util import AsyncTokenBucket
 
 
 class Config(BaseSettings):
     # Your Config Here
     trans_tencent_enable: bool = Field(default=False)
     trans_tencent_region: str = Field(default="ap-guangzhou")
+    trans_tencent_ratelimit: int = Field(default=5)
     trans_tencent_id: str = Field(default="")
     trans_tencent_key: str = Field(default="")
 
@@ -55,6 +38,7 @@ class TencentEngineError(EngineError):
 
 
 class TencentEngine(Engine):
+
     def __init__(self) -> None:
         super().__init__(
             name="腾讯",
@@ -99,6 +83,9 @@ class TencentEngine(Engine):
         self._secret_key = config.trans_tencent_key
         if self.enable and (not self._secret_id or not self._secret_key):
             raise EngineError("请设置密钥后再启用此引擎！")
+        self.bucket = AsyncTokenBucket(
+            config.trans_tencent_ratelimit, 1, 0,
+            int(config.trans_tencent_ratelimit) or 1)
 
     @staticmethod
     def tencentApiSign_V3_PostHeaders(secret_id: str, secret_key: str,
@@ -160,6 +147,7 @@ class TencentEngine(Engine):
     def tencentApiSign_V1_GetParams(secret_id: str, secret_key: str, host: str,
                                     action: str, version: str, region: str,
                                     params: dict):
+
         def get_string_to_sign(method, endpoint, params):
             s = method + endpoint + "/?"
             query_str = "&".join("%s=%s" % (k, params[k])
@@ -227,9 +215,10 @@ class TencentEngine(Engine):
     async def trans(self, source: str, target: str, content: str) -> str:
         if not self.enable:
             raise EngineError("引擎未启用", replay="引擎未启用")
+        if not await self.bucket.wait_consume(1, 5):
+            raise RatelimitException("速率限制！")
         source = self.conversion_lang(source)
         target = self.conversion_lang(target)
-        content = filter_emoji(content)  # 过滤emoji
         try:
             res = await self.tencent_TextTranslate(source,
                                                    target,

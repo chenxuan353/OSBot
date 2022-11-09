@@ -9,16 +9,17 @@ from dataclasses import dataclass, field
 from nonebot import on_command, get_bots
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
+from nonebot.adapters import Bot
 from nonebot.adapters.onebot import v11
 from nonebot.params import CommandArg
-from nonebot.exception import IgnoredException
+from nonebot.exception import IgnoredException, MockApiException
 from nonebot.message import event_preprocessor
 from .argmatch import ArgMatch, Field
 from .config import config
 from .session import Session, StoreSerializable
 from .logger import logger
 from .depends import SessionPluginDepend, ArgMatchDepend, OnebotCache, OBCacheDepend, Adapter, AdapterDepend
-from .util import matcher_exception_try, only_command
+from .util import matcher_exception_try, only_command, get_plugin_session
 
 
 @dataclass
@@ -382,3 +383,46 @@ async def _(bot: v11.Bot,
             f"已禁止群组{event.group_id}中当前用户{event.user_id}的任何操作(动态)[{event.self_id}]"
         )
         raise IgnoredException("")
+
+
+@Bot.on_calling_api
+async def _(bot: Bot, api: str, data: Dict[str, Any]):
+    """
+        API 请求前
+    """
+    if not isinstance(bot, v11.Bot):
+        return
+    ban_result = {
+        "status": "500",
+        "retcode": 500,
+        "msg": "此群组已禁用（hook）",
+        "wording": "此群组已禁用（hook）",
+    }
+    if data.get("group_id"):
+        session: BlackSession = get_plugin_session(
+            BlackSession)  # type: ignore
+        if data.get("group_id") in config.os_ob_black_group_list:
+            logger.info("尝试发起对被封禁群聊的操作（配置） {} -> {} | {}",
+                        data.get("group_id"), api, data)
+            raise MockApiException(ban_result)
+        safe_api = ('set_group_leave', 'get_group_info',
+                    'get_group_member_info', 'get_group_member_list',
+                    'get_group_honor_info')
+        if api not in safe_api and data.get(
+                "group_id") in session.ban_group_list:
+            logger.info("尝试发起对被封禁群聊的操作（动态） {} -> {} | {}",
+                        data.get("group_id"), api, data)
+            raise MockApiException(ban_result)
+    if data.get("user_id"):
+        session: BlackSession = get_plugin_session(
+            BlackSession)  # type: ignore
+        if data.get("user_id") in config.os_ob_black_user_list:
+            logger.info("尝试发起对被封禁用户的操作（配置） {} -> {} | {}",
+                        data.get("group_id"), api, data)
+            raise MockApiException(ban_result)
+        safe_api = ('set_group_kick')
+        if api not in safe_api and data.get(
+                "user_id") in session.ban_user_list:
+            logger.info("尝试发起对被封禁用户的操作（动态） {} -> {} | {}",
+                        data.get("group_id"), api, data)
+            raise MockApiException(ban_result)

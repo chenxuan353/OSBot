@@ -106,7 +106,7 @@ class UrgentNotice:
                 os.makedirs(self.base_path)
             except IOError as e:
                 raise InfoCacheException("目录创建失败！", e)
-        
+
         # 加载通知人
         self.load()
 
@@ -444,26 +444,25 @@ async def _(matcher: Matcher, event: v11.PrivateMessageEvent):
     await matcher.finish(msg)
 
 
-notify_send = on_command("发送紧急通知",
-                         block=True,
-                         permission=SUPERUSER)
+notify_send = on_command("发送紧急通知", block=True, permission=SUPERUSER)
 
 
 @notify_send.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, event: v11.PrivateMessageEvent, message: v11.Message = CommandArg()):
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = CommandArg()):
     await UrgentNotice.send(str(message))
     await matcher.finish("投递成功~")
 
 
-
-notify_send_group = on_command("发送紧急通知组",
-                         block=True,
-                         permission=SUPERUSER)
+notify_send_group = on_command("发送紧急通知组", block=True, permission=SUPERUSER)
 
 
 @notify_send_group.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, event: v11.PrivateMessageEvent, message: v11.Message = CommandArg()):
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = CommandArg()):
     await UrgentNotice.send_group(str(message))
     await matcher.finish("投递成功~")

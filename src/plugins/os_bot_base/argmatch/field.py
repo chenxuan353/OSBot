@@ -258,8 +258,7 @@ class Field:
 
             if field._max is not None and length > field._max:
                 if strFlag or ProcessTool.isStrict(field, am) or tail.strip():
-                    raise ValidationError(msg="{name}最多" +
-                                          f"{field._max}个字符哦",
+                    raise ValidationError(msg="{name}最多" + f"{field._max}个字符哦",
                                           field=field)
                 # 有长度限制且非严格模式，后续无参数的情况下则切分字符串
                 tail = t_msg[field._max:]
@@ -352,7 +351,8 @@ class Field:
             except Exception:
                 raise ValidationError(msg="{name}需要是整数哦", field=field)
             if field._min is not None and val < field._min:
-                raise ValidationError(msg="{name}太小啦，至少要大于" + f"{field._min}哦！",
+                raise ValidationError(msg="{name}太小啦，至少要大于" +
+                                      f"{field._min}哦！",
                                       field=field)
             if field._max is not None and val > field._max:
                 raise ValidationError(msg="{name}太大了，需要小于" + f"{field._max}哦！",
@@ -401,7 +401,8 @@ class Field:
             except Exception:
                 raise ValidationError(msg="{name}要是数值哦。", field=field)
             if field._min is not None and val < field._min:
-                raise ValidationError(msg="{name}太小啦，至少要大于" + f"{field._min}哦！",
+                raise ValidationError(msg="{name}太小啦，至少要大于" +
+                                      f"{field._min}哦！",
                                       field=field)
             if field._max is not None and val > field._max:
                 raise ValidationError(msg="{name}太大了，需要小于" + f"{field._max}哦！",
@@ -485,7 +486,9 @@ class Field:
 
             具体可参见`class Field`构造器
         """
-        basic_regex = re.compile(u"[0-9〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰]+(y|year|年|mom|月|个月|d|day|天|h|hour|小时|时|m|min|分|分钟|s|sec|秒|秒钟)?")
+        basic_regex = re.compile(
+            u"[0-9〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰]+(y|year|年|mom|月|个月|d|day|天|h|hour|小时|时|m|min|分|分钟|s|sec|秒|秒钟)?"
+        )
         convert_cndigit_regex = re.compile(
             r'[〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰千仟万萬亿億兆]+')
         time_parse_regex_y = re.compile(r'(-?[1-9][0-9]*)(?:y|year|年)')
@@ -568,10 +571,12 @@ class Field:
                         result += CN_NUM[wd_str[i - 1]] * CN_UNIT[d]
                         unit = CN_UNIT[d]
                     elif unit <= CN_UNIT[d]:
-                        if (CN_UNIT[d] < unit_1) and (len(result_list)  # type: ignore
+                        if (CN_UNIT[d] < unit_1) and (len(
+                                result_list)  # type: ignore
                                                       == control):
                             result_list.append(result_1)  # type: ignore
-                            result = (result - result_1) * CN_UNIT[d]  # type: ignore
+                            result = (result -
+                                      result_1) * CN_UNIT[d]  # type: ignore
                             control += 1
                         else:
                             result *= CN_UNIT[d]
@@ -601,31 +606,31 @@ class Field:
             if s == "半分钟":
                 return 30
             s = convert_cndigit(s)
-            result = time_parse_regex_y.search(s)
+            result = time_parse_regex_y.match(s)
             if result:
                 num = int(result.group(1))
                 return num * 86400 * 365
-            result = time_parse_regex_month.search(s)
+            result = time_parse_regex_month.match(s)
             if result:
                 num = int(result.group(1))
                 return num * 86400 * 30
-            result = time_parse_regex_d.search(s)
+            result = time_parse_regex_d.match(s)
             if result:
                 num = int(result.group(1))
                 return num * 86400
-            result = time_parse_regex_h.search(s)
+            result = time_parse_regex_h.match(s)
             if result:
                 num = int(result.group(1))
                 return num * 3600
-            result = time_parse_regex_m.search(s)
+            result = time_parse_regex_m.match(s)
             if result:
                 num = int(result.group(1))
                 return num * 60
-            result = time_parse_regex_s.search(s)
+            result = time_parse_regex_s.match(s)
             if result:
                 num = int(result.group(1))
                 return num
-            result = time_parse_regex.search(s)
+            result = time_parse_regex.match(s)
             if result:
                 num = int(result.group(1))
                 return num
@@ -633,16 +638,18 @@ class Field:
 
         def process(msg: str, field: "Field", am: "ArgMatch"):
             t_msg, tail = ProcessTool.splitArg(msg, field, am)
-            
+
             result = basic_regex.search(t_msg.strip())
             if not result:
-                raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)", field=field)
+                raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)",
+                                      field=field)
 
             if ProcessTool.isStrict(field, am):
                 # 严格模式下禁止二次分离
                 if result.span()[1] != len(t_msg.strip()):
-                    raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)", field=field)
-            
+                    raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)",
+                                          field=field)
+
             if result.span()[1] != len(t_msg.lstrip()):
                 tail = t_msg[result.span()[1]:] + tail
                 t_msg = t_msg[:result.span()[1]]
@@ -652,12 +659,15 @@ class Field:
             try:
                 val = time_parse(t_msg)
             except Exception:
-                raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)", field=field)
+                raise ValidationError(msg="{name}需要一个正常的时间描述哦(1天、一分钟等)",
+                                      field=field)
             if field._min is not None and val < field._min:
-                raise ValidationError(msg="{name}太小啦，至少要大于" + f"{field._min}秒哦！",
+                raise ValidationError(msg="{name}太小啦，至少要大于" +
+                                      f"{field._min}秒哦！",
                                       field=field)
             if field._max is not None and val > field._max:
-                raise ValidationError(msg="{name}太大了，需要小于" + f"{field._max}秒哦！",
+                raise ValidationError(msg="{name}太大了，需要小于" +
+                                      f"{field._max}秒哦！",
                                       field=field)
             ProcessTool.setVal(val, field, am)
             return tail

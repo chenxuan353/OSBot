@@ -1,4 +1,4 @@
-# BothBot
+# OSBot
 
 ## How to start
 

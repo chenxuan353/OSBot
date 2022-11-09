@@ -2,15 +2,13 @@ import difflib
 from typing import List, Tuple
 from functools import wraps
 from nonebot.matcher import Matcher
-from nonebot.adapters import Message
 from nonebot.adapters.onebot import v11
-from nonebot.params import CommandArg
 from nonebot.exception import NoneBotException
-from .exception import MatcherErrorFinsh
-from .argmatch import FieldMatchError
-from .logger import logger
-from .model import PluginModel, PluginSwitchModel
-from .cache import OnebotCache
+from ..exception import MatcherErrorFinsh
+from ..argmatch import FieldMatchError
+from ..logger import logger
+from ..plugin_manage import _get_plug_model, _get_plug_switch_model
+from ..cache import OnebotCache
 
 
 async def plug_is_disable(name: str, group_mark: str) -> bool:
@@ -23,16 +21,12 @@ async def plug_is_disable(name: str, group_mark: str) -> bool:
         - `group_mark` 需要判断的组标识(一般通过`adapter.mark_group_without_drive(bot, event)`获取)
     """
     try:
-        plugModel = await PluginModel.get_or_none(name=name)
+        plugModel = await _get_plug_model(name)
         if not plugModel:
             return False
         if not plugModel.load:
             return True
-        plugSwitchModel = await PluginSwitchModel.get_or_none(
-            **{
-                "name": name,
-                "group_mark": group_mark
-            })
+        plugSwitchModel = await _get_plug_switch_model(name, group_mark)
         if plugModel and not plugModel.switch:
             return True
 
@@ -56,7 +50,7 @@ def matcher_exception_try():
         @wraps(func)
         async def wrap(*args, **kws):
             try:
-                await func(*args, **kws)
+                return await func(*args, **kws)
             except NoneBotException as e:
                 raise e
             except FieldMatchError as e:
@@ -91,17 +85,6 @@ def match_suggest(strs: List[str],
     return [elem[0] for elem in matchs]
 
 
-def only_command():
-    """
-        匹配无参数命令
-    """
-
-    async def checker(msg: Message = CommandArg()) -> bool:
-        return not msg
-
-    return checker
-
-
 def message_to_str(message: v11.Message) -> str:
     msg_str = ""
     for msgseg in message:
@@ -114,3 +97,34 @@ def message_to_str(message: v11.Message) -> str:
         else:
             msg_str += f"[{msgseg.type}]"
     return msg_str
+
+
+def seconds_to_dhms(seconds: float) -> str:
+    """
+        秒 转 天、时、分、秒字符串
+    """
+
+    def _days(day):
+        return "{} 天 ".format(day)
+
+    def _hours(hour):
+        return "{} 时 ".format(hour)
+
+    def _minutes(minute):
+        return "{} 分 ".format(minute)
+
+    def _seconds(second):
+        return "{} 秒".format(second)
+
+    days = seconds // (3600 * 24)
+    hours = (seconds // 3600) % 24
+    minutes = (seconds // 60) % 60
+    seconds = seconds % 60
+    if days > 0:
+        return _days(days) + _hours(hours) + _minutes(minutes) + _seconds(
+            seconds)
+    if hours > 0:
+        return _hours(hours) + _minutes(minutes) + _seconds(seconds)
+    if minutes > 0:
+        return _minutes(minutes) + _seconds(seconds)
+    return _seconds(seconds)

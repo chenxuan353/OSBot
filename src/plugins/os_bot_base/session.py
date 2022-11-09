@@ -1,3 +1,4 @@
+from asyncio.log import logger
 import json
 import os
 from time import time
@@ -8,7 +9,6 @@ from nonebot_plugin_apscheduler import scheduler
 from .config import config
 from .exception import StoreException
 from .model.session import SessionModel
-
 
 
 class StoreSerializable:
@@ -84,6 +84,7 @@ class Session(StoreSerializable):
     > 原则上不允许覆盖内置键`key`、`data`等。
     > 长时间不进行调用的`Session`可能会被意外回收，需要持久使用时可以通过`with`语法延长生命周期。
     > 通过`with`调用将自动保存
+    > 被锁定的`Session`将不会自动保存
     """
 
     def __init__(self, *args, key: str = "default", **kws):
@@ -318,6 +319,7 @@ class SessionManage:
         for key in self.timeout_map:
             if now_time - self.timeout_map[key] > self.timeout:
                 if self.sessions[key]._keep:
+                    """持久化的`session`"""
                     await self._hook_session_activity(key)
                 else:
                     sessions.append(key)
@@ -387,6 +389,9 @@ class SessionManage:
         return cls.session_manage
 
 
-@scheduler.scheduled_job("interval", minutes=1)
+@scheduler.scheduled_job("interval", minutes=5)
 async def sessions_check_and_recycling():
+    sm = SessionManage.get_instance()
+    logger.debug("执行`Session`回收，当前：{}", len(sm.sessions))
     await SessionManage.get_instance()._sessions_check_and_recycling()
+    logger.debug("`Session`回收完毕，当前：{}", len(sm.sessions))

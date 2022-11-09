@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "BothBot"
+name = "OSBot"
 version = "0.1.0"
-description = "BothBot"
+description = "OSBot"
 authors = []
 readme = "README.md"
 

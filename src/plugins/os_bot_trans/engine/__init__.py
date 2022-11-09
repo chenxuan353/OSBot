@@ -1,8 +1,9 @@
 import abc
-from typing import Dict, List
+import re
+from typing import Dict, List, Optional
 from ..langs import langs
-from ..exception import EngineError  # noqa: E402,F401
-from loguru import logger  # noqa: E402,F401
+from ..exception import EngineError
+from loguru import logger
 
 BASE_LANGUAGE_LIST = langs
 
@@ -74,7 +75,8 @@ class Engine(abc.ABC):
         """
             检查源语言是否有效及源语言是否允许转换到目标语言
         """
-        return self.check_source_lang(source) and target in self._allow_dict[source]
+        return self.check_source_lang(
+            source) and target in self._allow_dict[source]
 
     def conversion_lang(self, lang: str) -> str:
         """
@@ -90,7 +92,7 @@ class Engine(abc.ABC):
     async def trans(self, source: str, target: str, content: str) -> str:
         raise NotImplementedError
 
-    def text_check(self, content: str) -> str:
+    def text_check(self, content: str) -> Optional[str]:
         """
             待翻译文本检查
             检查不通过返回不通过原因
@@ -114,3 +116,31 @@ class Engine(abc.ABC):
     @property
     def change_dict(self):
         return self._change_dict
+
+
+try:
+    # Wide UCS-4 build
+    emoji_regex = re.compile(
+        u'['
+        u'\U0001F300-\U0001F64F'
+        u'\U0001F680-\U0001F6FF'
+        u'\u2600-\u2B55]+', re.UNICODE)
+except re.error:
+    # Narrow UCS-2 build
+    emoji_regex = re.compile(
+        u'('
+        u'\ud83c[\udf00-\udfff]|'
+        u'\ud83d[\udc00-\ude4f\ude80-\udeff]|'
+        u'[\u2600-\u2B55])+', re.UNICODE)
+
+http_match = re.compile(r'[http|https]*://[a-zA-Z0-9.?/&=:]*', re.S)
+
+
+def deal_trans_text(text):
+    """
+        移除翻译字符串中可能影响翻译结果的内容。
+    """
+    text = http_match.sub('', text)  # 移除网址
+    text = text.strip()  # 移除空白字符串
+    text = emoji_regex.sub('', text)  # 移除emoji
+    return text

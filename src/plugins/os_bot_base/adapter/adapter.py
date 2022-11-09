@@ -17,6 +17,12 @@ class Adapter:
     def type(self) -> str:
         return self.get_type()
 
+    async def get_bot_id(self, bot: Bot, event: Event) -> str:
+        """
+            获取此驱动的bot唯一ID
+        """
+        raise NotImplementedError("need implemented function!")
+
     async def mark(self, bot: Bot, event: Event) -> str:
         """
             获取事件的完整唯一标识
@@ -65,7 +71,8 @@ class Adapter:
         """
         raise NotImplementedError("need implemented function!")
 
-    async def mark_only_unit_without_drive(self, bot: Bot, event: Event) -> str:
+    async def mark_only_unit_without_drive(self, bot: Bot,
+                                           event: Event) -> str:
         """
             获取事件的用户唯一标识
 

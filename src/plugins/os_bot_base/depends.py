@@ -25,14 +25,27 @@ def __session_check(matcher: Matcher) -> bool:
             not issubclass(plugin.metadata.extra[META_SESSION_KEY], Session))
 
 
-async def __session_get(mark: str, matcher: Matcher, SessionType: Optional[Type[Session]]) -> Optional[Session]:
+async def get_session(mark: str, SessionType: Type[Session],
+                      plugin_name: str) -> Session:
+    """
+        获取基于插件`SessionType`的`Session`
+
+        通过`mark`参数指定作用域
+    """
+    sm = SessionManage.get_instance()
+    domain = SessionType.domain() or plugin_name
+    return await sm.get(mark, domain, SessionType)
+
+
+async def __session_get(mark: str, matcher: Matcher,
+                        SessionType: Optional[Type[Session]]) -> Session:
     """
         获取基于插件`SessionType`的`Session`
 
         通过`mark`参数指定作用域
     """
     if not __session_check(matcher):
-        return None
+        return None  # type: ignore
     assert matcher.plugin
     plugin: Plugin = matcher.plugin
     assert plugin.metadata
@@ -52,8 +65,9 @@ def SessionDepend(SessionType: Optional[Type[Session]] = None) -> Any:
 
     async def _depend(bot: Bot, matcher: Matcher, event: Event):
         adapter = AdapterFactory.get_adapter(bot)
-        return await __session_get(await adapter.mark_group(bot, event),
-                                   matcher, SessionType)
+        return await __session_get(
+            await adapter.mark_group_without_drive(bot, event), matcher,
+            SessionType)
 
     return Depends(_depend)
 
@@ -65,7 +79,8 @@ def SessionUnitDepend(SessionType: Optional[Type[Session]] = None) -> Any:
 
     async def _depend(bot: Bot, matcher: Matcher, event: Event) -> Any:
         adapter = AdapterFactory.get_adapter(bot)
-        return await __session_get(await adapter.mark(bot, event), matcher, SessionType)
+        return await __session_get(
+            await adapter.mark_without_drive(bot, event), matcher, SessionType)
 
     return Depends(_depend)
 
@@ -83,15 +98,19 @@ def SessionDriveDepend(SessionType: Type[Session]) -> Any:
     return Depends(_depend)
 
 
+async def get_plugin_session(SessionType: Type[Session]):
+    sm = SessionManage.get_instance()
+    domain = SessionType.domain() or SessionType.__module__
+    return await sm.get(SESSION_SCOPE_PLUGIN, domain, SessionType)
+
+
 def SessionPluginDepend(SessionType: Type[Session]) -> Any:
     """
         获取当前插件`session`
     """
 
     async def _depend() -> Any:
-        sm = SessionManage.get_instance()
-        domain = SessionType.domain() or SessionType.__module__
-        return await sm.get(SESSION_SCOPE_PLUGIN, domain, SessionType)
+        return await get_plugin_session(SessionType)
 
     return Depends(_depend)
 

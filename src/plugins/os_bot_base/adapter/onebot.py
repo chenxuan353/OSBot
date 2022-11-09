@@ -11,6 +11,9 @@ class V11Adapter(Adapter):
     def get_type(cls) -> str:
         return "ob11"
 
+    async def get_bot_id(self, bot: v11.Bot, event: v11.Event) -> str:
+        return bot.self_id
+
     async def mark(self, bot: v11.Bot, event: v11.Event) -> str:
         if isinstance(event, v11.MetaEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}-subtype-{event.meta_event_type}"
@@ -56,7 +59,8 @@ class V11Adapter(Adapter):
             f"onebot-v11适配器不支持的事件类型`{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
         )
 
-    async def mark_only_unit_without_drive(self, bot: v11.Bot, event: v11.Event) -> str:
+    async def mark_only_unit_without_drive(self, bot: v11.Bot,
+                                           event: v11.Event) -> str:
         if isinstance(event, v11.MessageEvent):
             if isinstance(event, v11.PrivateMessageEvent):
                 return f"{self.type}-global-global-unit-user-{event.user_id}"
