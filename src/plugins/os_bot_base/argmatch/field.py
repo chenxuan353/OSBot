@@ -571,8 +571,8 @@ class Field:
                         result += CN_NUM[wd_str[i - 1]] * CN_UNIT[d]
                         unit = CN_UNIT[d]
                     elif unit <= CN_UNIT[d]:
-                        if (CN_UNIT[d] < unit_1) and (len(
-                                result_list)  # type: ignore
+                        if (CN_UNIT[d] < unit_1) and (len(  # type: ignore
+                                result_list)
                                                       == control):
                             result_list.append(result_1)  # type: ignore
                             result = (result -
