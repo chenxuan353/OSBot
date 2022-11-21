@@ -14,10 +14,10 @@ class Config(BaseSettings):
     
 
 __plugin_meta__ = PluginMetadata(
-    name="echo",
-    description="OSBot Echo 说些什么",
+    name="订阅管理",
+    description="OSBot 订阅管理 支持订阅RSSHub、B站、油管",
     usage="""
-        爪巴、ping、在吗 等命令用于测试
+        本功能仅允许管理员进行操作
     """,
     config=Config,
     extra={
@@ -25,3 +25,7 @@ __plugin_meta__ = PluginMetadata(
         META_ADMIN_USAGE: "什么都没有~",  # 管理员可以获取的帮助
     },
 )
+
+
+global_config = get_driver().config
+config = Config(**global_config.dict())

@@ -22,6 +22,7 @@ class Config(BaseSettings):
         - `os_ob_black_eachother_group` 连接到此后端的bot群消息互相屏蔽
         - `os_ob_black_user_list` onebot协议用户黑名单列表
         - `os_ob_black_group_list` onebot协议群组黑名单列表
+        - `os_ob_notice_disconnect` onebot协议连接断开通知
     """
     SUPERUSERS: List[Union[int, str]] = Field(default=[])
 
@@ -35,6 +36,7 @@ class Config(BaseSettings):
     os_ob_black_tmp: bool = Field(default=True)
     os_ob_black_user_list: List[int] = Field(default=[])
     os_ob_black_group_list: List[int] = Field(default=[])
+    os_ob_notice_disconnect: bool = Field(default=True)
 
     class Config:
         extra = "ignore"

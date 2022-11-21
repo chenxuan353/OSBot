@@ -52,7 +52,8 @@ class TwitterTweetModel(Model):
     auto: bool = fields.BooleanField(description="是否来自自动更新")  # type: ignore
     """来自自动更新的数据？(自动更新的数据被认为时效性更佳)"""
     trans: bool = fields.BooleanField(default=False,
-                                      description="是否人工翻译")  # type: ignore
+                                      description="是否包含人工翻译")  # type: ignore
+    relate_trans: fields.ReverseRelation["TwitterTransModel"]
     """被烤过的推文将置为True"""
     possibly_sensitive: bool = fields.BooleanField(
         index=True, null=False, description="是否敏感")  # type: ignore
@@ -234,6 +235,8 @@ class TwitterSubscribeModel(Model):
         default=False, description="转评推送")  # type: ignore
     update_replay: bool = fields.BooleanField(
         default=False, description="回复推送")  # type: ignore
+    update_name: bool = fields.BooleanField(
+        default=False, description="昵称更新推送")  # type: ignore
     update_description: bool = fields.BooleanField(
         default=False, description="描述更新推送")  # type: ignore
     update_profile: bool = fields.BooleanField(
@@ -246,7 +249,7 @@ class TwitterSubscribeModel(Model):
                                                  description="创建时间")
 
 
-class TwitterTrans(Model):
+class TwitterTransModel(Model):
 
     class Meta:
         table = "os_twitter_trans"
@@ -256,9 +259,18 @@ class TwitterTrans(Model):
     group_mark: str = fields.CharField(index=True,
                                        max_length=255,
                                        description="组掩码标识")
-    subscribe: str = fields.CharField(index=True,
+    subscribe: Optional[str] = fields.CharField(index=True,
+                                      null=True,
                                       max_length=255,
-                                      description="关联的订阅用户ID")
+                                      description="关联的订阅用户")
+    username: str = fields.CharField(index=True,
+                                      null=True,
+                                      max_length=255,
+                                      description="关联用户名")
+    tweet_id: str
+    tweet: fields.ForeignKeyRelation[TwitterTweetModel] = fields.ForeignKeyField(
+        f"models.TwitterTweetModel", null=True, related_name="relate_trans",db_constraint=False, index=True, description="关联的推文ID"
+    )
     drive_mark: str = fields.CharField(index=True,
                                        max_length=255,
                                        description="驱动标识")
@@ -271,12 +283,9 @@ class TwitterTrans(Model):
     user_id: str = fields.CharField(index=True,
                                     max_length=255,
                                     description="产生此操作的用户ID")
-    trans_text: Optional[str] = fields.TextField(null=True,
-                                                 description="推文的翻译")
+    trans_text: str = fields.TextField(description="推文的翻译")
     file_name: str = fields.CharField(max_length=255,
                                       description="关联文件名,可能因自动清理失效。")
-    invalid: bool = fields.BooleanField(
-        default=False, description="已失效(可能的原因-自动清理)")  # type: ignore
     create_time: datetime = fields.DatetimeField(auto_now_add=True,
                                                  description="创建时间")
 

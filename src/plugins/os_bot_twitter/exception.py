@@ -1,6 +1,6 @@
 from typing import Optional
 from ..os_bot_base.exception import BaseException as OS_BaseException
-from ..os_bot_base.exception import MatcherErrorFinsh
+from ..os_bot_base.exception import MatcherErrorFinsh, QueueFullException
 
 
 class BaseException(OS_BaseException):
@@ -40,4 +40,10 @@ class TwitterDatabaseException(BaseException):
         数据库异常
 
         出现此异常可能意味着需要暂时停止推送服务
+    """
+
+
+class TransException(MatcherErrorFinsh):
+    """
+        烤推异常
     """

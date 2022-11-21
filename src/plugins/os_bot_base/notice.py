@@ -3,7 +3,7 @@ import json
 import os
 import random
 from typing_extensions import Self
-from nonebot import get_bots, on_command
+from nonebot import get_bots, on_command, get_driver
 from nonebot.params import CommandArg
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
@@ -13,7 +13,11 @@ from .config import config
 from .logger import logger
 from .cache.onebot import OnebotCache
 from .exception import InfoCacheException
+from .cache import OnebotCache
 from .util import matcher_exception_try, only_command
+
+
+driver = get_driver()
 
 
 class BotSend:
@@ -261,6 +265,16 @@ class UrgentNotice:
     def load(self) -> None:
         self.onebot_notify = self.__read("onebot")
         self.onebot_group_notify = self.__read("onebot_group")
+
+
+@driver.on_bot_disconnect
+async def _(bot: v11.Bot):
+    # bot断开提醒
+    if config.os_ob_notice_disconnect:
+        nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
+        name = f"{nick}({bot.self_id})"
+        finish_msgs = [f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"]
+        await UrgentNotice.send(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
 notify_clear = on_command("清空紧急通知列表",

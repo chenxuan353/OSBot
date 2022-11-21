@@ -61,11 +61,11 @@ class TwitterUpdate:
     client: "AsyncTwitterClient"
 
     def __init__(self) -> None:
-        self.ignore_new_time = 600
+        self.ignore_new_time = 4*3600
         """
             推文创建多长时间后忽略新增事件，单位秒
         """
-        self.ignore_update_time = 600
+        self.ignore_update_time = 86400
         """
             推文创建多长时间后忽略更新事件，单位秒
         """
@@ -340,7 +340,8 @@ class AsyncTwitterClient:
             old_model = tweet_model.clone(tweet_model.pk)
         # 数据更新
         tweet_model.auto = auto
-        tweet_model.possibly_sensitive = tweet.possibly_sensitive
+        if tweet_model.possibly_sensitive:
+            tweet_model.possibly_sensitive = tweet.possibly_sensitive
         if tweet.public_metrics:
             public_metrics: Dict[str, int] = tweet.public_metrics
             tweet_model.retweet_count = public_metrics.get(

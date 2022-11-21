@@ -20,7 +20,7 @@ from . import cache
 from . import database
 from . import blacklist
 from . import statistics
-from . import load_balancing
+from . import failover
 
 from .exception import BaseException, StoreException
 

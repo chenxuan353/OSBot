@@ -1,9 +1,9 @@
 """
-    负载均衡
+    故障转移
 
     当前仅支持 Onebot适配器
 
-    当一个群存在多个Bot时，负载均衡将生效。
+    当一个群存在多个Bot时，故障转移将生效。
     当消息到来时智能指定处理对象（仅群聊）
 
     忽略事件规则
@@ -100,7 +100,7 @@ async def _(
                 bots = get_bots()
                 if bots.get(priority.bot_id):
                     raise IgnoredException(
-                        f"因负载均衡的优先设置 {drive_mask}-{group_mask} 的响应被禁止了")
+                        f"因故障转移的优先设置 {drive_mask}-{group_mask} 的响应被禁止了")
 
         priority = session._auto_priority_map.get(group_mask)
         if priority:
@@ -113,7 +113,7 @@ async def _(
                 bots = get_bots()
                 if bots.get(priority.bot_id):
                     raise IgnoredException(
-                        f"因负载均衡自动设置 {drive_mask}-{group_mask} 的响应被禁止了")
+                        f"因故障转移自动设置 {drive_mask}-{group_mask} 的响应被禁止了")
         # 放行后注册优先连接
         session._auto_priority_map[group_mask] = PriorityUnit(
             drive_mask=drive_mask,
@@ -124,7 +124,7 @@ async def _(
         logger.debug(e.reason)
         raise e
     except Exception:
-        logger.opt(exception=True).error("负载均衡未知异常")
+        logger.opt(exception=True).error("故障转移未知异常")
 
 
 class BalanceArg(ArgMatch):

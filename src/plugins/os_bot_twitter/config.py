@@ -1,3 +1,4 @@
+import os
 from typing import TYPE_CHECKING, Any, Dict, List
 from typing_extensions import Self
 from pydantic import BaseSettings, Field
@@ -36,12 +37,27 @@ class Config(BaseSettings):
 
         可以获取写权限的APP，使用本插件附带的实用程序可生成其它用户的密钥对。
     """
-
     os_twitter_access_token_secret: str
     """用户密钥"""
-
     os_twitter_trans_engine: str = Field(default="")
     """推文机翻引擎，只有配置此项才会启用机翻"""
+
+    os_data_path: str = Field(default=os.path.join(".", "data"))
+    """数据目录"""
+    os_twitter_trans_proxy: str = Field(default="")
+    """烤推使用的代理"""
+    os_twitter_trans_timeout: int = Field(default=15)
+    """烤推超时时间，单位秒"""
+    os_twitter_trans_script: str = Field(default=os.path.join(".", "twitter_trans_script.js"))
+    """烤推使用的脚本路径"""
+    os_twitter_trans_debug: bool = Field(default=False)
+    """烤推的调试，开启后可以看到实时烤推界面（需要服务器图形化支持）"""
+    os_twitter_trans_task_limit: bool = Field(default=10)
+    """烤推任务数限制"""
+    os_twitter_trans_concurrent_limit: bool = Field(default=2)
+    """烤推并发处理限制"""
+    os_twitter_trans_image_proxy: str = Field(default="")
+    """烤推的图片代理，最终会拼接为 proxy/filename"""
 
     class Config:
         extra = "ignore"
@@ -94,6 +110,11 @@ class TwitterSession(Session):
     """推文序号"""
     tweet_map: Dict[str, str]
     """推文映射"""
+    default_template: str
+    """默认模版"""
+    template_map: Dict[str, str]
+    """模版映射"""
+
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
@@ -101,6 +122,8 @@ class TwitterSession(Session):
         self.ban_users = []
         self.num = 1
         self.tweet_map = {}
+        self.default_template = "翻译自日语"
+        self.template_map = {}
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
@@ -118,7 +141,7 @@ __plugin_meta__ = PluginMetadata(
     extra={
         META_AUTHOR_KEY: "ChenXuan",
         META_ADMIN_USAGE: """
-            通过`订阅推特 用户名 [选项]`、`取消推特订阅 用户名`、`订阅配置 用户名 [选项]`、`推特订阅列表`来管理订阅
+            通过`订阅推特 用户名 [选项]`、`取消推特订阅 用户名`、`订阅配置 用户名 [选项]`、`推特订阅列表`、`全局推特订阅列表`、`移除/添加转推黑名单`、`转推黑名单列表`来管理订阅
         """,  # 管理员可以获取的帮助
         META_SESSION_KEY: TwitterSession
     },
