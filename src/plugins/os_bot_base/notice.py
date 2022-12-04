@@ -4,18 +4,19 @@ import os
 import random
 from typing_extensions import Self
 from nonebot import get_bots, on_command, get_driver
+from nonebot.adapters import Bot, Event
 from nonebot.params import CommandArg
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from .config import config
 from .logger import logger
 from .cache.onebot import OnebotCache
-from .exception import InfoCacheException
+from .exception import InfoCacheException, MatcherErrorFinsh
 from .cache import OnebotCache
 from .util import matcher_exception_try, only_command
-
+from .adapter import V11Adapter
 
 driver = get_driver()
 
@@ -28,10 +29,54 @@ class BotSend:
     """
 
     @staticmethod
+    async def pkg_send_params(bot: Bot, event: Event) -> Dict[str, Any]:
+        """
+            封装发送参数（保证参数可以正常序列化）
+
+            可以在推送通知时使用
+
+            不支持的类型会报错 MatcherErrorFinsh("不支持的事件类型")
+        """
+        if isinstance(bot, v11.Bot):
+            if isinstance(event, v11.GroupMessageEvent):
+                return {"group_id": event.group_id}
+            elif isinstance(event, v11.PrivateMessageEvent):
+                return {"user_id": event.user_id}
+            else:
+                raise MatcherErrorFinsh("不支持的事件类型")
+        else:
+            raise MatcherErrorFinsh("不支持的驱动器")
+
+    @classmethod
+    async def send_msg(cls, bot_type: str, send_params: Dict[str, Any],
+                       msg: Any) -> bool:
+        """
+            尽力发送消息，失败返回False
+
+            bot_type 适配器type
+
+            send_params 发送参数
+
+            msg 待发送的数据
+        """
+        if bot_type == V11Adapter.type:
+            if "user_id" in send_params:
+                return await cls.ob_send_private_msg(send_params["user_id"],
+                                                     msg)
+            elif "group_id" in send_params:
+                return await BotSend.ob_send_group_msg(send_params["group_id"],
+                                                       msg)
+            else:
+                logger.warning("{} 消息通知不支持的参数 {}", bot_type, send_params)
+                return False
+        logger.warning("消息通知不支持的Bot类型 {} 参数 {}", bot_type, send_params)
+        return False
+
+    @staticmethod
     async def ob_send_private_msg(uid: int, msg: Union["v11.Message",
                                                        str]) -> bool:
         """
-            尽力发送一条私聊消息
+            尽力发送一条私聊消息，失败返回False
         """
         uid = int(uid)
         bots = get_bots()
@@ -61,7 +106,7 @@ class BotSend:
     async def ob_send_group_msg(gid: int, msg: Union["v11.Message",
                                                      str]) -> bool:
         """
-            尽力发送一条群聊消息
+            尽力发送一条群聊消息，失败返回False
         """
         gid = int(gid)
         bots = get_bots()
@@ -274,7 +319,9 @@ async def _(bot: v11.Bot):
         nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
         name = f"{nick}({bot.self_id})"
         finish_msgs = [f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"]
-        await UrgentNotice.send(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+        await UrgentNotice.send(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
 
 
 notify_clear = on_command("清空紧急通知列表",

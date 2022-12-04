@@ -28,6 +28,7 @@ from ..os_bot_base.util import matcher_exception_try, only_command
 from ..os_bot_base.depends import SessionPluginDepend, SessionDepend
 from ..os_bot_base.depends import Adapter, AdapterDepend, ArgMatchDepend
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
+from ..os_bot_base.notice import BotSend
 
 driver = get_driver()
 twitterTransManage = TwitterTransManage()
@@ -157,7 +158,7 @@ def deal_subscribe_option(
         elif option.startswith("-"):
             option = option[1:]
             if option in options_map:
-                setattr(subscribe_option, options_map[option], True)
+                setattr(subscribe_option, options_map[option], False)
 
     return subscribe_option
 
@@ -216,12 +217,9 @@ async def _(matcher: Matcher,
     subscribe.drive_mark = await adapter.mark_drive(bot, event)
     subscribe.bot_type = adapter.type
     subscribe.bot_id = await adapter.get_bot_id(bot, event)
-    if isinstance(event, v11.GroupMessageEvent):
-        subscribe.send_param = {"group_id": event.group_id}
-    elif isinstance(event, v11.PrivateMessageEvent):
-        subscribe.send_param = {"user_id": event.user_id}
-    else:
-        await matcher.finish("不支持的事件类型")
+
+    subscribe.send_param = await BotSend.pkg_send_params(bot, event)
+
     option = arg.tail.strip()
     if not option:
         option = "+通用"

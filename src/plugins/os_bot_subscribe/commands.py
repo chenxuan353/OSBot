@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 from nonebot import on_command
 from nonebot.adapters import Bot
 from nonebot.matcher import Matcher
@@ -13,6 +13,7 @@ from .model import SubscribeModel
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
 from ..os_bot_base.util import matcher_exception_try
 from ..os_bot_base.depends import ArgMatchDepend, AdapterDepend, Adapter
+from ..os_bot_base.notice import BotSend
 
 
 class ChannelArg(ArgMatch):
@@ -48,12 +49,11 @@ async def _(matcher: Matcher,
     subscribe_arg = arg.subscribe.strip()
     channel: Optional[Channel] = arg.channel
     option_str: str = arg.tail.strip()
-    options: Dict[str, Union[str, int, bool]] = {}
+    subscribe_state: Dict[str, Any] = {}
     if not channel:
         # 没有匹配到频道时尝试遍历取得
         for match_channel in channel_factory.channels:
-            options = {}
-            if match_channel.precheck(subscribe_arg, option_str, options, await match_channel.get_session()):
+            if await match_channel.precheck(subscribe_arg, option_str, subscribe_state, await match_channel.get_session()):
                 channel = match_channel
                 break
 
@@ -62,8 +62,7 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-
-    subscribe = channel.deal(subscribe_arg, option_str, options, await channel.get_session())
+    subscribe = await channel.deal_subscribe(subscribe_arg, subscribe_state, await channel.get_session())
     group_mark = await adapter.mark_group_without_drive(bot, event)
     subscribe_model = await SubscribeModel.get_or_none(
         group_mark=group_mark,
@@ -83,17 +82,13 @@ async def _(matcher: Matcher,
     subscribe_model.channel_subtype = channel.channel_subtype
     subscribe_model.channel_id = channel.channel_id
     subscribe_model.subscribe = subscribe
-    subscribe_model.options = options
     subscribe_model.drive_mark = await adapter.mark_drive(bot, event)
     subscribe_model.bot_type = bot.type
     subscribe_model.bot_id = bot.self_id
+    subscribe_model.options = {}
+    subscribe_model.options = channel.deal_options(subscribe_model, option_str, await channel.get_session())
 
-    if isinstance(event, v11.GroupMessageEvent):
-        subscribe_model.send_param = {"group_id": event.group_id}
-    elif isinstance(event, v11.PrivateMessageEvent):
-        subscribe_model.send_param = {"user_id": event.user_id}
-    else:
-        await matcher.finish("不支持的事件类型")
+    subscribe_model.send_param = await BotSend.pkg_send_params(bot, event)
 
     await subscribe_model.save()
     finish_msgs = ["订阅成功~", "成功啦", "好，已经加入订阅啦。"]
@@ -117,12 +112,12 @@ async def _(matcher: Matcher,
     subscribe_arg = arg.subscribe.strip()
     channel: Optional[Channel] = arg.channel
     option_str: str = arg.tail.strip()
-    options: Dict[str, Union[str, int, bool]] = {}
+    subscribe_state: Dict[str, Any] = {}
     if not channel:
         # 没有匹配到频道时尝试遍历取得
         for match_channel in channel_factory.channels:
             options = {}
-            if match_channel.precheck(subscribe_arg, option_str, options, await match_channel.get_session()):
+            if await match_channel.precheck(subscribe_arg, option_str, subscribe_state, await match_channel.get_session()):
                 channel = match_channel
                 break
 
@@ -132,7 +127,7 @@ async def _(matcher: Matcher,
             0,
             len(finish_msgs) - 1)])
 
-    subscribe = channel.deal(subscribe_arg, option_str, options, await channel.get_session())
+    subscribe = await channel.deal_subscribe(subscribe_arg, subscribe_state, await channel.get_session())
     group_mark = await adapter.mark_group_without_drive(bot, event)
     subscribe_model = await SubscribeModel.get_or_none(
         group_mark=group_mark,
@@ -149,6 +144,61 @@ async def _(matcher: Matcher,
     await subscribe_model.delete()
 
     finish_msgs = ["取消工作完成啦", "已取消订阅", "从订阅中移除啦"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+subscribe_settings = on_command(
+    "订阅配置",
+    aliases={"配置订阅"},
+    block=True,
+    permission=SUPERUSER,
+)
+
+
+@subscribe_settings.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            arg: ChannelArg = ArgMatchDepend(ChannelArg),
+            adapter: Adapter = AdapterDepend()):
+    subscribe_arg = arg.subscribe.strip()
+    channel: Optional[Channel] = arg.channel
+    option_str: str = arg.tail.strip()
+    subscribe_state: Dict[str, Any] = {}
+    if not channel:
+        # 没有匹配到频道时尝试遍历取得
+        for match_channel in channel_factory.channels:
+            options = {}
+            if await match_channel.precheck(subscribe_arg, option_str, subscribe_state, await match_channel.get_session()):
+                channel = match_channel
+                break
+
+    if not channel:
+        finish_msgs = ["不确定要订阅什么哦！", "频道的确定是必要的！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+
+    subscribe = await channel.deal_subscribe(subscribe_arg, subscribe_state, await channel.get_session())
+    group_mark = await adapter.mark_group_without_drive(bot, event)
+    subscribe_model = await SubscribeModel.get_or_none(
+        group_mark=group_mark,
+        channel_type=channel.channel_type,
+        channel_subtype=channel.channel_subtype,
+        channel_id=channel.channel_id,
+        subscribe=subscribe)
+    if not subscribe_model:
+        finish_msgs = ["订阅不存在", "没有这个订阅哦"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+
+    subscribe_model.options = channel.update_options(subscribe_model, option_str, await channel.get_session())
+
+    await subscribe_model.save()
+
+    finish_msgs = ["已更新~", "更新成功啦", "配置完成！"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
@@ -186,7 +236,10 @@ async def _(matcher: Matcher,
     for model in models:
         channel = channel_factory.channel_name_map[model.channel_id]
         info = channel.get_subscribe_info(model.subscribe, await channel.get_session())
-        msg += f"\n{model.id} | {info.title} | {channel.options_to_string(model.options, await channel.get_session())}"
+        if info:
+            msg += f"\n{model.id} | {info.title} | {channel.options_to_string(model.options, await channel.get_session())}"
+        else:
+            msg += f"\n{model.id} | - | {channel.options_to_string(model.options, await channel.get_session())}"
 
     await matcher.finish(msg)
 
@@ -221,6 +274,9 @@ async def _(matcher: Matcher,
     for model in models:
         channel = channel_factory.channel_name_map[model.channel_id]
         info = channel.get_subscribe_info(model.subscribe, await channel.get_session())
-        msg += f"\n{channel.name} | {model.subscribe} | {info.title}"
+        if info:
+            msg += f"\n{channel.name} | {model.subscribe} | {info.title}"
+        else:
+            msg += f"\n{channel.name} | {model.subscribe} | -"
 
     await matcher.finish(msg)

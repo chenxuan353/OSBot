@@ -5,4 +5,4 @@
 """
 from . import config
 from . import polling
-from .channel import *
+from .subchannel import *

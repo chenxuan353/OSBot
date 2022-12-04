@@ -11,8 +11,10 @@ class ChannelFactory:
     def __init__(self) -> None:
         self.channels: List[Channel] = []
         """注册的频道列表"""
+        self.channel_type_map: Dict[str, Dict[str, Channel]] = {}
+        """Type注册表 type->subtype->Channel"""
         self.channel_name_map: Dict[str, Channel] = {}
-        """注册表"""
+        """ID注册表"""
         self.channel_alias_map: Dict[str, Channel] = {}
         """别名注册表"""
 
@@ -33,7 +35,13 @@ class ChannelFactory:
             raise BaseException(f"无法映射重名频道 {channel.channel_id}")
 
         self.channels.append(channel)
+
         self.channel_name_map[channel.channel_id] = channel
+
+        if channel.channel_type not in self.channel_type_map:
+            self.channel_type_map[channel.channel_type] = {}
+        self.channel_type_map[channel.channel_type][
+            channel.channel_subtype] = channel
 
         for name in channel.aliases:
             if self.channel_alias_map.get(name, None):
@@ -45,7 +53,15 @@ class ChannelFactory:
 
     def get(self, name: str) -> Channel:
         return self.channel_alias_map[name]
-    
+
+    def get_by_type(self, channel_type: str) -> Dict[str, Channel]:
+        return self.channel_type_map.get(channel_type, {})
+
+    def get_by_full_type(self, channel_type: str,
+                         channel_subtype: str) -> Optional[Channel]:
+        tc = self.channel_type_map.get(channel_type, {})
+        return tc.get(channel_subtype, None)
+
     def get_map(self) -> Dict[str, Channel]:
         return self.channel_alias_map
 

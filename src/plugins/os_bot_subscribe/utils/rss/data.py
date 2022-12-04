@@ -14,7 +14,8 @@ class RssChannelData:
     source_subtype: str = field(default="")  # 数据来源子标识(例如：bilibili)
     receive_timestamp: int = field(default=0)  # 收到数据的时间戳(ms)
 
-    updated: int = field(default=0)  # rss标准里数据发布的时间
+    updated: int = field(default=0)
+    """rss标准里数据发布的时间"""
     generator: str = field(default="")  # rss标准里的数据生成器
 
     title_full: str = field(default="")  # rss标准里的频道标题
@@ -37,7 +38,8 @@ class RssItemData:
 
     guid: str = field(default="")  # rss标准里表达数据包唯一的guid
     link: str = field(default="")  # rss标准需要展示的url
-    published: int = field(default=0)  # rss标准里数据发布的时间(ms)
+    published: int = field(default=0)
+    """rss标准里数据发布的时间(ms)"""
 
     title_full: str = field(default="")  # rss标准里的标题
     author_full: str = field(default="")  # rss标准里的作者

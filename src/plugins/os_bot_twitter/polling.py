@@ -3,7 +3,7 @@
 """
 import asyncio
 import re
-from time import strftime, time
+from time import time
 from typing import Any, Dict, List, Optional, Union
 from nonebot import get_driver
 from nonebot.adapters.onebot import v11
@@ -25,8 +25,9 @@ driver = get_driver()
 
 @memoize(maxsize=1)
 async def _model_get_listeners() -> List[str]:
-    return await TwitterSubscribeModel.all().only("subscribe").distinct().values_list(
-        "subscribe", flat=True)  # type: ignore
+    return await TwitterSubscribeModel.all().only(
+        "subscribe").distinct().values_list("subscribe",
+                                            flat=True)  # type: ignore
 
 
 @memoize(maxsize=1)
@@ -62,7 +63,7 @@ class PollTwitterUpdate(TwitterUpdate):
     client: AsyncTwitterClient
 
     def __init__(self) -> None:
-        self.ignore_new_time = 4*3600
+        self.ignore_new_time = 4 * 3600
         """推文创建多长时间后忽略新增事件，单位秒"""
         self.ignore_update_time = 86400
         """推文创建多长时间后忽略更新事件，单位秒"""
@@ -78,21 +79,10 @@ class PollTwitterUpdate(TwitterUpdate):
 
     async def push_message(self, subscribe: TwitterSubscribeModel,
                            message: Union[str, v11.Message]):
-        if subscribe.bot_type == V11Adapter.type:
-            if "user_id" in subscribe.send_param:
-                if not await BotSend.ob_send_private_msg(
-                        subscribe.send_param["user_id"], message):
-                    raise TwitterPollingSendError("消息发送失败")
-            elif "group_id" in subscribe.send_param:
-                if not await BotSend.ob_send_group_msg(
-                        subscribe.send_param["group_id"], message):
-                    raise TwitterPollingSendError("消息发送失败")
-            else:
-                logger.warning("消息推送不支持的发送参数 相关订阅 {}", subscribe.id)
-                return
-        logger.warning("消息推送不支持的Bot类型 {} (相关订阅 {})", subscribe.bot_type,
-                       subscribe.id)
-        raise TwitterPollingSendError("消息发送失败")
+        if await BotSend.send_msg(subscribe.bot_type, subscribe.send_param,
+                                  message):
+            return
+        raise TwitterPollingSendError(f"订阅消息发送失败(相关订阅 {subscribe.id})")
 
     async def user_to_message(self, user: TwitterUserModel, bot_type: str):
         """
@@ -216,8 +206,10 @@ class PollTwitterUpdate(TwitterUpdate):
                 logger.debug("暂未支持的推送适配器 {} 推文 {} ", bot_type, tweet.id)
         return msg
 
-    async def push_tweet_message(self, subscribe: TwitterSubscribeModel,
-                                 tweet: TwitterTweetModel, only_add_failure: bool = False):
+    async def push_tweet_message(self,
+                                 subscribe: TwitterSubscribeModel,
+                                 tweet: TwitterTweetModel,
+                                 only_add_failure: bool = False):
         if not await plug_is_disable("os_bot_twitter", subscribe.group_mark):
             logger.info("因组 {} 的推特插件被关闭，转推消息推送取消。(相关订阅 {})",
                         subscribe.group_mark, subscribe.id)
@@ -345,7 +337,8 @@ class PollTwitterUpdate(TwitterUpdate):
             创建也包含出现完整性转换的推文(minor_data修正为False)。
         """
         now_time = time()
-        is_timeout = now_time - tweet.created_at.timestamp() > self.ignore_new_time
+        is_timeout = now_time - tweet.created_at.timestamp(
+        ) > self.ignore_new_time
         if is_timeout:
             logger.debug("推文创建：{}@{} | {} -> {}", tweet.author_name,
                          tweet.author_username, tweet.id, tweet.display_text)
@@ -361,13 +354,21 @@ class PollTwitterUpdate(TwitterUpdate):
 
         for listener in main_listeners:
             if tweet.type == TweetTypeEnum.tweet:
-                await self.push_tweet_message(listener, tweet, only_add_failure=is_timeout)
+                await self.push_tweet_message(listener,
+                                              tweet,
+                                              only_add_failure=is_timeout)
             elif tweet.type == TweetTypeEnum.retweet and listener.update_retweet:
-                await self.push_tweet_message(listener, tweet, only_add_failure=is_timeout)
+                await self.push_tweet_message(listener,
+                                              tweet,
+                                              only_add_failure=is_timeout)
             elif tweet.type == TweetTypeEnum.quote and listener.update_quote:
-                await self.push_tweet_message(listener, tweet, only_add_failure=is_timeout)
+                await self.push_tweet_message(listener,
+                                              tweet,
+                                              only_add_failure=is_timeout)
             elif tweet.type == TweetTypeEnum.replay and listener.update_replay:
-                await self.push_tweet_message(listener, tweet, only_add_failure=is_timeout)
+                await self.push_tweet_message(listener,
+                                              tweet,
+                                              only_add_failure=is_timeout)
             else:
                 logger.warning("意外的推文类型({})：{}", tweet.id, tweet.type)
 
@@ -389,7 +390,9 @@ class PollTwitterUpdate(TwitterUpdate):
             listeners = listeners_map.get(user_id, [])
             for listener in listeners:
                 if listener.update_mention:
-                    await self.push_tweet_message(listener, tweet, only_add_failure=is_timeout)
+                    await self.push_tweet_message(listener,
+                                                  tweet,
+                                                  only_add_failure=is_timeout)
 
     async def tweet_update(self, tweet: TwitterTweetModel,
                            old_tweet: Optional[TwitterTweetModel]):
@@ -424,7 +427,8 @@ class PollTwitterUpdate(TwitterUpdate):
             update_type = "昵称"
             old_val = old_user.name
             new_val = user.name
-            logger.debug("用户昵称更新 @{} [{}] | {} -> {}", user.username, user.id, old_val, new_val)
+            logger.debug("用户昵称更新 @{} [{}] | {} -> {}", user.username, user.id,
+                         old_val, new_val)
             update_types.append((update_type, old_val, new_val))
         if old_user.profile_image_url is not None and old_user.profile_image_url != user.profile_image_url:
             update_type = "头像"
@@ -469,7 +473,8 @@ class PollTwitterUpdate(TwitterUpdate):
                 elif update_type_tuple[0] == "头像" and listener.update_profile:
                     await self.push_user_message(listener, user,
                                                  *update_type_tuple)
-                elif update_type_tuple[0] == "描述" and listener.update_description:
+                elif update_type_tuple[
+                        0] == "描述" and listener.update_description:
                     await self.push_user_message(listener, user,
                                                  *update_type_tuple)
                 elif update_type_tuple[0] in (
