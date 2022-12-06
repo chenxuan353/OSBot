@@ -43,6 +43,7 @@ async def _():
     global twitterTransManage
     twitterTransManage = TwitterTransManage()
     await twitterTransManage.startup()
+
     @scheduler.scheduled_job('cron', hour='3', minute='30', name="烤推清理")
     async def _():
         await twitterTransManage.clear_screenshot_file()
@@ -81,7 +82,6 @@ class SubscribeOption(Options):
     update_profile: bool = Option.new(True, ["头像", "头像更新"])
     update_followers: bool = Option.new(True, ["粉丝数", "粉丝数更新"])
 
-
     def _load_from_model(self, model: TwitterSubscribeModel):
         option_keys = self.tag_map
         for option_key in option_keys:
@@ -106,6 +106,7 @@ class SubscribeOption(Options):
             self.update_followers = False
             return True
         return False
+
 
 def deal_subscribe_option(
     msg: str,
@@ -1062,9 +1063,9 @@ async def _(matcher: Matcher,
 
 
 tweet_tran_help = on_command("烤推帮助",
-                                     aliases={"烤推机帮助", "烤推姬帮助"},
-                                     rule=only_command(),
-                                     block=True)
+                             aliases={"烤推机帮助", "烤推姬帮助"},
+                             rule=only_command(),
+                             block=True)
 
 
 @tweet_tran_help.handle()
@@ -1078,15 +1079,13 @@ async def _(matcher: Matcher):
         "默认情况下不覆盖\n"
         "例\n"
         "##1 内容 ##引用 内容\n"
-        "##1 状态 ##选项1 摸鱼 ##选项2 摆烂"
-    )
-
+        "##1 状态 ##选项1 摸鱼 ##选项2 摆烂")
 
 
 tweet_help = on_command("转推配置帮助",
-                                     aliases={"转推帮助"},
-                                     rule=only_command(),
-                                     block=True)
+                        aliases={"转推帮助"},
+                        rule=only_command(),
+                        block=True)
 
 
 @tweet_help.handle()

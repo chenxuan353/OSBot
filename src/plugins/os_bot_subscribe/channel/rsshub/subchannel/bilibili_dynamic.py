@@ -1,15 +1,55 @@
 """
     B站动态
 """
+import cv2
+import numpy
 import re
+import aiohttp
+import base64
 from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import Type
+from cacheout.memoization import lru_memoize
 from ....utils.rss import Rss, RssChannelData, RssItemData
 from ....model import SubscribeModel
 from ...factory import channel_factory
 from ....logger import logger
 from ....exception import MatcherErrorFinsh
-from . import RsshubChannelSession, RsshubChannel, Options, Option
+from . import RsshubChannelSession, RsshubChannel, Options, Option, v11, GeneralHTMLParser
+
+
+def img_resize(image, width_new, height_new):
+    height, width = image.shape[0], image.shape[1]
+    # 判断图片的长宽比率
+    if width / height >= width_new / height_new:
+        img_new = cv2.resize(image,
+                             (width_new, int(height * width_new / width)))
+    else:
+        img_new = cv2.resize(image,
+                             (int(width * height_new / height), height_new))
+    return img_new
+
+
+@lru_memoize(maxsize=256)
+async def download_with_resize_to_base64(url: str, width: int,
+                                         height: int) -> str:
+    try:
+        req = aiohttp.request("get",
+                              url,
+                              timeout=aiohttp.ClientTimeout(total=15))
+        async with req as resp:
+            code = resp.status
+            if code != 200:
+                raise Exception("获取图片失败，重新试试？")
+            np_array = numpy.asarray(bytearray(await resp.read()),
+                                     dtype="uint8")
+            img = cv2.imdecode(np_array, cv2.IMREAD_UNCHANGED)
+            img_new = img_resize(img, width, height)
+            image = cv2.imencode('.png', img_new)[1]
+            urlbase64 = str(base64.b64encode(image), "utf-8")
+    except Exception as e:
+        logger.warning("图片下载失败：{} | {}", e.__class__.__name__, e)
+        return ""
+    return urlbase64
 
 
 class BilibiliDynamicOptions(Options):
@@ -21,7 +61,6 @@ class BilibiliDynamicOptions(Options):
 class RsshubBilibiliDynamicChannel(RsshubChannel):
 
     JP_REGEX = re.compile(r'[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7A3]')
-
 
     @property
     def aliases(self) -> List[str]:
@@ -65,8 +104,7 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                        state: Dict[str, Any],
                        session: RsshubChannelSession) -> bool:
         path = self.subscribe_str_to_path(subscribe_str)
-        if path.startswith(
-                '/bilibili/user/dynamic/'):
+        if path.startswith('/bilibili/user/dynamic/'):
             result = await self.test_path(path)
             if not result:
                 return True
@@ -133,8 +171,8 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                 )
             elif title_full.find('/bfs/archive/') != -1:
                 update_type = UpdateType.contribute
-                msg = "{0}投稿啦\n{1}\n{2}".format(author_name,
-                                                data.title_full, data.link)
+                msg = "{0}投稿啦\n{1}\n{2}".format(author_name, data.title_full,
+                                                data.link)
             else:
                 msg = "{0}的动态~\n{1}\n{2}".format(
                     author_name, await
@@ -159,6 +197,33 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                     logger.opt(exception=True).error("{}({}) 推送B站动态消息时异常",
                                                      self.channel_id,
                                                      now_data.source_url)
+
+    async def rss_text_to_send_message(self, text: str) -> v11.Message:
+        """将rss html文本转换为待发送消息"""
+
+        def handle_image(url: str):
+            return v11.MessageSegment.image(url)
+
+        parser = GeneralHTMLParser(handle_image=handle_image)
+
+        parser.feed(text)
+        rtnmessage = v11.Message()
+        message = v11.Message(parser.message)
+        for msgseg in message:
+            if msgseg.is_text():
+                rtnmessage += msgseg
+            elif msgseg.type == "image":
+                url = msgseg.data.get("file", "")
+                if url.find("/bfs/emote") != -1:
+                    imgb64 = await download_with_resize_to_base64(url, 25, 25)
+                    if imgb64:
+                        rtnmessage += v11.MessageSegment.image(
+                            f"base64://{imgb64}")
+                    else:
+                        rtnmessage += msgseg
+                else:
+                    rtnmessage += msgseg
+        return rtnmessage
 
 
 channel_factory.register(RsshubBilibiliDynamicChannel())

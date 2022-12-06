@@ -211,18 +211,30 @@ class TwitterTransManage:
 
     async def clear_screenshot_file(self):
         """清理7天以上的烤推文件"""
+        expire_days = 7
         current_time = strftime("%Y-%m-%d", localtime(time()))
         current_timeList = current_time.split("-")
-        current_time_day = datetime.datetime(int(current_timeList[0]), int(current_timeList[1]), int(current_timeList[2]))        
+        current_time_day = datetime.datetime(int(current_timeList[0]),
+                                             int(current_timeList[1]),
+                                             int(current_timeList[2]))
         path = self.screenshot_path
 
         for root, dirs, files in os.walk(path):
             for item in files:
                 file_path = os.path.join(root, item)
-                create_time =  strftime("%Y-%m-%d", localtime((os.stat(file_path)).st_mtime))
+                create_time = strftime(
+                    "%Y-%m-%d", localtime((os.stat(file_path)).st_mtime))
                 create_timeList = create_time.split("-")
-                create_time_day = datetime.datetime(int(create_timeList[0]), int(create_timeList[1]), int(create_timeList[2]))
+                create_time_day = datetime.datetime(int(create_timeList[0]),
+                                                    int(create_timeList[1]),
+                                                    int(create_timeList[2]))
                 time_difference = (current_time_day - create_time_day).days
-                if time_difference > 7:
-                    os.remove(file_path)
-                    logger.debug("移除超过{}天的烤推文件 {}", str(7), file_path)
+                if time_difference > expire_days:
+                    try:
+                        os.remove(file_path)
+                    except Exception as e:
+                        logger.error(
+                            "移除超过{}天的烤推文件时异常 {} {} | {}", str(expire_days), e.__class__.__name__, str(e), file_path)
+                        continue
+                    logger.debug("移除超过{}天的烤推文件 {}", str(expire_days),
+                                 file_path)

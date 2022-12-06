@@ -186,7 +186,7 @@ class Rss:
             code = resp.status
             result = await resp.read()
             if code != 200:
-                raise RssRequestStatusError(F'url {self.url} => 页面错误 {code}',
+                raise RssRequestStatusError(F'url {self.url} 页面错误 {code}',
                                             cause=Exception(
                                                 str(result, "utf-8")))
             return str(result, "utf-8")
