@@ -422,7 +422,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                 //emoji置换回调
                 return {
                     title: "Emoji: " + icon + variant,
-                    style: "",
+                    style: "height: 1em;width: 1em;margin: 0.05em 0.1em;vertical-align: -0.1em;",
                 };
             };
             // XSS过滤
@@ -1279,7 +1279,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                         mark: "config",
                         expre: /^默认模版/,
                         default: () => "defalutTemplate",
-                        value: (match) => "defalutTemplate",
+                        value: (match) => "template",
                     },
                 ],
             };
@@ -1558,7 +1558,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         } else {
             return GLOBAL_TOOL.TweetHtml.insertTrans(
                 null,
-                GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR),
+                GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, template=null),
             );
         }
     }

@@ -7,7 +7,6 @@ from nonebot.exception import NoneBotException
 from ..exception import MatcherErrorFinsh
 from ..argmatch import FieldMatchError
 from ..logger import logger
-from ..plugin_manage import _get_plug_model, _get_plug_switch_model
 from ..cache import OnebotCache
 
 
@@ -20,6 +19,7 @@ async def plug_is_disable(name: str, group_mark: str) -> bool:
         - `name` 插件标识名
         - `group_mark` 需要判断的组标识(一般通过`adapter.mark_group_without_drive(bot, event)`获取)
     """
+    from ..plugin_manage import _get_plug_model, _get_plug_switch_model
     try:
         plugModel = await _get_plug_model(name)
         if not plugModel:

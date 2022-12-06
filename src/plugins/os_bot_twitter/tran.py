@@ -50,13 +50,17 @@ class TwitterTrans:
         """
             烤推启动
         """
+        # asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        proxy: Any = None
+        if config.os_twitter_trans_proxy:
+            proxy = {
+                "server": config.os_twitter_trans_proxy,
+            }
         self.playwright = await async_playwright().start()
         self.browser_type = self.playwright.chromium
         self.context = await self.browser_type.launch_persistent_context(
             headless=not self.debug,
-            proxy={
-                "server": config.os_twitter_trans_proxy,
-            },
+            proxy=proxy,
             user_data_dir=os.path.join(config.os_data_path, "twitter_trans",
                                        "user_data"),
             locale='zh-CN',

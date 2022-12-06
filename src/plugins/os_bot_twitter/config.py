@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 class Config(BaseSettings):
     os_twitter_poll_enable: bool = Field(default=True)
     """是否启用轮询"""
+    os_twitter_poll_interval: int = Field(default=15)
+    """推特轮询间隔"""
     os_twitter_proxy: str = Field(default="")
     """推特使用的代理"""
     os_twitter_key: str
@@ -52,9 +54,9 @@ class Config(BaseSettings):
     """烤推使用的脚本路径"""
     os_twitter_trans_debug: bool = Field(default=False)
     """烤推的调试，开启后可以看到实时烤推界面（需要服务器图形化支持）"""
-    os_twitter_trans_task_limit: bool = Field(default=10)
+    os_twitter_trans_task_limit: int = Field(default=10)
     """烤推任务数限制"""
-    os_twitter_trans_concurrent_limit: bool = Field(default=2)
+    os_twitter_trans_concurrent_limit: int = Field(default=2)
     """烤推并发处理限制"""
     os_twitter_trans_image_proxy: str = Field(default="")
     """烤推的图片代理，最终会拼接为 proxy/filename"""

@@ -24,7 +24,7 @@ class Config(BaseSettings):
         - `os_ob_black_group_list` onebot协议群组黑名单列表
         - `os_ob_notice_disconnect` onebot协议连接断开通知
     """
-    SUPERUSERS: List[Union[int, str]] = Field(default=[])
+    superusers: List[Union[int, str]] = Field(default=[])
 
     os_data_path: str = Field(default=os.path.join(".", "data"))
     os_database: str = Field(default="")

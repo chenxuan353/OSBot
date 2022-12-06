@@ -89,7 +89,7 @@ class Session(StoreSerializable):
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, **kws)
-        self._key: str = f"{key}_{self.__class__.__name__}"  # 兼容多Session
+        self._key: str = f"{key}"
         self._keep: bool = False
         self._session_manage: "SessionManage" = None  # type: ignore
 
@@ -216,7 +216,9 @@ class FileStore(BaseStore):
             with open(file_path, mode='r', encoding=self.encoding) as fr:
                 json_str = fr.read()
                 data = self.load_json(json_str)
-                return SessionType._load_from_dict(data)
+                session = SessionType._load_from_dict(data)
+                session._key = key
+                return session
         except Exception as e:
             now_e = e
             try:
@@ -342,7 +344,7 @@ class SessionManage:
         """
             生成`session`
         """
-        key = f"{plug_scope}_{key}"
+        key = f"{plug_scope}_{key}_{SessionType.__name__}"
         if not self.sessions.get(key):
             self.sessions[key] = await self.store.read(key, SessionType)
         if not self.sessions.get(key):
@@ -359,7 +361,7 @@ class SessionManage:
             从持久化存储中获取`session`
         """
         return self.sessions.get(
-            f"{plug_scope}_{key}") or await self.generate_session(
+            f"{plug_scope}_{key}_{SessionType.__name__}") or await self.generate_session(
                 key, plug_scope, SessionType)
 
     async def save(self, session: Session) -> None:

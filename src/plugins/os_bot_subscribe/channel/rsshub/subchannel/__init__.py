@@ -93,7 +93,7 @@ class RsshubChannel(BaseChannel):
         """
             通过onebot v11 消息数据转换为特定场景消息
         """
-        if subscribe.bot_type == V11Adapter.type:
+        if subscribe.bot_type == V11Adapter.get_type():
             return msg
 
         raise BaseException("不支持推送消息的Bot类型")

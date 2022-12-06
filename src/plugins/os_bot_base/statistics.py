@@ -155,14 +155,14 @@ async def print_statistics_info():
     """
     logger.info(
         f"===[数据分析] 统计信息===\n"
-        f"已启动：{seconds_to_dhms(statistics_record.run_seconds())}\n"
+        f"已启动：{seconds_to_dhms(int(statistics_record.run_seconds()))}\n"
         f"活跃Bot计数:{len(get_bots())}\n"
         f"平均事件响应时(近期)：{statistics_record.avg_event_deal_ms():.3f}ms\n"
         f"平均Matcher响应时(近期)：{statistics_record.avg_matcher_deal_ms():.3f}ms\n"
         f"Api平均响应时间(近期):{statistics_record.avg_api_call_response_ms():.3f}ms\n"
         f"事件计数(消息/总数)：{statistics_record.event_message_count}/{statistics_record.event_count}\n"
         f"Api请求 错误数/总计数 (错误率):{statistics_record.api_call_error_count}/{statistics_record.api_call_count} "
-        f"({(statistics_record.api_call_error_count/statistics_record.api_call_count)*100:.5f}%)\n"
+        f"({(statistics_record.api_call_error_count/(statistics_record.api_call_count or 1))*100:.5f}%)\n"
         f"Bot断开计数:{statistics_record.bot_disconnect}")
 
 

@@ -1,10 +1,10 @@
 import asyncio
 import base64
-from lib2to3.pgen2 import driver
 import math
 import os
 import random
 import re
+import aiohttp
 from time import time
 from typing import List, Optional
 from tortoise.expressions import Q
@@ -15,10 +15,11 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg, EventMessage
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
+from . import polling
 from .polling import twitter_subscribe_invalid_cache, update_all_listener
-from .polling import user_follow_and_update, client as tweet_client, PollTwitterUpdate
+from .polling import user_follow_and_update, PollTwitterUpdate
 from .model import TwitterUserModel, TwitterSubscribeModel, TwitterTweetModel, TweetTypeEnum, TwitterTransModel
-from .exception import QueueFullException
+from .exception import QueueFullException, MatcherErrorFinsh, TransException
 from .config import TwitterSession, TwitterPlugSession
 from .logger import logger
 from .config import config
@@ -31,12 +32,14 @@ from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
 from ..os_bot_base.notice import BotSend
 
 driver = get_driver()
-twitterTransManage = TwitterTransManage()
+twitterTransManage: TwitterTransManage = None  # type: ignore
 
 
 @driver.on_startup
 async def _():
     # 启动烤推
+    global twitterTransManage
+    twitterTransManage = TwitterTransManage()
     await twitterTransManage.startup()
 
 
@@ -47,14 +50,14 @@ async def get_user_from_search(msg: str,
     msg = msg.strip()
     user = None
     if msg.isdigit():
-        user = await tweet_client.model_user_get_or_none(msg)
+        user = await polling.client.model_user_get_or_none(msg)
     if not user:
         user = await TwitterUserModel.get_or_none(username=msg)
     if not user:
         user = await TwitterUserModel.get_or_none(name=msg)
     if not user and allow_api:
         try:
-            user = await tweet_client.get_user(username=msg)
+            user = await polling.client.get_user(username=msg)
         except Exception as e:
             logger.opt(exception=True).debug("意外的报错")
     return user
@@ -290,7 +293,7 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    update: PollTwitterUpdate = tweet_client.update  # type: ignore
+    update: PollTwitterUpdate = polling.client.update  # type: ignore
     finish_msgs = ["让我看看~\n", "找到了！\n"]
     await matcher.finish(
         f"{finish_msgs[random.randint(0,len(finish_msgs) - 1)]}"
@@ -332,11 +335,11 @@ async def _(matcher: Matcher,
     tweet_id = deal_tweet_link(str(message), session)
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
-    tweet = await tweet_client.model_tweet_get_or_none(tweet_id)
+    tweet = await polling.client.model_tweet_get_or_none(tweet_id)
     has_perm = await (SUPERUSER | GROUP_ADMIN | GROUP_OWNER)(bot, event)
     if not tweet:
         if has_perm:
-            tweet = await tweet_client.get_tweet(tweet_id)
+            tweet = await polling.client.get_tweet(tweet_id)
     if not tweet:
         finish_msgs = ["没有找到推文哦", "找不到哦，要不再检查检查？"]
         await matcher.finish(finish_msgs[random.randint(
@@ -347,8 +350,8 @@ async def _(matcher: Matcher,
     if tweet.id in session.failure_list:
         async with session:
             session.failure_list.remove(tweet.id)
-    update: PollTwitterUpdate = tweet_client.update  # type: ignore
-    finish_msgs = ["看看我发现了什么~\n", "\n"]
+    update: PollTwitterUpdate = polling.client.update  # type: ignore
+    finish_msgs = ["看看我发现了什么~\n", "合 成 推 文\n", "找到了\n"]
     await matcher.finish(
         f"{finish_msgs[random.randint(0,len(finish_msgs) - 1)]}"
         f"{await update.tweet_to_message(tweet, None, adapter.type, False)}")
@@ -518,12 +521,12 @@ async def _(matcher: Matcher,
         TweetTypeEnum.replay: "回"
     }
 
-    msg = f"库\n"
+    msg = f"库"
     for tweet_key in tmp_tweet_keys:
         append_msg = ""
         for tweet in tweets:
             if tweet.id == session.tweet_map[tweet_key]:
-                append_msg = f"\n{tweet_key} {type_map[tweet.type]}"
+                append_msg = f"\n{tweet_key} | {type_map[tweet.type]}"
                 if not tweet.trans and session.tweet_map[
                         tweet_key] in session.failure_list:
                     append_msg += " ★"
@@ -531,13 +534,19 @@ async def _(matcher: Matcher,
                     tran_models = list(tweet.relate_trans)
                     if tran_models:
                         tran_model = tran_models[0]
-                        append_msg += f"熟 {tran_model.trans_text[:10].replace('\n', '')}"
-                append_msg += f"{tweet.display_text[:10].replace('\n', '')}"
+                        append_msg += "熟 > {0}".format(
+                            tran_model.trans_text[:10].replace('\n', ''))
+                    else:
+                        append_msg += " > {0}".format(
+                            tweet.display_text[:10].replace('\n', ''))
+                else:
+                    append_msg += " > {0}".format(
+                        tweet.display_text[:10].replace('\n', ''))
         if not append_msg:
             append_msg = f"\n{tweet_key} 缓存失效"
 
         msg += append_msg
-    msg += f"{arg.page}/{maxpage}"
+    msg += f"\n{arg.page}/{maxpage}"
     await matcher.finish(msg)
 
 
@@ -584,10 +593,13 @@ async def _(matcher: Matcher, arg: TweetArg = ArgMatchDepend(TweetArg)):
     tweets = await TwitterTweetModel.filter(author_id=user.id).offset(
         (arg.page - 1) * size).limit(size).order_by("-id")
 
-    msg = f"{user.name}@{user.username}\n"
+    msg = f"{user.name}@{user.username}"
     for tweet in tweets:
-        msg += f"\n{tweet.type.value} | {tweet.id} | {tweet.display_text[:10].replace('\n', '')}{tweet.display_text[10:] and '...'}"
-    msg += f"{arg.page}/{maxpage}"
+        msg += "\n{0} | {1} | {2}{3}".format(
+            tweet.type.value, tweet.id,
+            tweet.display_text[:10].replace('\n', ''), tweet.display_text[10:]
+            and '...')
+    msg += f"\n{arg.page}/{maxpage}"
     await matcher.finish(msg)
 
 
@@ -601,7 +613,7 @@ cache_clear = on_command("清空推特缓存",
 @matcher_exception_try()
 async def _(matcher: Matcher):
     twitter_subscribe_invalid_cache()
-    tweet_client.invalid_cache()
+    polling.client.invalid_cache()
     await matcher.finish(f"完成啦！")
 
 
@@ -715,7 +727,23 @@ class TransArg(ArgMatch):
     tweet_str: str = Field.Str("推文链接、序号")
 
     def __init__(self) -> None:
-        super().__init__([self.user_search])  # type: ignore
+        super().__init__([self.tweet_str])  # type: ignore
+
+
+async def download_to_base64(url: str) -> str:
+    try:
+        req = aiohttp.request("get",
+                              url,
+                              timeout=aiohttp.ClientTimeout(total=10))
+        async with req as resp:
+            code = resp.status
+            if code != 200:
+                raise MatcherErrorFinsh("获取图片失败，重新试试？")
+            urlbase64 = str(base64.b64encode(await resp.read()), "utf-8")
+    except Exception as e:
+        logger.warning("图片下载失败：{} | {}", e.__class__.__name__, e)
+        return ""
+    return urlbase64
 
 
 tweet_tran = on_command("烤推", aliases={"烤"}, block=True)
@@ -723,14 +751,25 @@ tweet_tran_startswith = on_startswith("##", priority=4)
 
 
 async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
-                          arg: TransArg, adapter: Adapter,
+                          message: v11.Message, adapter: Adapter,
                           session: TwitterSession,
                           session_plug: TwitterPlugSession):
+    msg = ""
+    for msgseg in message:
+        if msgseg.is_text():
+            msg += msgseg.data.get("text", "")
+        elif msgseg.type == "image":
+            url = msgseg.data.get("url", "")
+            if url:
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+    if msg.startswith("#"):
+        msg = msg[1:]
+    arg = TransArg()(msg)
     tweet_id = deal_tweet_link(arg.tweet_str, session)
     tweet_username = ""
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
-    tweet = await tweet_client.model_tweet_get_or_none(tweet_id)
+    tweet = await polling.client.model_tweet_get_or_none(tweet_id)
     if tweet:
         tweet_username = tweet.author_username
     if not tweet_username:
@@ -769,7 +808,11 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             len(finish_msgs) - 1)])
 
     async def wait_result():
-        filename = await task
+        try:
+            filename = await task
+        except TransException as e:
+            await bot.send(event, e.info)
+            return
 
         # 存档
         try:
@@ -788,6 +831,10 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             await trans_model.save()
         except Exception as e:
             logger.opt(exception=True).error("保存烤推记录时异常！")
+
+        if tweet:
+            tweet.trans = True
+            await tweet.save(update_fields=["trans"])
 
         finish_msgs = ["烤好啦", "熟啦", "叮！", "出锅！"]
         msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)] + "\n"
@@ -837,11 +884,7 @@ async def _(matcher: Matcher,
             session: TwitterSession = SessionDepend(TwitterSession),
             session_plug: TwitterPlugSession = SessionPluginDepend(
                 TwitterPlugSession)):
-    msg = str(message)
-    if msg.startswith("#"):
-        msg = msg[1:]
-    arg = TransArg()(msg)
-    await tweet_tran_deal(matcher, bot, event, arg, adapter, session,
+    await tweet_tran_deal(matcher, bot, event, message, adapter, session,
                           session_plug)
 
 
@@ -850,13 +893,98 @@ async def _(matcher: Matcher,
 async def _(matcher: Matcher,
             bot: Bot,
             event: v11.MessageEvent,
-            arg: TransArg = ArgMatchDepend(TransArg),
+            message: v11.Message = CommandArg(),
             adapter: Adapter = AdapterDepend(),
             session: TwitterSession = SessionDepend(TwitterSession),
             session_plug: TwitterPlugSession = SessionPluginDepend(
                 TwitterPlugSession)):
-    await tweet_tran_deal(matcher, bot, event, arg, adapter, session,
+    await tweet_tran_deal(matcher, bot, event, message, adapter, session,
                           session_plug)
+
+
+set_tweet_template = on_command("设置烤推模版",
+                                aliases={"设置烤推模板"},
+                                permission=SUPERUSER | GROUP_ADMIN
+                                | GROUP_OWNER,
+                                block=True)
+
+
+@set_tweet_template.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            message: v11.Message = CommandArg(),
+            adapter: Adapter = AdapterDepend(),
+            session: TwitterSession = SessionDepend(TwitterSession),
+            session_plug: TwitterPlugSession = SessionPluginDepend(
+                TwitterPlugSession)):
+    msg = ""
+    for msgseg in message:
+        if msgseg.is_text():
+            msg += msgseg.data.get("text", "")
+        elif msgseg.type == "image":
+            url = msgseg.data.get("url", "")
+            if url:
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+    async with session:
+        session.default_template = msg
+
+    finish_msgs = ["设置成功~", "成功啦", "成功设置！"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+class TweetUserArg(ArgMatch):
+
+    class Meta(ArgMatch.Meta):
+        name = "用户参数"
+        des = "用户参数"
+
+    user_search: str = Field.Str("用户")
+
+    def __init__(self) -> None:
+        super().__init__([self.user_search])  # type: ignore
+
+
+set_tweet_user_template = on_command("设置用户烤推模版",
+                                     aliases={"设置用户烤推模板"},
+                                     permission=SUPERUSER | GROUP_ADMIN
+                                     | GROUP_OWNER,
+                                     block=True)
+
+
+@set_tweet_user_template.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            message: v11.Message = CommandArg(),
+            adapter: Adapter = AdapterDepend(),
+            session: TwitterSession = SessionDepend(TwitterSession),
+            session_plug: TwitterPlugSession = SessionPluginDepend(
+                TwitterPlugSession)):
+    msg = ""
+    for msgseg in message:
+        if msgseg.is_text():
+            msg += msgseg.data.get("text", "")
+        elif msgseg.type == "image":
+            url = msgseg.data.get("url", "")
+            if url:
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+    arg = TweetUserArg()(msg)
+    user = await get_user_from_search(arg.user_search, await
+                                      SUPERUSER(bot, event))
+    if not user:
+        finish_msgs = ["没有找到用户哦！", "找不到用户哦……", "谁？"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+
+    async with session:
+        session.template_map[user.username] = arg.tail
+
+    finish_msgs = ["设置成功~", "成功啦", f"成功设置{user.name}的模版！"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
 tweet_tran_history = on_command("烤推历史", aliases={"历史烤推", "烤推记录"}, block=True)
@@ -886,7 +1014,8 @@ async def _(matcher: Matcher,
 
     msg = f"{arg.page}/{maxpage}"
     for tran_model in tran_models:
-        msg += f"\n{tran_model.id} | {tran_model.trans_text[:10].replace('\n', '')}"
+        msg += "\n{0} | {1}".format(
+            tran_model.id, tran_model.trans_text[:10].replace('\n', ''))
 
     await matcher.finish(msg)
 
@@ -917,7 +1046,8 @@ async def _(matcher: Matcher,
 
     msg = f"{arg.page}/{maxpage}"
     for tran_model in tran_models:
-        msg += f"\n{tran_model.id} | {tran_model.trans_text[:10].replace('\n', '')}"
+        msg += "\n{0} | {1}".format(
+            tran_model.id, tran_model.trans_text[:10].replace('\n', ''))
 
     await matcher.finish(msg)
 

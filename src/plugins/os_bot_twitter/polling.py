@@ -3,6 +3,7 @@
 """
 import asyncio
 import re
+import aiohttp
 from time import time
 from typing import Any, Dict, List, Optional, Union
 from nonebot import get_driver
@@ -19,6 +20,7 @@ from .exception import TwitterPollingSendError
 from ..os_bot_base.util import get_plugin_session, plug_is_disable, get_session
 from ..os_bot_base.notice import UrgentNotice, BotSend
 from ..os_bot_base.adapter.onebot import V11Adapter
+from ..os_bot_base.exception import MatcherErrorFinsh
 
 driver = get_driver()
 
@@ -63,7 +65,7 @@ class PollTwitterUpdate(TwitterUpdate):
     client: AsyncTwitterClient
 
     def __init__(self) -> None:
-        self.ignore_new_time = 4 * 3600
+        self.ignore_new_time = 3600
         """推文创建多长时间后忽略新增事件，单位秒"""
         self.ignore_update_time = 86400
         """推文创建多长时间后忽略更新事件，单位秒"""
@@ -89,7 +91,7 @@ class PollTwitterUpdate(TwitterUpdate):
             用户查看用途
         """
         msg = f"{user.name}@{user.username}"
-        if bot_type == V11Adapter.type:
+        if bot_type == V11Adapter.get_type():
             msg += "\n" + v11.MessageSegment.image(file=user.profile_image_url)
         else:
             logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
@@ -121,7 +123,7 @@ class PollTwitterUpdate(TwitterUpdate):
         # 标题及依赖推文
         msg = ""
         if tweet.type == TweetTypeEnum.tweet:
-            msg = f"{tweet.author_name}{tweet.type}！"
+            msg = f"{tweet.author_name}的推文~"
             # 附加主推文
             msg += f"\n{tweet.display_text}"
             if tweet_trans and tweet.trans_text:
@@ -174,6 +176,13 @@ class PollTwitterUpdate(TwitterUpdate):
                 logger.warning("回复更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
                                tweet.referenced_tweet_id)
                 msg += f"\n========\n引用推文数据缺失"
+        elif tweet.type == TweetTypeEnum.quote_replay:
+            msg = f"{tweet.author_name}\n带推回复了\n{tweet.referenced_tweet_author_name}的推"
+            # 附加主推文
+            msg += f"\n{tweet.display_text}"
+            if tweet_trans and tweet.trans_text:
+                msg += f"\n------"
+                msg += f"\n{tweet.trans_text}"
         else:
             logger.warning("异常推文类型({})：{}", tweet.id, tweet.type)
             msg = f"{tweet.author_name} 的未知类型推文"
@@ -189,7 +198,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 if variants:
                     url = variants.get("url", "")
                 msg += f"\n 包含视频或Gif {url}"
-            if bot_type == V11Adapter.type:
+            if bot_type == V11Adapter.get_type():
                 for media in tweet.medias:
                     display_url = None
                     if media.get("type", "").lower() in ("video", "gif"):
@@ -210,11 +219,11 @@ class PollTwitterUpdate(TwitterUpdate):
                                  subscribe: TwitterSubscribeModel,
                                  tweet: TwitterTweetModel,
                                  only_add_failure: bool = False):
-        if not await plug_is_disable("os_bot_twitter", subscribe.group_mark):
+        if await plug_is_disable("os_bot_twitter", subscribe.group_mark):
             logger.info("因组 {} 的推特插件被关闭，转推消息推送取消。(相关订阅 {})",
                         subscribe.group_mark, subscribe.id)
             return
-        session: TwitterSession = get_session(subscribe.group_mark,
+        session: TwitterSession = await get_session(subscribe.group_mark,
                                               TwitterSession,
                                               "os_bot_twitter")  # type: ignore
         if only_add_failure:
@@ -281,6 +290,7 @@ class PollTwitterUpdate(TwitterUpdate):
         tweet_num = f"{session.num}"
         session.tweet_map[tweet_num] = tweet.id
         session.num += 1
+        await session.save()
         msg += f"\n序 {tweet_num}"
         msg += f"\nhttps://twitter.com/{tweet.author_username}/status/{tweet.id}"
         try:
@@ -292,18 +302,18 @@ class PollTwitterUpdate(TwitterUpdate):
     async def push_user_message(self, subscribe: TwitterSubscribeModel,
                                 user: TwitterUserModel, update_type: str,
                                 old_val: Any, new_val: Any):
-        if not await plug_is_disable("os_bot_twitter", subscribe.group_mark):
+        if await plug_is_disable("os_bot_twitter", subscribe.group_mark):
             logger.info("因组 {} 的推特插件被关闭，用户更新消息推送取消。(相关订阅 {})",
                         subscribe.group_mark, subscribe.id)
             return
-        session: TwitterSession = get_session(subscribe.group_mark,
+        session: TwitterSession = await get_session(subscribe.group_mark,
                                               TwitterSession,
                                               "os_bot_twitter")  # type: ignore
         if user.id in session.ban_users:
             logger.debug("{} 内用户 {} 的设置更新推送被禁用 订阅 {}", subscribe.group_mark,
                          user.id, subscribe.id)
             return
-        if subscribe.bot_type == V11Adapter.type:
+        if subscribe.bot_type == V11Adapter.get_type():
             if update_type == "昵称":
                 msg = (f"{user.name}的昵称更新~\n"
                        f"{old_val}\n更新为\n"
@@ -317,7 +327,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 msg += "\n旧：" + v11.MessageSegment.image(file=old_val)
                 msg += "\n新：" + v11.MessageSegment.image(file=new_val)
             elif update_type in ("粉丝数涨到", "粉丝数跌到"):
-                msg = f"{user.name}的{update_type}{new_val}了……"
+                msg = f"{user.name}的{update_type}{new_val}了~"
             else:
                 msg = (f"{user.name}的{update_type}更新~"
                        f"{old_val} => {new_val}")
@@ -458,7 +468,7 @@ class PollTwitterUpdate(TwitterUpdate):
             else:
                 update_type = "粉丝数跌到"
             logger.info("用户粉丝数更新 {}@{} [{}] | {} -> {}", user.name,
-                        user.username, user.id, old_val, new_val)
+                        user.username, user.id, old_val, str(new_val))
             update_types.append((update_type, old_val, new_val))
         if not update_types:
             return
@@ -504,10 +514,18 @@ async def update_all_listener():
             if user.protected:
                 logger.error(" {} 的时间线，受保护，已取消更新", listener)
                 continue
-            await client.get_timeline(id=listener)
+            try:
+                await client.get_timeline(id=listener)
+            except (asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+                await asyncio.sleep(10)
+                await client.get_timeline(id=listener)
             logger.debug("已更新 {}@{} 的时间线", user.name, user.username)
-        except TweepyException as e:
-            user = await client.model_user_get_or_none(listener)
+        except (TweepyException, asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+            user = None
+            try:
+                user = await client.model_user_get_or_none(listener)
+            except Exception as e:
+                pass
             if not user:
                 logger.opt(exception=True).error("更新 {} 时间线时错误", listener)
             else:
@@ -524,7 +542,8 @@ async def user_follow_and_update(id: str) -> bool:
     """
     if id in session.blacklist_following_list:
         return False
-    if id not in session.following_list:
+    listeners = await _model_get_listeners()
+    if id not in listeners:
         try:
             user = await client.model_user_get_or_none(id)
             if not user:
@@ -533,6 +552,7 @@ async def user_follow_and_update(id: str) -> bool:
             if user.protected:
                 logger.error(" {} 的时间线，受保护，已取消关注操作", id)
                 return False
+            
             await client.self_following(id)
             session.following_list.append(id)
             await session.save()
@@ -540,6 +560,8 @@ async def user_follow_and_update(id: str) -> bool:
             await client.get_timeline(id=id)
             logger.debug("已初始化 {}@{} 的时间线", user.name, user.username)
             return True
+        except MatcherErrorFinsh as e:
+            raise e
         except Exception as e:
             logger.opt(exception=True).error("关注用户时异常")
             return False
@@ -552,32 +574,34 @@ async def _():
     if not config.os_twitter_poll_enable:
         logger.warning("推特轮询关闭！已取消轮询初始化。")
         return
+    logger.info("推特功能初始化")
     # 进行初始化
-    session: TwitterPlugSession = await get_plugin_session(TwitterPlugSession
+    session = await get_plugin_session(TwitterPlugSession
                                                            )  # type: ignore
     session._keep = True
     PollTwitterUpdate.session = session
     client = AsyncTwitterClient(PollTwitterUpdate)
 
-    try:
-        try:
-            following_users = await client.self_following_list()
-        except TweepyException as e:
-            logger.opt(exception=True).debug("获取当前关注列表失败，将在60秒后自动重试。")
-            await asyncio.sleep(60.1)
-            following_users = await client.self_following_list()
-
-        following_list = []
-
-        for user in following_users:
-            following_list.append(user.id)
-
-        session.following_list = following_list
-        await session.save()
-    except Exception as e:
-        logger.opt(exception=True).error("初始化关注列表失败！")
-
     async def startup_follow_listener():
+        try:
+            try:
+                following_users = await client.self_following_list()
+            except (TweepyException, asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+                logger.info("获取当前关注列表失败，将在60秒后自动重试。")
+                await asyncio.sleep(60.1)
+                following_users = await client.self_following_list()
+
+            following_list = []
+
+            for user in following_users:
+                following_list.append(user.id)
+
+            session.following_list = following_list
+            await session.save()
+        except (TweepyException, asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+            logger.warning("初始化关注列表失败！连接不稳定 {} | {}", e.__class__.__name__, e)
+        except Exception as e:
+            logger.opt(exception=True).error("初始化关注列表失败！")
         listeners = await _model_get_listeners()
         for listener in listeners:
             if listener not in session.following_list:
@@ -591,7 +615,7 @@ async def _():
         """
             启动初始化
         """
-        logger.info("推特功能初始化")
+        session._enable=False
         strat_time = time()
         logger.info("检查并更新用户关注")
         strat_deal_time = time()
@@ -602,10 +626,11 @@ async def _():
         await update_all_listener()
         logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
         logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
+        session._enable=True
 
     asyncio.gather(startup())
 
-    @scheduler.scheduled_job("interval", seconds=10)
+    @scheduler.scheduled_job("interval", seconds=config.os_twitter_poll_interval, name="推特轮询")
     async def _():
         if not config.os_twitter_poll_enable:
             return
@@ -616,6 +641,9 @@ async def _():
             try:
                 await client.self_timeline(ignore_exception=True, auto=True)
             except TweepyException as e:
+                return True
+            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
+                logger.warning("推特更新轮询连接错误 {} | {}", e.__class__.__name__, str(e))
                 return True
             except TwitterDatabaseException as e:
                 session._enable = False

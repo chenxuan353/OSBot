@@ -93,7 +93,7 @@ async def _(
         if priority:
             if priority.drive_mask == drive_mask:
                 return
-            if bot_type == V11Adapter.type and bot_id != priority.bot_id:
+            if bot_type == V11Adapter.get_type() and bot_id != priority.bot_id:
                 """
                     事件来自非优先连接
                 """
@@ -106,7 +106,7 @@ async def _(
         if priority:
             if priority.drive_mask == drive_mask:
                 return
-            if bot_type == V11Adapter.type and bot_id != priority.bot_id:
+            if bot_type == V11Adapter.get_type() and bot_id != priority.bot_id:
                 """
                     事件来自非优先连接
                 """

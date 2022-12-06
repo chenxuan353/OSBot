@@ -30,28 +30,28 @@ class TwitterBuckets:
     def __init__(self) -> None:
         self.get_user = AsyncTokenBucket(200,
                                          15 * 60,
-                                         cumulative_delay=15 * 60)
+                                         initval=5)
         self.get_users = AsyncTokenBucket(200,
                                           15 * 60,
-                                          cumulative_delay=15 * 60)
+                                          initval=5)
         self.get_tweet = AsyncTokenBucket(200,
                                           15 * 60,
-                                          cumulative_delay=15 * 60)
+                                          initval=5)
         self.get_timeline = AsyncTokenBucket(500,
                                              15 * 60,
-                                             cumulative_delay=15 * 60)
+                                             initval=5)
         self.self_timeline = AsyncTokenBucket(150,
                                               15 * 60,
-                                              cumulative_delay=15 * 60)
+                                              initval=5)
         self.self_following_list = AsyncTokenBucket(10,
                                                     15 * 60,
-                                                    cumulative_delay=15 * 60)
+                                                    initval=5)
         self.self_following = AsyncTokenBucket(30,
                                                15 * 60,
-                                               cumulative_delay=15 * 60)
+                                               initval=1)
         self.self_unfollowing = AsyncTokenBucket(30,
                                                  15 * 60,
-                                                 cumulative_delay=15 * 60)
+                                                 initval=1)
 
 
 class TwitterUpdate:
@@ -122,6 +122,24 @@ class TwitterUpdate:
                         user.followers_count)
 
 
+@lru_memoize(maxsize=1024)
+async def model_tweet_get_or_none(tweet_id: str):
+    return await TwitterTweetModel.get_or_none(id=tweet_id)
+
+def model_tweet_get_or_none_update(tweet_id: str, model: TwitterTweetModel):
+    key = model_tweet_get_or_none.cache_key(tweet_id)
+    model_tweet_get_or_none.cache.set(key, model, None)
+    logger.debug("model_tweet_get_or_none 更新缓存 {}", tweet_id)
+
+@lru_memoize(maxsize=256)
+async def model_user_get_or_none(user_id: str):
+    return await TwitterUserModel.get_or_none(id=user_id)
+
+def model_user_get_or_none_update(user_id: str, model: TwitterUserModel):
+    key = model_user_get_or_none.cache_key(user_id)
+    model_user_get_or_none.cache.set(key, model, None)
+    logger.debug("model_user_get_or_none_update 更新缓存 {}", user_id)
+
 class AsyncTwitterClient:
     """
         异步推特Api客户端封装
@@ -139,7 +157,8 @@ class AsyncTwitterClient:
         )
         self.token_buckets: TwitterBuckets = TwitterBuckets()
         self.client.session = aiohttp.ClientSession(  # type: ignore
-            request_class=ProxyClientRequest)
+            request_class=ProxyClientRequest,
+            timeout=aiohttp.ClientTimeout(total=10))
 
         self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,attachments.media_keys,attachments.poll_ids,referenced_tweets.id.author_id"
         self.tweet_fields = (
@@ -156,6 +175,8 @@ class AsyncTwitterClient:
     async def tweet_get_type(self, tweet: Tweet) -> TweetTypeEnum:
         if tweet.referenced_tweets:
             if len(tweet.referenced_tweets) > 1:
+                if tweet.referenced_tweets[0].type in ["quoted", "replied_to"] and tweet.referenced_tweets[0].type in ["quoted", "replied_to"]:
+                    return TweetTypeEnum.quote_replay
                 raise TwitterException(f"推文 {tweet.id} 存在两个及以上的 推文类型标识")
             if tweet.referenced_tweets[0].type == "retweeted":
                 return TweetTypeEnum.retweet
@@ -209,18 +230,22 @@ class AsyncTwitterClient:
             rtn_text += tr['replace']
         return rtn_text
 
-    @lru_memoize(maxsize=1024)
     async def model_tweet_get_or_none(self, tweet_id: str):
-        return await TwitterTweetModel.get_or_none(id=tweet_id)
+        return await model_tweet_get_or_none(tweet_id)
 
-    @lru_memoize(maxsize=256)
+    def model_tweet_get_or_none_update(self, tweet_id: str, model: TwitterTweetModel):
+        model_tweet_get_or_none_update(tweet_id, model)
+
     async def model_user_get_or_none(self, user_id: str):
-        return await TwitterUserModel.get_or_none(id=user_id)
+        return await model_user_get_or_none(user_id)
+
+    def model_user_get_or_none_update(self, user_id: str, model: TwitterUserModel):
+        model_user_get_or_none_update(user_id, model)
 
     def invalid_cache(self):
-        cache: LRUCache = self.model_tweet_get_or_none.cache
+        cache: LRUCache = model_tweet_get_or_none.cache
         cache.clear()
-        cache: LRUCache = self.model_user_get_or_none.cache
+        cache: LRUCache = model_user_get_or_none.cache
         cache.clear()
 
     async def conversion_tweet(self,
@@ -249,8 +274,7 @@ class AsyncTwitterClient:
             if not tweet_model:
                 tweet_model = TwitterTweetModel(id=f"{tweet.id}")
                 # 更新缓存
-                cache: LRUCache = self.model_tweet_get_or_none.cache
-                cache.set(tweet_model.id, tweet_model)
+                self.model_tweet_get_or_none_update(f"{tweet.id}", tweet_model)
             tweet_model.minor_data = is_minor
             tweet_model.author_id = f"{tweet.author_id}"
             tweet_model.type = await self.tweet_get_type(tweet)
@@ -338,10 +362,9 @@ class AsyncTwitterClient:
                             mention.get("id"))  # type: ignore
         else:
             old_model = tweet_model.clone(tweet_model.pk)
-        # 数据更新
+        # 数据更新 
         tweet_model.auto = auto
-        if tweet_model.possibly_sensitive:
-            tweet_model.possibly_sensitive = tweet.possibly_sensitive
+        tweet_model.possibly_sensitive = tweet.possibly_sensitive is True
         if tweet.public_metrics:
             public_metrics: Dict[str, int] = tweet.public_metrics
             tweet_model.retweet_count = public_metrics.get(
@@ -355,6 +378,7 @@ class AsyncTwitterClient:
         tweet_model.reply_settings = tweet.reply_settings
         tweet_model.source = tweet.data
         await tweet_model.save()
+
         asyncio.gather(self.update.tweet_update(tweet_model, old_model))
         return tweet_model
 
@@ -364,8 +388,7 @@ class AsyncTwitterClient:
         if not user_model:
             user_model = TwitterUserModel(id=f"{user.id}")
             # 更新缓存
-            cache: LRUCache = self.model_user_get_or_none.cache
-            cache.set(user_model.id, user_model)
+            self.model_user_get_or_none_update(f"{user.id}", user_model)
         else:
             old_model = user_model.clone(user_model.pk)
         user_model.name = user.name
@@ -381,8 +404,10 @@ class AsyncTwitterClient:
 
         if user.public_metrics:
             public_metrics: Dict[str, int] = user.public_metrics
-            user_model.followers_count = public_metrics.get(
+            followers_count = public_metrics.get(
                 "followers_count", user_model.followers_count)
+            if followers_count > user_model.followers_count or user_model.followers_count - followers_count > 1000:
+                user_model.followers_count = followers_count
             user_model.following_count = public_metrics.get(
                 "following_count", user_model.following_count)
             user_model.tweet_count = public_metrics.get(
@@ -516,31 +541,31 @@ class AsyncTwitterClient:
                                                            is_minor=False,
                                                            auto=auto))
             except BaseORMException as e:
-                raise TwitterDatabaseException("数据库异常！位于：timeline处理-主数据",
+                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-主数据 {res_tweet.id}",
                                                cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException("意外的错误，可能是转换失败导致。", cause=e)
+                    raise TwitterException(f"意外的错误，可能是转换失败导致。 位于：timeline处理-主数据 {res_tweet.id}", cause=e)
 
         for user in users:
             try:
                 await self.conversion_user(user)
             except BaseORMException as e:
-                raise TwitterDatabaseException("数据库异常！位于：timeline处理-用户",
+                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-用户 {user.id}",
                                                cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException("意外的错误，可能是转换失败导致。", cause=e)
+                    raise TwitterException(f"意外的错误，可能是转换失败导致。 timeline处理-用户 {user.id}", cause=e)
 
         for tweet in tweets:
             try:
                 await self.conversion_tweet(tweet, includes, auto=auto)
             except BaseORMException as e:
-                raise TwitterDatabaseException("数据库异常！位于：timeline处理-次要推文",
+                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-次要推文 {tweet.id}",
                                                cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException("意外的错误，可能是转换失败导致。", cause=e)
+                    raise TwitterException(f"意外的错误，可能是转换失败导致。位于：timeline处理-次要推文 {tweet.id}", cause=e)
 
         return return_tweets
 
@@ -620,10 +645,10 @@ class AsyncTwitterClient:
                 return_users.append(await self.conversion_user(user))
             except BaseORMException as e:
                 raise TwitterDatabaseException(
-                    "数据库异常！位于：self_following_list处理", cause=e)
+                    f"数据库异常！位于：self_following_list处理 {user.id}", cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException("意外的错误，可能是转换失败导致。", cause=e)
+                    raise TwitterException(f"意外的错误，可能是转换失败导致。 {user.id}", cause=e)
 
         tweets: Optional[List[Tweet]] = includes.get("tweets", [])
         if tweets:

@@ -59,7 +59,7 @@ class BotSend:
 
             msg 待发送的数据
         """
-        if bot_type == V11Adapter.type:
+        if bot_type == V11Adapter.get_type():
             if "user_id" in send_params:
                 return await cls.ob_send_private_msg(send_params["user_id"],
                                                      msg)

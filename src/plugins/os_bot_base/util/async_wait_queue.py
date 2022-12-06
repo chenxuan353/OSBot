@@ -50,16 +50,18 @@ class AsyncWaitQueue:
         """
         logger.debug("处理循环 {}-{} 启动", self.name, deal_num)
         while True:
-            asyncfunc = await self.queue.get()
-            start_time = time()
-            await asyncfunc
-            deal_time = time() - start_time
-            logger.debug(
-                f"处理循环 {{}}-{{}} 处理了一个任务 耗时{deal_time:.2f}s  剩余队列 {{}}",
-                self.name, deal_num, self.queue.qsize())
-            self.statistics.append(deal_time)
-            self.queue.task_done()
-
+            try:
+                asyncfunc = await self.queue.get()
+                start_time = time()
+                await asyncfunc
+                deal_time = time() - start_time
+                logger.debug(
+                    f"处理循环 {{}}-{{}} 处理了一个任务 耗时{deal_time:.2f}s  剩余队列 {{}}",
+                    self.name, deal_num, self.queue.qsize())
+                self.statistics.append(deal_time)
+                self.queue.task_done()
+            except Exception as e:
+                logger.opt(exception=True).error("处理循环异常！")
     def wrapper_submit(self, func: Callable[..., Coroutine]):
         """
             自动提交返回可等待对象的装饰器

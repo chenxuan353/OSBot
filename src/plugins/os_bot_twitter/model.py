@@ -11,6 +11,7 @@ class TweetTypeEnum(Enum):
     retweet = "转推"
     quote = "转评"
     replay = "回复"
+    quote_replay = "带推回复"
 
 
 class TwitterTweetModel(Model):
@@ -53,8 +54,8 @@ class TwitterTweetModel(Model):
     """来自自动更新的数据？(自动更新的数据被认为时效性更佳)"""
     trans: bool = fields.BooleanField(default=False,
                                       description="是否包含人工翻译")  # type: ignore
-    relate_trans: fields.ReverseRelation["TwitterTransModel"]
     """被烤过的推文将置为True"""
+    relate_trans: fields.ReverseRelation["TwitterTransModel"]
     possibly_sensitive: bool = fields.BooleanField(
         index=True, null=False, description="是否敏感")  # type: ignore
     """该字段表示内容可能被识别为敏感内容。"""
@@ -81,10 +82,10 @@ class TwitterTweetModel(Model):
         index=True, null=True, max_length=255, description="引用的推文作者ID")
     """引用的推文作者ID(存在referenced_tweet_id也可能为空)"""
     referenced_tweet_author_name: str = fields.CharField(
-        max_length=255, description="引用的推文作者昵称")
+        max_length=255, null=True, description="引用的推文作者昵称")
     """引用的推文作者昵称"""
     referenced_tweet_author_username: str = fields.CharField(
-        max_length=255, description="引用的推文作者名")
+        max_length=255, null=True, description="引用的推文作者名")
     """引用的推文作者名"""
 
     lang: Optional[str] = fields.CharField(null=True,
@@ -260,17 +261,22 @@ class TwitterTransModel(Model):
                                        max_length=255,
                                        description="组掩码标识")
     subscribe: Optional[str] = fields.CharField(index=True,
-                                      null=True,
-                                      max_length=255,
-                                      description="关联的订阅用户")
+                                                null=True,
+                                                max_length=255,
+                                                description="关联的订阅用户")
     username: str = fields.CharField(index=True,
-                                      null=True,
-                                      max_length=255,
-                                      description="关联用户名")
+                                     null=True,
+                                     max_length=255,
+                                     description="关联用户名")
     tweet_id: str
-    tweet: fields.ForeignKeyRelation[TwitterTweetModel] = fields.ForeignKeyField(
-        f"models.TwitterTweetModel", null=True, related_name="relate_trans",db_constraint=False, index=True, description="关联的推文ID"
-    )
+    tweet: fields.ForeignKeyRelation[
+        TwitterTweetModel] = fields.ForeignKeyField(
+            f"models.TwitterTweetModel",
+            null=True,
+            related_name="relate_trans",
+            db_constraint=False,
+            index=True,
+            description="关联的推文ID")
     drive_mark: str = fields.CharField(index=True,
                                        max_length=255,
                                        description="驱动标识")

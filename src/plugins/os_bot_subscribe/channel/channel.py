@@ -153,7 +153,7 @@ class Channel:
 
     async def send_msg(self, subscribe: SubscribeModel, message: Any) -> bool:
         """尽力发送消息，失败返回False"""
-        if not await plug_is_disable("os_bot_subscribe", subscribe.group_mark):
+        if await plug_is_disable("os_bot_subscribe", subscribe.group_mark):
             logger.info("因组 {} 的订阅插件被关闭，转推消息推送取消。(相关订阅 {})",
                         subscribe.group_mark, subscribe.id)
             return True

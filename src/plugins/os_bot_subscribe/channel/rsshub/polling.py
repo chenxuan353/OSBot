@@ -91,8 +91,10 @@ def rsshub_subscribe_invalid_cache():
 
 
 def rsshub_subscribe_invalid_subtype_cache(channel_subtype: str):
-    _model_get_listeners.uncached(channel_subtype)
-    _model_get_listeners_map.uncached(channel_subtype)
+    key = _model_get_listeners.cache_key(channel_subtype)
+    _model_get_listeners.cache.delete(key)
+    key = _model_get_listeners_map.cache_key(channel_subtype)
+    _model_get_listeners_map.cache.delete(key)
 
 
 """

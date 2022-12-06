@@ -151,7 +151,7 @@ async def _(matcher: Matcher,
     uid = arg.unit_uuid
     if not uid:
         await matcher.finish(f"要写用户账号哦！")
-    if uid in config.SUPERUSERS or str(uid) in config.SUPERUSERS:
+    if uid in config.superusers or str(uid) in config.superusers:
         await matcher.finish(f"超级用户无法封禁！")
     if uid in config.os_ob_black_user_list:
         await matcher.finish(f"此用户已被配置封禁！")
@@ -399,7 +399,7 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
         "wording": "此群组已禁用（hook）",
     }
     if data.get("group_id"):
-        session: BlackSession = get_plugin_session(
+        session: BlackSession = await get_plugin_session(
             BlackSession)  # type: ignore
         if data.get("group_id") in config.os_ob_black_group_list:
             logger.info("尝试发起对被封禁群聊的操作（配置） {} -> {} | {}",
@@ -414,7 +414,7 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
                         data.get("group_id"), api, data)
             raise MockApiException(ban_result)
     if data.get("user_id"):
-        session: BlackSession = get_plugin_session(
+        session: BlackSession = await get_plugin_session(
             BlackSession)  # type: ignore
         if data.get("user_id") in config.os_ob_black_user_list:
             logger.info("尝试发起对被封禁用户的操作（配置） {} -> {} | {}",
