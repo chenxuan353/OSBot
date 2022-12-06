@@ -58,9 +58,10 @@ class RsshubBilibiliLiveChannel(RsshubChannel):
     async def precheck(self, subscribe_str: str, option_str: str,
                        state: Dict[str, Any],
                        session: RsshubChannelSession) -> bool:
-        if self.subscribe_str_to_path(subscribe_str).startswith(
+        path = self.subscribe_str_to_path(subscribe_str)
+        if path.startswith(
                 '/bilibili/live/room/'):
-            result = await self.test_path(subscribe_str)
+            result = await self.test_path(path)
             if not result:
                 return True
             raise MatcherErrorFinsh(result)

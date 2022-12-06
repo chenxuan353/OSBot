@@ -19,7 +19,7 @@ class ChannelFactory:
         """别名注册表"""
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls) -> Self:
         if not cls.instance:
             cls.instance = cls()
         return cls.instance

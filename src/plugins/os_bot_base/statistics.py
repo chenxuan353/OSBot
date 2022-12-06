@@ -3,19 +3,23 @@
 
     例如 运行时间、处理时间
 """
+import asyncio
 from time import time
+import psutil
 from typing import Any, Deque, Dict, List, Optional, Union
 from typing_extensions import Self
 from collections import deque
-from nonebot import get_driver, get_bots
+from nonebot import get_driver, get_bots, on_command
 from nonebot.message import run_preprocessor, run_postprocessor, event_preprocessor, event_postprocessor
 from nonebot.adapters.onebot import v11, v12
 from nonebot.adapters import Event, Bot
 from nonebot.matcher import Matcher
+from nonebot.permission import SUPERUSER
 from nonebot_plugin_apscheduler import scheduler
 from .consts import STATE_STATISTICE_DEAL
 from .logger import logger
-from .util import seconds_to_dhms
+from .util import seconds_to_dhms, matcher_exception_try, only_command
+from .notice import UrgentNotice
 
 driver = get_driver()
 
@@ -148,13 +152,8 @@ class StatisticsRecord:
 statistics_record = StatisticsRecord.get_instance()
 
 
-@scheduler.scheduled_job("interval", minutes=10, name="数据分析输出")
-async def print_statistics_info():
-    """
-        每十分钟输出一次统计信息
-    """
-    logger.info(
-        f"===[数据分析] 统计信息===\n"
+def get_statistics_info():
+    return (
         f"已启动：{seconds_to_dhms(int(statistics_record.run_seconds()))}\n"
         f"活跃Bot计数:{len(get_bots())}\n"
         f"平均事件响应时(近期)：{statistics_record.avg_event_deal_ms():.3f}ms\n"
@@ -164,6 +163,80 @@ async def print_statistics_info():
         f"Api请求 错误数/总计数 (错误率):{statistics_record.api_call_error_count}/{statistics_record.api_call_count} "
         f"({(statistics_record.api_call_error_count/(statistics_record.api_call_count or 1))*100:.5f}%)\n"
         f"Bot断开计数:{statistics_record.bot_disconnect}")
+
+
+statistics_info = on_command(
+    "运行数据统计",
+    aliases={"数据统计", "数据分析统计"},
+    block=True,
+    rule=only_command(),
+    permission=SUPERUSER,
+)
+
+
+@statistics_info.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, bot: v11.Bot, event: v11.PrivateMessageEvent):
+    await matcher.finish(f"数据分析统计>>\n{get_statistics_info()}")
+
+
+def get_statistics_system_info():
+    disks = psutil.disk_partitions()
+    disk_usage_str = ""
+    for disk in disks:
+        disk_usage = psutil.disk_usage(disk.mountpoint)
+        disk_usage_str += f"\n  {disk.mountpoint} {disk_usage.percent:.2f}%"
+
+    return (f"系统运行时间：{seconds_to_dhms(int(time() - psutil.boot_time()))}\n"
+            f"CPU利用率：{psutil.cpu_percent(interval=1):.2f}%\n"
+            f"内存利用率：{psutil.virtual_memory().percent:.2f}%\n"
+            f"交换内存利用率：{psutil.swap_memory().percent:.2f}%\n"
+            f"磁盘信息：{disk_usage_str}")
+
+
+statistics_system_info = on_command(
+    "系统状态",
+    aliases={"系统运行状态", "当前系统状态", "当前系统运行状态"},
+    block=True,
+    rule=only_command(),
+    permission=SUPERUSER,
+)
+
+
+@statistics_system_info.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, bot: v11.Bot, event: v11.PrivateMessageEvent):
+    await matcher.finish(f"系统运行状态>>\n{get_statistics_system_info()}")
+
+
+@scheduler.scheduled_job("interval", minutes=10, name="数据分析输出")
+async def print_statistics_info():
+    """
+        每十分钟输出一次统计信息
+    """
+    logger.info(f"===[数据分析] 统计信息==="
+                f"\n{get_statistics_info()}"
+                f"\n{get_statistics_system_info()}")
+
+
+@scheduler.scheduled_job("interval", minutes=5 * 3600, name="运行状态检查")
+async def statistics_info_check():
+    disks = psutil.disk_partitions()
+    disk_usage_totel = 0
+    for disk in disks:
+        disk_usage = psutil.disk_usage(disk.mountpoint)
+        disk_usage_totel += disk_usage.percent
+    disk_usage_percent = disk_usage_totel / len(disks)
+    if disk_usage_percent > 90:
+        logger.warning("磁盘使用量超过90%")
+    if disk_usage_percent > 95:
+        logger.warning("磁盘使用量超过95%")
+        await UrgentNotice.send("磁盘用量超过95%了哦")
+
+    await asyncio.sleep(10)
+
+    if psutil.virtual_memory().percent > 90:
+        await UrgentNotice.send("内存用量超过90%了哦")
 
 
 @driver.on_startup

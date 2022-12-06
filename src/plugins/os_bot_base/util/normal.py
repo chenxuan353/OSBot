@@ -114,7 +114,7 @@ def seconds_to_dhms(seconds: float) -> str:
         return "{} 分 ".format(minute)
 
     def _seconds(second):
-        return "{} 秒".format(second)
+        return f"{second:.2f} 秒"
 
     days = seconds // (3600 * 24)
     hours = (seconds // 3600) % 24

@@ -104,7 +104,7 @@ class Channel:
         """解析唯一订阅ID"""
         raise NotImplementedError("need implemented function!")
 
-    def subscribe_update(self) -> None:
+    async def subscribe_update(self) -> None:
         """订阅更新的钩子函数"""
 
     def get_subscribe_info(

@@ -59,6 +59,9 @@ class BotSend:
 
             msg 待发送的数据
         """
+        if not msg:
+            logger.debug("消息通知尝试发送空消息 {} - {}", bot_type, send_params)
+            return True
         if bot_type == V11Adapter.get_type():
             if "user_id" in send_params:
                 return await cls.ob_send_private_msg(send_params["user_id"],

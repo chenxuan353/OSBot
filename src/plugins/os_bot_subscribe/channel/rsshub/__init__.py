@@ -5,4 +5,5 @@
 """
 from . import config
 from . import polling
-from .subchannel import *
+from . import subchannel
+from .subchannel import bilibili_dynamic, bilibili_live, email

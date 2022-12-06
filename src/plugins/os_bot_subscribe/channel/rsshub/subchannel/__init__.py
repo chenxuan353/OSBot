@@ -43,7 +43,7 @@ class RsshubChannel(BaseChannel):
         """请求间隔范围 ms"""
         return (1000, 1000)
 
-    def subscribe_update(self) -> None:
+    async def subscribe_update(self) -> None:
         """rss订阅在更新时更新缓存"""
         from ..polling import rsshub_subscribe_invalid_subtype_cache
         rsshub_subscribe_invalid_subtype_cache(self.channel_subtype)

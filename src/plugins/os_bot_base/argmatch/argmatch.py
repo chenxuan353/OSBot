@@ -40,9 +40,9 @@ class ArgMatch(abc.ABC):
             分割符转义 $sep$
         """
 
-    def __init__(self, args: List["Field"] = []) -> None:
+    def __init__(self, args: List["Field" and Any] = []) -> None:
         super().__init__()
-        self._args = args
+        self._args = args  # type: ignore
         self._kws = {}
         for key in self.__class__.__dict__:
             val = self.__class__.__dict__[key]

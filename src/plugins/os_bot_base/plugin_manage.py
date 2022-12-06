@@ -161,7 +161,7 @@ class ManageArg(ArgMatch):
         "组标识", {
             "group": ["g", "group", "组", "群", "群聊"],
             "private": ["p", "private", "私聊", "好友", "私"],
-        })  # type: ignore
+        })
     group_id: int = Field.Int("组ID", min=9999, max=99999999999)
     plugin_name: str = Field.Keys("插件名称",
                                   keys_generate=lambda: cache_plugin_key_map)
@@ -170,7 +170,7 @@ class ManageArg(ArgMatch):
     def __init__(self) -> None:
         super().__init__(
             [self.group_type, self.group_id, self.plugin_name,
-             self.switch])  # type: ignore
+             self.switch])
 
 
 class PlugArg(ArgMatch):
@@ -183,7 +183,7 @@ class PlugArg(ArgMatch):
                                   keys_generate=lambda: cache_plugin_key_map)
 
     def __init__(self) -> None:
-        super().__init__([self.plugin_name])  # type: ignore
+        super().__init__([self.plugin_name])
 
 
 async def get_plugin_suggest(name: str) -> List[str]:
@@ -494,7 +494,8 @@ OSBot v0.1beta
 需要远程控制插件状态可以通过`插件管理 组标识 组ID 插件名称 状态`来远程设置
 通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
 通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
-通过`还得是你`切换优先响应
+通过`还得是你/优先响应`切换优先响应
+其它命令 `运行数据统计`、`系统状态`
 """.strip()
 
 admin_help = on_command("管理员帮助",

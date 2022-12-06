@@ -128,7 +128,7 @@ class BanArg(ArgMatch):
     ban_time: int = Field.RelateTime("封禁时间", default=0, require=False)
 
     def __init__(self) -> None:
-        super().__init__([self.unit_uuid, self.ban_time])  # type: ignore
+        super().__init__([self.unit_uuid, self.ban_time])
 
 
 ban_add = on_command(

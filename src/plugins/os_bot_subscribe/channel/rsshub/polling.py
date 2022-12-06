@@ -128,7 +128,7 @@ async def _():
     await session._lock()
 
     async def pool_loop(channel: RsshubChannel):
-        logger.info("Rsshub轮询启动")
+        logger.info("Rsshub轮询启动 当前订阅总数 {}", len(await _model_get_listeners(channel.channel_subtype)))
         RssCls = channel.rss_cls
 
         url_cycle = cycle(urls)

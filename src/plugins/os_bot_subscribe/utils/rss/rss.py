@@ -1,6 +1,7 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 import time
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, Optional, Type
 import aiohttp
 import feedparser
 from feedparser import FeedParserDict
@@ -196,7 +197,7 @@ class Rss:
             request_content = await self.async_http_request()
             data: FeedParserDict = feedparser.parse(request_content)
             return self.rss_parse.conversion(data, source_url=self.url)
-        except (ConnectTimeout, TimeoutError) as e:
+        except (ConnectTimeout, TimeoutError, asyncio.TimeoutError) as e:
             raise RssRequestFailure(F"url {self.url} => 读取超时！", cause=e)
         except ClientConnectorError as e:
             raise RssRequestFailure(F"url {self.url} => 连接异常！", cause=e)

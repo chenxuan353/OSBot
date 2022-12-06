@@ -126,7 +126,7 @@ class SubscribeArg(ArgMatch):
     user_search: str = Field.Str("订阅对象")
 
     def __init__(self) -> None:
-        super().__init__([self.user_search])  # type: ignore
+        super().__init__([self.user_search])
 
 
 subscribe_add = on_command("推特订阅",
@@ -515,7 +515,7 @@ class TweetArg(ArgMatch):
                           help="页码，大于等于1。")  # type: ignore
 
     def __init__(self) -> None:
-        super().__init__([self.user_search, self.page])  # type: ignore
+        super().__init__([self.user_search, self.page])
 
 
 tweet_cache_list = on_command("查看缓存推文列表",
@@ -681,7 +681,7 @@ class TransArg(ArgMatch):
     tweet_str: str = Field.Str("推文链接、序号")
 
     def __init__(self) -> None:
-        super().__init__([self.tweet_str])  # type: ignore
+        super().__init__([self.tweet_str])
 
 
 async def download_to_base64(url: str) -> str:
@@ -897,7 +897,7 @@ class TweetUserArg(ArgMatch):
     user_search: str = Field.Str("用户")
 
     def __init__(self) -> None:
-        super().__init__([self.user_search])  # type: ignore
+        super().__init__([self.user_search])
 
 
 set_tweet_user_template = on_command("设置用户烤推模版",
@@ -1015,7 +1015,7 @@ class TransIdArg(ArgMatch):
     tran_id: int = Field.Int("烤推结果序号", min=0)
 
     def __init__(self) -> None:
-        super().__init__([self.tran_id])  # type: ignore
+        super().__init__([self.tran_id])
 
 
 tweet_tran_history_view = on_command("烤推结果",

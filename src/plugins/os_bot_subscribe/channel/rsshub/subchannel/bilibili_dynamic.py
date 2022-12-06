@@ -14,7 +14,7 @@ from . import RsshubChannelSession, RsshubChannel, Options, Option
 
 class BilibiliDynamicOptions(Options):
     contribute: bool = Option.new(True, ["投稿", "视频"])
-    only_japanese: bool = Option.new(True, ["仅日文", "仅日语"])
+    only_japanese: bool = Option.new(False, ["仅日文", "仅日语"])
     share_and_forward: bool = Option.new(False, ["转发", "分享"])
 
 
@@ -64,9 +64,10 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
     async def precheck(self, subscribe_str: str, option_str: str,
                        state: Dict[str, Any],
                        session: RsshubChannelSession) -> bool:
-        if self.subscribe_str_to_path(subscribe_str).startswith(
+        path = self.subscribe_str_to_path(subscribe_str)
+        if path.startswith(
                 '/bilibili/user/dynamic/'):
-            result = await self.test_path(subscribe_str)
+            result = await self.test_path(path)
             if not result:
                 return True
             raise MatcherErrorFinsh(result)
@@ -119,23 +120,25 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
             contribute: str = "contribute"
             share_and_forward: str = "share_and_forward"
 
+        author_name = now_data.title_full.replace(" 的 bilibili 动态", "")
+
         for data in update_data:
             update_type = UpdateType.normal
             title_full = data.title_full.strip()
             if title_full == "转发动态" or title_full == "分享动态":
                 update_type = UpdateType.share_and_forward
                 msg = "{0}的转发了一条动态\n{1}".format(
-                    now_data.title_full,
-                    await self.rss_text_to_send_message(data.des_full),
+                    author_name,
+                    await self.rss_text_to_send_message(data.des_source),
                 )
             elif title_full.find('/bfs/archive/') != -1:
                 update_type = UpdateType.contribute
-                msg = "{0}投稿啦\n{1}\n{2}".format(now_data.title_full,
+                msg = "{0}投稿啦\n{1}\n{2}".format(author_name,
                                                 data.title_full, data.link)
             else:
                 msg = "{0}的动态~\n{1}\n{2}".format(
-                    now_data.title_full, await
-                    self.rss_text_to_send_message(data.des_full), data.link)
+                    author_name, await
+                    self.rss_text_to_send_message(data.des_source), data.link)
 
             for subscribe in subscribes:
                 try:

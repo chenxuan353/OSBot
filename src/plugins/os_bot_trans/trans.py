@@ -84,7 +84,7 @@ class TransArgs(ArgMatch):
 
     def __init__(self) -> None:
         super().__init__([self.engine, self.source,
-                          self.target])  # type: ignore
+                          self.target])
 
 
 async def trans_before_handle(source, target, text, deftarget="ja"):
@@ -118,7 +118,7 @@ async def trans_before_handle(source, target, text, deftarget="ja"):
 
 class DefTransArgs(ArgMatch):
 
-    class Meta(ArgMatch.Meta):  # noqa F811
+    class Meta(ArgMatch.Meta):
         name = "机翻参数"
         des = "匹配机翻引擎参数"
 
@@ -128,7 +128,7 @@ class DefTransArgs(ArgMatch):
                              require=False)
 
     def __init__(self) -> None:
-        super().__init__([self.target])  # type: ignore
+        super().__init__([self.target])
 
 
 set_def_trans = on_command("设置默认翻译语言",
@@ -238,7 +238,7 @@ class StreamArgs(ArgMatch):
     def __init__(self) -> None:
         super().__init__([
             self.switch, self.unit_uuid, self.engine, self.source, self.target
-        ])  # type: ignore
+        ])
 
 
 stream = on_command("流式翻译",

@@ -139,7 +139,7 @@ class BalanceArg(ArgMatch):
                                require=False)
 
     def __init__(self) -> None:
-        super().__init__([self.unit_uuid])  # type: ignore
+        super().__init__([self.unit_uuid])
 
 
 set_balance = on_command(
