@@ -1092,3 +1092,16 @@ tweet_help = on_command("转推配置帮助",
 @matcher_exception_try()
 async def _(matcher: Matcher):
     await matcher.finish("推特配置选项 机翻、相关、转推、转评、回复、昵称、描述、头像、粉丝数、重置及`-用户资料`")
+
+
+tweet_tran_reload_script = on_command("重载烤推脚本",
+                             permission=SUPERUSER,
+                             rule=only_command(),
+                             block=True)
+
+
+@tweet_tran_reload_script.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    await twitterTransManage.reload_script()
+    await matcher.finish("完成")
