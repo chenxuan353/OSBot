@@ -52,6 +52,11 @@ async def download_with_resize_to_base64(url: str, width: int,
     return urlbase64
 
 
+def download_with_resize_to_base64_invaild(url: str, width: int, height: int):
+    key = download_with_resize_to_base64.cache_key(url, width, height)
+    download_with_resize_to_base64.cache.delete(key)
+
+
 class BilibiliDynamicOptions(Options):
     contribute: bool = Option.new(True, ["投稿", "视频"])
     only_japanese: bool = Option.new(False, ["仅日文", "仅日语"])
@@ -220,6 +225,8 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                         rtnmessage += v11.MessageSegment.image(
                             f"base64://{imgb64}")
                     else:
+                        # 无效错误的转换结果
+                        download_with_resize_to_base64_invaild(url, 25, 25)
                         rtnmessage += msgseg
                 else:
                     rtnmessage += msgseg
