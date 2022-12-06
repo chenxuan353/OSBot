@@ -130,7 +130,10 @@ class PollTwitterUpdate(TwitterUpdate):
                 msg += f"\n--------"
                 msg += f"\n{tweet.trans_text}"
         elif tweet.type == TweetTypeEnum.retweet:
-            msg = f"{tweet.author_name}转了\n{tweet.referenced_tweet_author_name}的推文"
+            if tweet.author_id == tweet.referenced_tweet_author_id:
+                msg = f"{tweet.author_name}\n转了自己的推"
+            else:
+                msg = f"{tweet.author_name}转了\n{tweet.referenced_tweet_author_name}的推文"
             if relate_tweet:
                 msg += f"\n{relate_tweet.display_text}"
                 if tweet_trans and relate_tweet.trans_text:
@@ -143,7 +146,10 @@ class PollTwitterUpdate(TwitterUpdate):
                 msg += "\n>依赖推文缺失\n"
                 return msg
         elif tweet.type == TweetTypeEnum.quote:
-            msg = f"{tweet.author_name}\n转评了\n{tweet.referenced_tweet_author_name}的推文~"
+            if tweet.author_id == tweet.referenced_tweet_author_id:
+                msg = f"{tweet.author_name}\n转评了自己的推文~"
+            else:
+                msg = f"{tweet.author_name}\n转评了\n{tweet.referenced_tweet_author_name}的推文"
             # 附加主推文
             msg += f"\n{tweet.display_text}"
             if tweet_trans and tweet.trans_text:
@@ -160,7 +166,10 @@ class PollTwitterUpdate(TwitterUpdate):
                                tweet.referenced_tweet_id)
                 msg += f"\n========\n引用推文数据缺失"
         elif tweet.type == TweetTypeEnum.replay:
-            msg = f"{tweet.author_name}\n回复了\n{tweet.referenced_tweet_author_name}的推"
+            if tweet.author_id == tweet.referenced_tweet_author_id:
+                msg = f"{tweet.author_name}\n回复了自己的推"
+            else:
+                msg = f"{tweet.author_name}\n回复了\n{tweet.referenced_tweet_author_name}的推"
             # 附加主推文
             msg += f"\n{tweet.display_text}"
             if tweet_trans and tweet.trans_text:

@@ -608,6 +608,47 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                 },
             ];
         };
+        // 等待图片加载
+        TweetHtml.waitImageComplate = function () {
+            return new Promise(function (resolve, reject) {
+                let rootDom = CSSAnchor.rootElem();
+                //判断图片是否加载完成
+                let imgIsAllLoadComplete = function () {
+                    let photos = CSSAnchor.articleImages(rootDom);
+                    if (photos.length == 0) {
+                        Logger.info("未找到可加载图片");
+                        return true;
+                    }
+                    for (let i = 0; i < photos.length; i++) {
+                        let img = photos[i].querySelector("img");
+                        try {
+                            if (img == null || !img.complete) {
+                                return false;
+                            }
+                        } catch (e) {
+                            Logger.exception(e);
+                            return true;
+                        }
+                    }
+                    return true;
+                };
+                let checkloop = function () {
+                    waitTimeCount += 100;
+                    if (waitTimeCount > timeout) {
+                        reject("等待超时！");
+                        return;
+                    }
+                    if (!imgIsAllLoadComplete()) {
+                        setTimeout(checkloop, 100);
+                    } else {
+                        resolve();
+                    }
+                };
+                // 启动检查循环
+                setTimeout(checkloop, 100);
+            });
+        };
+
         // 推特加载等待
         TweetHtml.waitLoad = function (
             loadComplateFunc,
@@ -697,45 +738,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                     setTimeout(checkloop, 100);
                 });
             };
-            let waitImageComplate = function () {
-                return new Promise(function (resolve, reject) {
-                    let rootDom = CSSAnchor.rootElem();
-                    //判断图片是否加载完成
-                    let imgIsAllLoadComplete = function () {
-                        let photos = CSSAnchor.articleImages(rootDom);
-                        if (photos.length == 0) {
-                            Logger.info("未找到可加载图片");
-                            return true;
-                        }
-                        for (let i = 0; i < photos.length; i++) {
-                            let img = photos[i].querySelector("img");
-                            try {
-                                if (img == null || !img.complete) {
-                                    return false;
-                                }
-                            } catch (e) {
-                                Logger.exception(e);
-                                return true;
-                            }
-                        }
-                        return true;
-                    };
-                    let checkloop = function () {
-                        waitTimeCount += 100;
-                        if (waitTimeCount > timeout) {
-                            reject("等待超时！");
-                            return;
-                        }
-                        if (!imgIsAllLoadComplete()) {
-                            setTimeout(checkloop, 100);
-                        } else {
-                            resolve();
-                        }
-                    };
-                    // 启动检查循环
-                    setTimeout(checkloop, 100);
-                });
-            };
+            let waitImageComplate = TweetHtml.waitImageComplate;
 
 
             waitRootDom()
@@ -1551,15 +1554,20 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         GLOBAL_TOOL.Logger.info("文本：", GLOBAL_TOOL.TRANS_STR)
         GLOBAL_TOOL.Logger.info("字典：", GLOBAL_TOOL.TRANS_DICT)
         if (GLOBAL_TOOL.TRANS_DICT) {
-            return GLOBAL_TOOL.TweetHtml.insertTrans(
+            let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                 null,
                 GLOBAL_TOOL.TRANS_DICT,
             );
+            await GLOBAL_TOOL.TweetHtml.waitImageComplate();
+            return rtnVal;
         } else {
-            return GLOBAL_TOOL.TweetHtml.insertTrans(
+            // TweetHtml.waitImageComplate 
+            let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                 null,
                 GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, template=null),
             );
+            await GLOBAL_TOOL.TweetHtml.waitImageComplate();
+            return rtnVal;
         }
     }
     return playwright();

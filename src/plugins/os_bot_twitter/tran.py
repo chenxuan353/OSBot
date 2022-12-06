@@ -1,7 +1,8 @@
 import asyncio
+import datetime
 import os
 import random
-from time import time
+from time import localtime, strftime, time
 from typing import Any, Dict, Optional
 from playwright.async_api import async_playwright
 from .logger import logger
@@ -207,3 +208,20 @@ class TwitterTransManage:
     async def reload_script(self):
         """重新加载脚本"""
         self.twitter_trans.load_script()
+
+    async def clear_screenshot_file(self):
+        """清理7天以上的烤推文件"""
+        current_time = strftime("%Y-%m-%d", localtime(time()))
+        current_timeList = current_time.split("-")
+        current_time_day = datetime.datetime(int(current_timeList[0]), int(current_timeList[1]), int(current_timeList[2]))        
+        path = self.screenshot_path
+
+        for root, dirs, files in os.walk(path):
+            for item in files:
+                file_path = os.path.join(root, item)
+                create_time =  strftime("%Y-%m-%d", localtime((os.stat(file_path)).st_mtime))
+                create_timeList = create_time.split("-")
+                create_time_day = datetime.datetime(int(create_timeList[0]), int(create_timeList[1]), int(create_timeList[2]))
+                time_difference = (current_time_day - create_time_day).days
+                if time_difference > 7:
+                    os.remove(file_path)

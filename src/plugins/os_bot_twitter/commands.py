@@ -24,6 +24,7 @@ from .config import TwitterSession, TwitterPlugSession
 from .logger import logger
 from .config import config
 from .tran import TwitterTransManage
+from .options import Options, Option
 
 from ..os_bot_base.util import matcher_exception_try, only_command
 from ..os_bot_base.depends import SessionPluginDepend, SessionDepend
@@ -63,106 +64,52 @@ async def get_user_from_search(msg: str,
     return user
 
 
-class SubscribeOption:
+class SubscribeOption(Options):
 
-    def __init__(self) -> None:
-        self.tweet_trans: bool = False
-        self.update_mention: bool = False
-        self.update_retweet: bool = False
-        self.update_quote: bool = False
-        self.update_replay: bool = False
-        self.update_name: bool = False
-        self.update_description: bool = False
-        self.update_profile: bool = False
-        self.update_followers: bool = False
+    tweet_trans: bool = Option.new(False, ["自动翻译", "翻译", "机翻"])
+    update_mention: bool = Option.new(True, ["相关", "智能", "关联推送", "智能推送"])
+    update_retweet: bool = Option.new(False, ["转推"])
+    update_quote: bool = Option.new(False, ["转评", "转发评论"])
+    update_replay: bool = Option.new(False, ["回复"])
+
+    update_name: bool = Option.new(False, ["昵称", "昵称更新"])
+    update_description: bool = Option.new(False, ["描述", "描述更新", "简介", "简介更新"])
+    update_profile: bool = Option.new(False, ["头像", "头像更新"])
+    update_followers: bool = Option.new(False, ["粉丝数", "粉丝数更新"])
+
 
     def _load_from_model(self, model: TwitterSubscribeModel):
-        option_keys = [
-            "update_mention", "update_retweet", "update_quote",
-            "update_replay", "update_description", "update_profile",
-            "update_followers", "tweet_trans", "update_name"
-        ]
+        option_keys = self.tag_map
         for option_key in option_keys:
             setattr(self, option_key, getattr(model, option_key, False))
 
     def _submit_to_model(self, model: TwitterSubscribeModel):
-        option_keys = [
-            "update_mention", "update_retweet", "update_quote",
-            "update_replay", "update_description", "update_profile",
-            "update_followers", "tweet_trans", "update_name"
-        ]
+        option_keys = self.tag_map
         for option_key in option_keys:
             setattr(model, option_key, getattr(self, option_key, False))
 
-    def __str__(self) -> str:
-        options_map = {
-            "update_mention": "相关",
-            "update_retweet": "转推",
-            "update_quote": "转评",
-            "update_replay": "回复",
-            "update_name": "昵称",
-            "update_description": "描述",
-            "update_profile": "头像",
-            "update_followers": "粉丝数",
-            "tweet_trans": "翻译"
-        }
-        conf_strs = []
-        for option_key in options_map.keys():
-            if getattr(self, option_key, False):
-                conf_strs.append(options_map[option_key])
-        return "、".join(conf_strs)
+    def matcher_option_hook(self, key: str, value: bool,
+                            source_option: str) -> bool:
+        """
+            option钩子
 
+            可以针对性处理特定选项，返回True表明拦截默认操作。
+        """
+        if not value and key in ["用户资料", "用户", "用户信息"]:
+            self.update_name = False
+            self.update_description = False
+            self.update_profile = False
+            self.update_followers = False
+            return True
+        return False
 
 def deal_subscribe_option(
     msg: str,
     subscribe_option: Optional[SubscribeOption] = None
 ) -> Optional[SubscribeOption]:
-    msg = msg.strip()
-    result = re.match(r"""([+-][^+-]+)+""", msg)
-    if not result:
-        return None
-    options_map = {
-        "相关": "update_mention",
-        "转推": "update_retweet",
-        "转评": "update_quote",
-        "回复": "update_replay",
-        "昵称": "update_name",
-        "描述": "update_description",
-        "头像": "update_profile",
-        "粉丝数": "update_followers",
-        "机翻": "tweet_trans",
-        "翻译": "tweet_trans",
-    }
-
     if not subscribe_option:
         subscribe_option = SubscribeOption()
-    result_all: List[str] = re.findall(r"""[+-][^+-]+""", msg)
-    for option in result_all:
-        if option in ("+全部", "+all", "+*"):
-            for option_key in options_map:
-                setattr(subscribe_option, options_map[option_key], True)
-        elif option in ("-全部", "-all", "-*"):
-            for option_key in options_map:
-                setattr(subscribe_option, options_map[option_key], False)
-        elif option in ("+通用推送", "+通用"):
-            subscribe_option.tweet_trans = False
-            subscribe_option.update_mention = True
-            subscribe_option.update_retweet = False
-            subscribe_option.update_quote = True
-            subscribe_option.update_replay = True
-            subscribe_option.update_name = True
-            subscribe_option.update_description = True
-            subscribe_option.update_profile = True
-            subscribe_option.update_followers = True
-        elif option.startswith("+"):
-            option = option[1:]
-            if option in options_map:
-                setattr(subscribe_option, options_map[option], True)
-        elif option.startswith("-"):
-            option = option[1:]
-            if option in options_map:
-                setattr(subscribe_option, options_map[option], False)
-
+    subscribe_option.matcher_options(msg)
     return subscribe_option
 
 
@@ -316,6 +263,9 @@ def deal_tweet_link(msg: str, session: TwitterSession) -> str:
         return ""
     if msg in session.tweet_map:
         return session.tweet_map[msg]
+    elif int(msg) < 100000:
+        """小于10万时视为从缓存中获取数据"""
+        return ""
     return msg
 
 
@@ -1104,3 +1054,41 @@ async def _(matcher: Matcher,
                 return
             msg += v11.MessageSegment.image(
                 f"base64://{str(base64_data, 'utf-8')}")
+
+
+
+tweet_tran_help = on_command("烤推帮助",
+                                     aliases={"烤推机帮助", "烤推姬帮助"},
+                                     rule=only_command(),
+                                     block=True)
+
+
+@tweet_tran_help.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    await matcher.finish(
+        "格式\n"
+        "##标记 内容\n"
+        "\n"
+        "支持的标记\n"
+        "x/层x/第x层、回复x、层内x/引用x/内嵌x、图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖、模版\n"
+        "\n"
+        "默认情况下不覆盖\n"
+        "\n"
+        "例\n"
+        "##1 内容 ##引用 内容\n"
+        "##1 状态 ##选项1 摸鱼 ##选项2 摆烂"
+    )
+
+
+
+tweet_help = on_command("转推配置帮助",
+                                     aliases={"转推帮助"},
+                                     rule=only_command(),
+                                     block=True)
+
+
+@tweet_help.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    await matcher.finish("推特配置选项 机翻、相关、转推、转评、回复、昵称、描述、头像、粉丝数、重置及`-用户资料`")
