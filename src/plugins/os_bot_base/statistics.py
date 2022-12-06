@@ -148,7 +148,7 @@ class StatisticsRecord:
 statistics_record = StatisticsRecord.get_instance()
 
 
-@scheduler.scheduled_job("interval", minutes=10)
+@scheduler.scheduled_job("interval", minutes=10, name="数据分析输出")
 async def print_statistics_info():
     """
         每十分钟输出一次统计信息

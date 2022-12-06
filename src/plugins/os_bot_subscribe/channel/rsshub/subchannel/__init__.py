@@ -111,6 +111,8 @@ class RsshubChannel(BaseChannel):
 
     async def test_path(self, path: str):
         """通过标准rss path测试连通性 如果一切正常则返回None，如果出现错误，则返回错误原因。"""
+        if not config.os_subscribe_rsshub_enable:
+            return "rsshub订阅未开启"
         urls = config.os_subscribe_rsshub_urls
         
         rss = self.rss_cls(

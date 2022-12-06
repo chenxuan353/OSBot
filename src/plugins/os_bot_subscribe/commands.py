@@ -244,14 +244,14 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-subscribe_list = on_command(
+global_subscribe_list = on_command(
     "全局订阅列表",
     block=True,
     permission=SUPERUSER,
 )
 
 
-@subscribe_list.handle()
+@global_subscribe_list.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
             arg: PageArgMatch = ArgMatchDepend(PageArgMatch)):

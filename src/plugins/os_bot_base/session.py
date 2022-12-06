@@ -391,7 +391,7 @@ class SessionManage:
         return cls.session_manage
 
 
-@scheduler.scheduled_job("interval", minutes=5)
+@scheduler.scheduled_job("interval", minutes=5, name="Session回收")
 async def sessions_check_and_recycling():
     sm = SessionManage.get_instance()
     logger.debug("执行`Session`回收，当前：{}", len(sm.sessions))

@@ -755,12 +755,12 @@ async def _(bot: BaseBot, exception: Optional[Exception], api: str,
                      data, result)
 
 
-@scheduler.scheduled_job("interval", minutes=10)
+@scheduler.scheduled_job("interval", minutes=10, name="OB缓存_持久化")
 async def sessions_check_and_recycling():
     OnebotCache.get_instance().save()
 
 
-@scheduler.scheduled_job("interval", minutes=60)
+@scheduler.scheduled_job("interval", minutes=60, name="OB缓存_连接信息更新")
 async def _():
     for key in driver.bots:
         bot = driver.bots[key]
@@ -772,7 +772,7 @@ async def _():
             logger.opt(exception=True).debug(f"获取OB11-{bot.self_id}登录号信息时异常")
 
 
-@scheduler.scheduled_job("interval", minutes=20)
+@scheduler.scheduled_job("interval", minutes=20, name="OB缓存_群列表信息更新")
 async def _():
     for key in driver.bots:
         bot = driver.bots[key]
@@ -784,7 +784,7 @@ async def _():
             logger.opt(exception=True).debug(f"获取OB11-{bot.self_id}群列表信息时异常")
 
 
-@scheduler.scheduled_job("interval", minutes=20)
+@scheduler.scheduled_job("interval", minutes=20, name="OB缓存_好友列表信息更新")
 async def _():
     for key in driver.bots:
         bot = driver.bots[key]

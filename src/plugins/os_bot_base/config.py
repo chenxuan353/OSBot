@@ -23,6 +23,8 @@ class Config(BaseSettings):
         - `os_ob_black_user_list` onebot协议用户黑名单列表
         - `os_ob_black_group_list` onebot协议群组黑名单列表
         - `os_ob_notice_disconnect` onebot协议连接断开通知
+        - `os_ob_notice_user_list` 默认紧急通知用户列表
+        - `os_ob_notice_group_list` 默认紧急通知群列表
     """
     superusers: List[Union[int, str]] = Field(default=[])
 
@@ -37,6 +39,8 @@ class Config(BaseSettings):
     os_ob_black_user_list: List[int] = Field(default=[])
     os_ob_black_group_list: List[int] = Field(default=[])
     os_ob_notice_disconnect: bool = Field(default=True)
+    os_ob_notice_user_list: List[int] = Field(default=[])
+    os_ob_notice_group_list: List[int] = Field(default=[])
 
     class Config:
         extra = "ignore"

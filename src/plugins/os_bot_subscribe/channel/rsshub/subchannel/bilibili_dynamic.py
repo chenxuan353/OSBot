@@ -22,6 +22,17 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
 
     JP_REGEX = re.compile(r'[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7A3]')
 
+
+    @property
+    def aliases(self) -> List[str]:
+        """别名列表"""
+        return ["bilibili动态"]
+
+    @property
+    def name(self) -> str:
+        """中文标识名"""
+        return "B站动态"
+
     @property
     def poll_interval(self) -> Tuple[int, int]:
         """请求间隔范围 ms"""

@@ -19,6 +19,16 @@ class BilibiliLiveOptions(Options):
 class RsshubBilibiliLiveChannel(RsshubChannel):
 
     @property
+    def aliases(self) -> List[str]:
+        """别名列表"""
+        return ["bilibili直播"]
+
+    @property
+    def name(self) -> str:
+        """中文标识名"""
+        return "B站直播"
+
+    @property
     def channel_subtype(self) -> str:
         return "bilibili_live"
 

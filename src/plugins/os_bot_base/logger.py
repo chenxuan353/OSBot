@@ -36,6 +36,9 @@ def default_filter(record: "Record"):
                                         {}).get(record["name"], "INFO")
     levelno = logger.level(log_level).no if isinstance(log_level,
                                                        str) else log_level
+    if record["name"] == "apscheduler":
+        # 过滤所有aps的日志
+        return False
     return record["level"].no >= levelno
 
 

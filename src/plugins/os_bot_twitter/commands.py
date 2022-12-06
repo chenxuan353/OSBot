@@ -15,6 +15,7 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg, EventMessage
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
+from nonebot_plugin_apscheduler import scheduler
 from . import polling
 from .polling import twitter_subscribe_invalid_cache, update_all_listener
 from .polling import user_follow_and_update, PollTwitterUpdate
@@ -42,6 +43,9 @@ async def _():
     global twitterTransManage
     twitterTransManage = TwitterTransManage()
     await twitterTransManage.startup()
+    @scheduler.scheduled_job('cron', hour='3', minute='30', name="烤推清理")
+    async def _():
+        await twitterTransManage.clear_screenshot_file()
 
 
 async def get_user_from_search(msg: str,
@@ -1054,7 +1058,7 @@ async def _(matcher: Matcher,
                 return
             msg += v11.MessageSegment.image(
                 f"base64://{str(base64_data, 'utf-8')}")
-
+    await matcher.finish(msg)
 
 
 tweet_tran_help = on_command("烤推帮助",

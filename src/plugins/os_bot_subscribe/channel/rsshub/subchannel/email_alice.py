@@ -18,8 +18,18 @@ class EmailAliceOptions(Options):
 class RsshubEmailAliceChannel(RsshubChannel):
 
     @property
+    def aliases(self) -> List[str]:
+        """别名列表"""
+        return ["邮件推送"]
+
+    @property
+    def name(self) -> str:
+        """中文标识名"""
+        return "邮件"
+
+    @property
     def channel_subtype(self) -> str:
-        return "email_alice"
+        return "email"
 
     @property
     def options_cls(self) -> Optional[Type[Options]]:

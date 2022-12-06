@@ -180,7 +180,13 @@ class UrgentNotice:
         for uid in ins.onebot_notify:
             success = await BotSend.ob_send_private_msg(uid, message)
             if not success:
-                logger.warning(f"尝试给`{uid}`发送私聊通知失败，消息内容：{message}")
+                logger.warning(f"尝试给`{uid}`(动态)发送私聊通知失败，消息内容：{message}")
+            await asyncio.sleep(1 + random.randint(20, 100) / 100)
+
+        for uid in config.os_ob_notice_user_list:
+            success = await BotSend.ob_send_private_msg(uid, message)
+            if not success:
+                logger.warning(f"尝试给`{uid}`(配置)发送私聊通知失败，消息内容：{message}")
             await asyncio.sleep(1 + random.randint(20, 100) / 100)
 
         # 发送群聊消息
@@ -197,7 +203,13 @@ class UrgentNotice:
         for gid in ins.onebot_group_notify:
             success = await BotSend.ob_send_group_msg(gid, message)
             if not success:
-                logger.warning(f"尝试给`{gid}`发送群聊通知失败，消息内容：{message}")
+                logger.warning(f"尝试给`{gid}`(动态)发送群聊通知失败，消息内容：{message}")
+            await asyncio.sleep(1 + random.randint(20, 100) / 100)
+
+        for gid in config.os_ob_notice_group_list:
+            success = await BotSend.ob_send_group_msg(gid, message)
+            if not success:
+                logger.warning(f"尝试给`{gid}`(配置)发送群聊通知失败，消息内容：{message}")
             await asyncio.sleep(1 + random.randint(20, 100) / 100)
 
     @classmethod

@@ -1,6 +1,6 @@
 import asyncio
 import random
-from time import time
+from time import localtime, strftime, time
 from typing import Any, Dict, List, Optional, Union
 from typing_extensions import Self
 from nonebot import get_driver
@@ -19,6 +19,7 @@ from ...logger import logger
 from ...exception import BaseException
 from .config import config
 
+from ....os_bot_base.util import seconds_to_dhms
 from ....os_bot_base.depends import get_plugin_session
 from ....os_bot_base import Session
 
@@ -111,7 +112,7 @@ def rsshub_subscribe_invalid_subtype_cache(channel_subtype: str):
 @driver.on_startup
 async def _():
     if not config.os_subscribe_rsshub_enable:
-        logger.debug("Rsshub订阅已关闭")
+        logger.info("Rsshub订阅已关闭")
         return
     urls = config.os_subscribe_rsshub_urls
     if not urls:
@@ -127,6 +128,7 @@ async def _():
     await session._lock()
 
     async def pool_loop(channel: RsshubChannel):
+        logger.info("Rsshub轮询启动")
         RssCls = channel.rss_cls
 
         url_cycle = cycle(urls)
@@ -135,9 +137,15 @@ async def _():
         await channel_session._lock()
 
         while True:
+            start_time = time()
+
             listeners = await _model_get_listeners(channel.channel_subtype)
             listener_maps = await _model_get_listeners_map(
                 channel.channel_subtype)
+
+            if len(listeners) > 5:
+                logger.debug("Rsshub轮询开始")
+
             for listener in listeners:
                 if not session.is_enable_channel(channel):
                     await asyncio.sleep(15)
@@ -202,6 +210,15 @@ async def _():
                     random.randint(*channel.poll_interval) / len(urls) / 1000)
 
             await channel_session.save()
+            end_time = time()
+            if len(listeners) > 10:
+                logger.info("Rsshub轮询完成 耗时 {}",
+                            seconds_to_dhms(end_time - start_time))
+            elif len(listeners) > 5:
+                logger.debug("Rsshub轮询完成 耗时 {}",
+                             seconds_to_dhms(end_time - start_time))
+            if len(listeners) <= 3:
+                await asyncio.sleep(5)
 
     pools = []
 

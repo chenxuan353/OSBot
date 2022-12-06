@@ -225,3 +225,4 @@ class TwitterTransManage:
                 time_difference = (current_time_day - create_time_day).days
                 if time_difference > 7:
                     os.remove(file_path)
+                    logger.debug("移除超过{}天的烤推文件 {}", str(7), file_path)
