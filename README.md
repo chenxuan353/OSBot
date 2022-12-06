@@ -1,12 +1,17 @@
 # OSBot
 
-## How to start
+基于Nonebot的一体化机器人
 
-1. generate project using `nb create` .
-2. create your plugin using `nb plugin create` .
-3. writing your plugins under `src/plugins` folder.
-4. run your bot using `nb run` .
+### 使用
 
-## Documentation
+```shell
+pip install -r requirements.txt
+pip install nb-cli
+```
 
-See [Docs](https://v2.nonebot.dev/)
+### 启动
+
+```
+nb run
+```
+
