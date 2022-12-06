@@ -69,13 +69,13 @@ class SubscribeOption(Options):
     tweet_trans: bool = Option.new(False, ["自动翻译", "翻译", "机翻"])
     update_mention: bool = Option.new(True, ["相关", "智能", "关联推送", "智能推送"])
     update_retweet: bool = Option.new(False, ["转推"])
-    update_quote: bool = Option.new(False, ["转评", "转发评论"])
+    update_quote: bool = Option.new(True, ["转评", "转发评论"])
     update_replay: bool = Option.new(False, ["回复"])
 
-    update_name: bool = Option.new(False, ["昵称", "昵称更新"])
-    update_description: bool = Option.new(False, ["描述", "描述更新", "简介", "简介更新"])
-    update_profile: bool = Option.new(False, ["头像", "头像更新"])
-    update_followers: bool = Option.new(False, ["粉丝数", "粉丝数更新"])
+    update_name: bool = Option.new(True, ["昵称", "昵称更新"])
+    update_description: bool = Option.new(True, ["描述", "描述更新", "简介", "简介更新"])
+    update_profile: bool = Option.new(True, ["头像", "头像更新"])
+    update_followers: bool = Option.new(True, ["粉丝数", "粉丝数更新"])
 
 
     def _load_from_model(self, model: TwitterSubscribeModel):
@@ -1069,12 +1069,9 @@ async def _(matcher: Matcher):
     await matcher.finish(
         "格式\n"
         "##标记 内容\n"
-        "\n"
         "支持的标记\n"
         "x/层x/第x层、回复x、层内x/引用x/内嵌x、图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖、模版\n"
-        "\n"
         "默认情况下不覆盖\n"
-        "\n"
         "例\n"
         "##1 内容 ##引用 内容\n"
         "##1 状态 ##选项1 摸鱼 ##选项2 摆烂"

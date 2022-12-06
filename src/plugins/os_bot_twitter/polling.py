@@ -250,30 +250,29 @@ class PollTwitterUpdate(TwitterUpdate):
 
         # 推文翻译
         if subscribe.tweet_trans:
-            http_match = re.compile(r'[http|https]*://[a-zA-Z0-9.?/&=:]*',
-                                    re.S)
             if config.os_twitter_trans_engine:
                 from ..os_bot_trans.trans import engines, base_langs, deal_trans_text
                 if config.os_twitter_trans_engine in engines:
                     engine = engines[config.os_twitter_trans_engine]
-                    try:
-                        source = "auto"
-                        if tweet.lang and tweet.lang in base_langs and engine.check_lang(
-                                tweet.lang, "zh-cn"):
-                            source = tweet.lang
+                    if not tweet.trans_text:
+                        try:
+                            source = "auto"
+                            if tweet.lang and tweet.lang in base_langs and engine.check_lang(
+                                    tweet.lang, "zh-cn"):
+                                source = tweet.lang
 
-                        tweet.trans_text = await engine.trans(
-                            source, "zh-cn",
-                            deal_trans_text(tweet.display_text))
-                        await tweet.save()
-                    except Exception as e:
-                        logger.opt(exception=True).warning(
-                            "机翻 {} 失败！使用引擎及参数 {} {} -> {} 内容 {}", tweet.id,
-                            config.os_twitter_trans_engine, "auto", "zh",
-                            tweet.display_text)
+                            tweet.trans_text = await engine.trans(
+                                source, "zh-cn",
+                                deal_trans_text(tweet.display_text))
+                            await tweet.save()
+                        except Exception as e:
+                            logger.opt(exception=True).warning(
+                                "机翻 {} 失败！使用引擎及参数 {} {} -> {} 内容 {}", tweet.id,
+                                config.os_twitter_trans_engine, "auto", "zh",
+                                tweet.display_text)
 
                     try:
-                        if relate_tweet:
+                        if relate_tweet and not relate_tweet.trans_text:
                             source = "auto"
                             if relate_tweet.lang and relate_tweet.lang in base_langs and engine.check_lang(
                                     relate_tweet.lang, "zh-cn"):

@@ -310,12 +310,12 @@ class AsyncTwitterClient:
                     if not tweet_model.minor_data:
                         tweet_model.minor_data = True
                         logger.warning(
-                            f"[tweet conversion] `{tweet.id}`缺失引用推文！")
+                            f"[tweet conversion] `{tweet.id}`缺失引用推文！可能的原因：原文被删除")
                 if not tweet_model.referenced_tweet_author_name:
                     if not tweet_model.minor_data:
                         tweet_model.minor_data = True
                         logger.warning(
-                            f"[tweet conversion] `{tweet.id}`缺失引用推文的用户数据！")
+                            f"[tweet conversion] `{tweet.id}`缺失引用推文的用户数据！可能的原因：用户封禁")
 
             # 处理附件(投票、图片、视频等)
             if tweet.attachments:
@@ -506,16 +506,16 @@ class AsyncTwitterClient:
         includes["tweets"].extend(tweets)
         includes["tweets"].append(tweetResponse.data)  # type: ignore
 
-        main_tweet = await self.conversion_tweet(
-            tweetResponse.data,  # type: ignore
-            includes,
-            is_minor=False)
-
         for user in users:
             await self.conversion_user(user)
 
         for tweet in tweets:
             await self.conversion_tweet(tweet, includes)
+
+        main_tweet = await self.conversion_tweet(
+            tweetResponse.data,  # type: ignore
+            includes,
+            is_minor=False)
 
         return main_tweet
 
@@ -533,20 +533,8 @@ class AsyncTwitterClient:
 
         return_tweets = []
         res_tweets: List[Tweet] = tweetsResponse.data  # type: ignore
-        for res_tweet in res_tweets:
-            try:
-                return_tweets.append(await
-                                     self.conversion_tweet(res_tweet,
-                                                           includes,
-                                                           is_minor=False,
-                                                           auto=auto))
-            except BaseORMException as e:
-                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-主数据 {res_tweet.id}",
-                                               cause=e)
-            except Exception as e:
-                if not ignore_exception:
-                    raise TwitterException(f"意外的错误，可能是转换失败导致。 位于：timeline处理-主数据 {res_tweet.id}", cause=e)
 
+        # 优先处理依赖
         for user in users:
             try:
                 await self.conversion_user(user)
@@ -566,6 +554,21 @@ class AsyncTwitterClient:
             except Exception as e:
                 if not ignore_exception:
                     raise TwitterException(f"意外的错误，可能是转换失败导致。位于：timeline处理-次要推文 {tweet.id}", cause=e)
+
+        # 处理主体
+        for res_tweet in res_tweets:
+            try:
+                return_tweets.append(await
+                                     self.conversion_tweet(res_tweet,
+                                                           includes,
+                                                           is_minor=False,
+                                                           auto=auto))
+            except BaseORMException as e:
+                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-主数据 {res_tweet.id}",
+                                               cause=e)
+            except Exception as e:
+                if not ignore_exception:
+                    raise TwitterException(f"意外的错误，可能是转换失败导致。 位于：timeline处理-主数据 {res_tweet.id}", cause=e)
 
         return return_tweets
 
