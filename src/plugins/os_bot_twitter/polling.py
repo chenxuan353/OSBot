@@ -109,7 +109,7 @@ class PollTwitterUpdate(TwitterUpdate):
         if user.verified:
             tags.append("已验证")
         if tags:
-            msg += '\ntag:' + "、".join(tags)
+            msg += '\n' + "、".join(tags)
         msg += f"\n建于 {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
         return msg
 
