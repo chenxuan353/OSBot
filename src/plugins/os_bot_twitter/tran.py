@@ -104,7 +104,7 @@ class TwitterTrans:
         """
         if not self.script_str:
             raise TransException("烤推脚本未加载！")
-        if not trans and not trans_str:
+        if trans is None and trans_str is None:
             raise BaseException("必须提供`trans`与`trans_str`的其中一个参数")
         try:
             screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
