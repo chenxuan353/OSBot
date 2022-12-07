@@ -6,7 +6,7 @@ from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 
 from ..os_bot_base import Session
-from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY
+from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_DEFAULT_SWITCH
 
 if TYPE_CHECKING:
     from .model import TwitterSubscribeModel
@@ -151,7 +151,8 @@ __plugin_meta__ = PluginMetadata(
             维护指令`清空推特缓存`、`移除/添加转推黑名单`、`转推黑名单列表`、`全局烤推历史`
             可以通过`转推配置帮助`命令查看配置详细介绍
         """,  # 管理员可以获取的帮助
-        META_SESSION_KEY: TwitterSession
+        META_SESSION_KEY: TwitterSession,
+        META_DEFAULT_SWITCH: False
     },
 )
 
