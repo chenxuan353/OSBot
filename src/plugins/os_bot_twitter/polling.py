@@ -560,13 +560,14 @@ async def user_follow_and_update(id: str) -> bool:
             if user.protected:
                 logger.error(" {} 的时间线，受保护，已取消关注操作", id)
                 return False
-            
-            await client.self_following(id)
-            session.following_list.append(id)
-            await session.save()
-            # 同时更新时间线
-            await client.get_timeline(id=id)
-            logger.debug("已初始化 {}@{} 的时间线", user.name, user.username)
+            if id not in session.following_list:
+                # 只关注没有关注的新用户
+                await client.self_following(id)
+                session.following_list.append(id)
+                await session.save()
+                # 同时更新时间线
+                await client.get_timeline(id=id)
+                logger.debug("已初始化 {}@{} 的时间线", user.name, user.username)
             return True
         except MatcherErrorFinsh as e:
             raise e
