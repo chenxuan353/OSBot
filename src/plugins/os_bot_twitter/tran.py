@@ -87,7 +87,7 @@ class TwitterTrans:
         await self.async_startup()
 
     async def async_stop(self):
-        self.playwright.stop()
+        await self.playwright.stop()  # type: ignore
 
     async def trans(self,
                     tweet_id: str,
