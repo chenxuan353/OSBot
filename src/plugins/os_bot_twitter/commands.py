@@ -805,6 +805,10 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         except TransException as e:
             await bot.send(event, e.info)
             return
+        except Exception as e:
+            logger.opt(exception=True).error("烤推时异常")
+            await bot.send(event, "烤推时异常，请联系管理员")
+            return
 
         # 存档
         try:
@@ -823,6 +827,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             await trans_model.save()
         except Exception as e:
             logger.opt(exception=True).error("保存烤推记录时异常！")
+            await bot.send(event, "烤推时异常，请联系管理员")
+            return
 
         if tweet:
             tweet.trans = True
