@@ -101,10 +101,6 @@ class RsshubChannel(BaseChannel):
     async def rss_text_to_send_message(self, text: str) -> v11.Message:
         """将rss html文本转换为待发送消息"""
 
-        # def handle_image(url: str):
-        #     return v11.MessageSegment.image(url)
-
-        # parser = GeneralHTMLParser(handle_image=handle_image)
         parser = GeneralHTMLParser()
         
         parser.feed(text)

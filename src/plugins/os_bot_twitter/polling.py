@@ -90,9 +90,9 @@ class PollTwitterUpdate(TwitterUpdate):
         """
             用户查看用途
         """
-        msg = f"{user.name}@{user.username}"
+        msg = v11.Message(f"{user.name}@{user.username}")
         if bot_type == V11Adapter.get_type():
-            msg += v11.Message("\n") + v11.MessageSegment.image(file=user.profile_image_url)
+            msg += "\n" + v11.MessageSegment.image(file=user.profile_image_url)
         else:
             logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
         msg += f"\n粉丝 {user.followers_count} 关注 {user.following_count}"
@@ -121,7 +121,7 @@ class PollTwitterUpdate(TwitterUpdate):
             relate_tweet = await self.client.model_tweet_get_or_none(
                 tweet.referenced_tweet_id)
         # 标题及依赖推文
-        msg = ""
+        msg = v11.Message()
         if tweet.type == TweetTypeEnum.tweet:
             msg = f"{tweet.author_name}的推文~"
             # 附加主推文
@@ -331,9 +331,9 @@ class PollTwitterUpdate(TwitterUpdate):
                        f"旧：{old_val}\n"
                        f"新：{new_val}")
             elif update_type == "头像":
-                msg = f"{user.name}的头像更新咯！"
-                msg += v11.Message("\n旧：") + v11.MessageSegment.image(file=old_val)
-                msg += v11.Message("\n新：") + v11.MessageSegment.image(file=new_val)
+                msg = v11.Message(f"{user.name}的头像更新咯！")
+                msg += "\n旧：" + v11.MessageSegment.image(file=old_val)
+                msg += "\n新：" + v11.MessageSegment.image(file=new_val)
             elif update_type in ("粉丝数涨到", "粉丝数跌到"):
                 msg = f"{user.name}的{update_type}{new_val}了~"
             else:
@@ -387,7 +387,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 await self.push_tweet_message(listener,
                                               tweet,
                                               only_add_failure=is_timeout)
-            else:
+            elif not isinstance(tweet.type, TweetTypeEnum):
                 logger.warning("意外的推文类型({})：{}", tweet.id, tweet.type)
 
         if tweet.possibly_sensitive:
