@@ -1,6 +1,7 @@
 """
     B站动态
 """
+import time
 import cv2
 import numpy
 import re
@@ -13,7 +14,7 @@ from ....utils.rss import Rss, RssChannelData, RssItemData
 from ....model import SubscribeModel
 from ...factory import channel_factory
 from ....logger import logger
-from ....exception import MatcherErrorFinsh
+from ....exception import MatcherErrorFinsh, DownloadError, DownloadTooLargeError
 from . import RsshubChannelSession, RsshubChannel, Options, Option, v11, GeneralHTMLParser
 
 
@@ -32,6 +33,8 @@ def img_resize(image, width_new, height_new):
 @lru_memoize(maxsize=256)
 async def download_with_resize_to_base64(url: str, width: int,
                                          height: int) -> str:
+    maxsize = 500 * 1024  # byte
+    timeout = 15  # s
     try:
         req = aiohttp.request("get",
                               url,
@@ -39,15 +42,26 @@ async def download_with_resize_to_base64(url: str, width: int,
         async with req as resp:
             code = resp.status
             if code != 200:
-                raise Exception("获取图片失败，重新试试？")
-            np_array = numpy.asarray(bytearray(await resp.read()),
-                                     dtype="uint8")
+                raise DownloadError("下载状态码异常")
+            if resp.content_length and resp.content_length > maxsize:
+                raise DownloadTooLargeError('文件过大')
+            size = 0
+            start = time.time()
+            filedata = bytes()
+            async for chunk in resp.content.iter_chunked(1024):
+                if time.time() - start > timeout:
+                    raise DownloadError('下载超时')
+                filedata += chunk
+                size += len(chunk)
+                if size > maxsize:
+                    raise DownloadTooLargeError('文件过大')
+            np_array = numpy.asarray(bytearray(filedata), dtype="uint8")
             img = cv2.imdecode(np_array, cv2.IMREAD_UNCHANGED)
             img_new = img_resize(img, width, height)
             image = cv2.imencode('.png', img_new)[1]
             urlbase64 = str(base64.b64encode(image), "utf-8")
     except Exception as e:
-        logger.warning("图片下载失败：{} | {}", e.__class__.__name__, e)
+        logger.warning("图片下载失败：{} | {} | {}", url, e.__class__.__name__, e)
         return ""
     return urlbase64
 

@@ -144,3 +144,4 @@ dmypy.json
 .venv/
 .vscode/
 src/test/
+data/

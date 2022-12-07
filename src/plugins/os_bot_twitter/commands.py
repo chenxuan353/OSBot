@@ -685,7 +685,9 @@ class TransArg(ArgMatch):
         super().__init__([self.tweet_str])
 
 
-async def download_to_base64(url: str) -> str:
+async def download_to_base64(url: str, maxsize_kb=500, ignore_exception: bool = False) -> str:
+    maxsize = maxsize_kb * 1024
+    timeout = 15
     try:
         req = aiohttp.request("get",
                               url,
@@ -693,10 +695,27 @@ async def download_to_base64(url: str) -> str:
         async with req as resp:
             code = resp.status
             if code != 200:
-                raise MatcherErrorFinsh("获取图片失败，重新试试？")
-            urlbase64 = str(base64.b64encode(await resp.read()), "utf-8")
+                raise MatcherErrorFinsh("获取图片失败，状态看起来不是很好的样子。")
+            if resp.content_length and resp.content_length > maxsize:
+                raise MatcherErrorFinsh(f'图片太大！要小于{maxsize_kb}kb哦')
+            size = 0
+            start = time()
+            filedata = bytes()
+            async for chunk in resp.content.iter_chunked(1024):
+                if time() - start > timeout:
+                    raise MatcherErrorFinsh('下载超时了哦')
+                filedata += chunk
+                size += len(chunk)
+                if size > maxsize:
+                    raise MatcherErrorFinsh(f'图片太大！要小于{maxsize_kb}kb哦')
+            urlbase64 = str(base64.b64encode(filedata), "utf-8")
+    except MatcherErrorFinsh as e:
+        if ignore_exception:
+            logger.warning("图片下载失败：{} | {}", url, e)
+            return ""
+        raise e
     except Exception as e:
-        logger.warning("图片下载失败：{} | {}", e.__class__.__name__, e)
+        logger.warning("图片下载失败：{} | {} | {}", url, e.__class__.__name__, e)
         return ""
     return urlbase64
 
@@ -709,6 +728,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                           message: v11.Message, adapter: Adapter,
                           session: TwitterSession,
                           session_plug: TwitterPlugSession):
+    maximgnum = 5  # 至多允许几张图
+    imgnum = 0
     msg = ""
     for msgseg in message:
         if msgseg.is_text():
@@ -716,7 +737,14 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         elif msgseg.type == "image":
             url = msgseg.data.get("url", "")
             if url:
-                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url, maxsize_kb=1024)}" style="height: 3em;" alt="图片"/>'
+                imgnum += 1
+                if imgnum <= maximgnum:
+                    continue
+                finish_msgs = ["图太多啦", "不要放置太多图片哦！", f"{maximgnum}张图，不能再多了！"]
+                await matcher.finish(finish_msgs[random.randint(
+                    0,
+                    len(finish_msgs) - 1)])
     if msg.startswith("#"):
         msg = msg[1:]
     arg = TransArg()(msg)
@@ -874,6 +902,8 @@ async def _(matcher: Matcher,
             session: TwitterSession = SessionDepend(TwitterSession),
             session_plug: TwitterPlugSession = SessionPluginDepend(
                 TwitterPlugSession)):
+    maximgnum = 3  # 至多允许几张图
+    imgnum = 0
     msg = ""
     for msgseg in message:
         if msgseg.is_text():
@@ -882,6 +912,13 @@ async def _(matcher: Matcher,
             url = msgseg.data.get("url", "")
             if url:
                 msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+                imgnum += 1
+                if imgnum <= maximgnum:
+                    continue
+                finish_msgs = ["图太多啦", "不要放置太多图片哦！", f"{maximgnum}张图，不能再多了！"]
+                await matcher.finish(finish_msgs[random.randint(
+                    0,
+                    len(finish_msgs) - 1)])
     async with session:
         session.default_template = msg
 
@@ -1095,9 +1132,9 @@ async def _(matcher: Matcher):
 
 
 tweet_tran_reload_script = on_command("重载烤推脚本",
-                             permission=SUPERUSER,
-                             rule=only_command(),
-                             block=True)
+                                      permission=SUPERUSER,
+                                      rule=only_command(),
+                                      block=True)
 
 
 @tweet_tran_reload_script.handle()
