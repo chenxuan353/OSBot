@@ -174,7 +174,7 @@ class ManageArg(ArgMatch):
 
     def __init__(self) -> None:
         super().__init__(
-            [self.group_type, self.group_id, self.plugin_name,
+            [self.drive_type, self.group_type, self.group_id, self.plugin_name,
              self.switch])
 
 
@@ -226,9 +226,9 @@ async def _(matcher: Matcher,
     else:
         group_nick = await adapter.get_unit_nick(arg.group_id)
     mark = f"{arg.drive_type}-global-{arg.group_type}-{arg.group_id}"
-    entity = {"name": arg.plugin_name, "group_mark": mark}
+    entity = {"name": pluginModel.name, "group_mark": mark}
     if arg.switch is None:
-        arg.switch = await plug_is_disable(**entity)
+        arg.switch = await plug_is_disable(pluginModel.name, mark)
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
@@ -333,7 +333,7 @@ async def _(matcher: Matcher,
     pluginModel = await get_plugin(arg.plugin_name)
     adapter = AdapterFactory.get_adapter(bot)
     mark = await adapter.mark_group_without_drive(bot, event)
-    entity = {"name": arg.plugin_name, "group_mark": mark}
+    entity = {"name": pluginModel.name, "group_mark": mark}
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
@@ -361,7 +361,7 @@ async def _(matcher: Matcher,
         await matcher.finish(f"{pluginModel.display_name}在哪里都不能用哦。")
     adapter = AdapterFactory.get_adapter(bot)
     mark = await adapter.mark_group_without_drive(bot, event)
-    entity = {"name": arg.plugin_name, "group_mark": mark}
+    entity = {"name": pluginModel.name, "group_mark": mark}
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
