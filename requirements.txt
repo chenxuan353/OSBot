@@ -1,3 +1,4 @@
+nb-cli==0.6.7
 aiohttp==3.8.3
 cacheout==0.14.1
 feedparser==6.0.10
