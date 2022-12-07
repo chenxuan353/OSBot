@@ -48,6 +48,7 @@ async def _():
     async def _():
         await twitterTransManage.clear_screenshot_file()
 
+
 @driver.on_shutdown
 async def _():
     await twitterTransManage.stop()
@@ -251,9 +252,9 @@ async def _(matcher: Matcher,
             len(finish_msgs) - 1)])
     update: PollTwitterUpdate = polling.client.update  # type: ignore
     finish_msgs = ["让我看看~\n", "找到了！\n"]
-    await matcher.finish(
-        f"{finish_msgs[random.randint(0,len(finish_msgs) - 1)]}"
-        f"{await update.user_to_message(user, adapter.type)}")
+    await matcher.finish(finish_msgs[random.randint(0,
+                                                    len(finish_msgs) - 1)] +
+                         await update.user_to_message(user, adapter.type))
 
 
 def deal_tweet_link(msg: str, session: TwitterSession) -> str:
@@ -312,8 +313,9 @@ async def _(matcher: Matcher,
     update: PollTwitterUpdate = polling.client.update  # type: ignore
     finish_msgs = ["看看我发现了什么~\n", "合 成 推 文\n", "找到了\n"]
     await matcher.finish(
-        f"{finish_msgs[random.randint(0,len(finish_msgs) - 1)]}"
-        f"{await update.tweet_to_message(tweet, None, adapter.type, False)}")
+        finish_msgs[random.randint(0,
+                                   len(finish_msgs) - 1)] +
+        await update.tweet_to_message(tweet, None, adapter.type, False))
 
 
 subscribe_option = on_command(
@@ -689,7 +691,9 @@ class TransArg(ArgMatch):
         super().__init__([self.tweet_str])
 
 
-async def download_to_base64(url: str, maxsize_kb=500, ignore_exception: bool = False) -> str:
+async def download_to_base64(url: str,
+                             maxsize_kb=500,
+                             ignore_exception: bool = False) -> str:
     maxsize = maxsize_kb * 1024
     timeout = 15
     try:
