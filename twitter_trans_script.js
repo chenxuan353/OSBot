@@ -609,7 +609,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
             ];
         };
         // 等待图片加载
-        TweetHtml.waitImageComplate = function (timeout, addTimeCallback = null) {
+        TweetHtml.waitImageComplate = function (timeout = 15000, addTimeCallback = null) {
             return new Promise(function (resolve, reject) {
                 let rootDom = CSSAnchor.rootElem();
                 //判断图片是否加载完成
@@ -800,7 +800,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                 }
                 TweetHtml.parseAnchors = parseAnchors[2];
                 Logger.info("推文", tweetId, "解析成功");
-                Logger.debug(parseAnchors);
+                // Logger.debug(parseAnchors);
                 return true;
             }
             return false;
@@ -1565,14 +1565,14 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                     null,
                     GLOBAL_TOOL.TRANS_DICT,
                 );
-                await GLOBAL_TOOL.TweetHtml.waitImageComplate();
+                await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
                 return rtnVal;
             } else {
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
                     GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, template=null),
                 );
-                await GLOBAL_TOOL.TweetHtml.waitImageComplate();
+                await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
                 return rtnVal;
             }
         } catch (e) {

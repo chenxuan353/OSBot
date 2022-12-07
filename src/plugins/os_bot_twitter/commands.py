@@ -233,7 +233,7 @@ async def _(matcher: Matcher,
 
 
 view_user = on_command("推特用户",
-                       aliases={"查找推特用户", "检索推特用户"},
+                       aliases={"查找推特用户", "查询推特用户", "检索推特用户"},
                        block=True,
                        permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                        | PRIVATE_FRIEND)
