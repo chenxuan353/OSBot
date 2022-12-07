@@ -252,9 +252,10 @@ async def _(matcher: Matcher,
             len(finish_msgs) - 1)])
     update: PollTwitterUpdate = polling.client.update  # type: ignore
     finish_msgs = ["让我看看~\n", "找到了！\n"]
-    await matcher.finish(finish_msgs[random.randint(0,
-                                                    len(finish_msgs) - 1)] +
-                         await update.user_to_message(user, adapter.type))
+    await matcher.finish(
+        v11.Message(finish_msgs[random.randint(0,
+                                               len(finish_msgs) - 1)]) +
+        await update.user_to_message(user, adapter.type))
 
 
 def deal_tweet_link(msg: str, session: TwitterSession) -> str:
@@ -313,8 +314,8 @@ async def _(matcher: Matcher,
     update: PollTwitterUpdate = polling.client.update  # type: ignore
     finish_msgs = ["看看我发现了什么~\n", "合 成 推 文\n", "找到了\n"]
     await matcher.finish(
-        finish_msgs[random.randint(0,
-                                   len(finish_msgs) - 1)] +
+        v11.Message(finish_msgs[random.randint(0,
+                                               len(finish_msgs) - 1)]) +
         await update.tweet_to_message(tweet, None, adapter.type, False))
 
 
