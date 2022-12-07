@@ -184,7 +184,7 @@ async def _(matcher: Matcher,
     if not option:
         option = "+通用"
     option_ins = SubscribeOption()
-    option_ins._load_from_model(subscribe)
+    # option_ins._load_from_model(subscribe)
     option_ins = deal_subscribe_option(option, option_ins)
     if not option_ins:
         finish_msgs = ["选项不正确哦……", "是不认识的配置，再检查一下吧"]
@@ -321,7 +321,7 @@ async def _(matcher: Matcher,
 
 subscribe_option = on_command(
     "推特订阅配置",
-    aliases={"查看推特订阅配置", "看看推特订阅配置", "推特订阅设置", "设置推特订阅"},
+    aliases={"查看推特订阅配置", "看看推特订阅配置", "推特订阅设置", "设置推特订阅", "转推配置", "配置转推"},
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER,
     block=True)
 

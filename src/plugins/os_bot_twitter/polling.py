@@ -579,7 +579,7 @@ async def user_follow_and_update(id: str) -> bool:
                 await session.save()
                 # 同时更新时间线
                 await client.get_timeline(id=id)
-                logger.debug("已初始化 {}@{} 的时间线", user.name, user.username)
+                logger.info("已关注并初始化 {}@{} 的时间线", user.name, user.username)
             return True
         except MatcherErrorFinsh as e:
             raise e
