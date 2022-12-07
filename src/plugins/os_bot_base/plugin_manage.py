@@ -226,15 +226,15 @@ async def _(matcher: Matcher,
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
     elif switchModel.switch == arg.switch:
-        await matcher.finish(f"{group_nick}的{pluginModel.display_name}的状态没有变化哦"
+        await matcher.finish(f"`{group_nick}`的`{pluginModel.display_name}`的状态没有变化哦"
                              )
     switchModel.switch = arg.switch
     await switchModel.save()
     plug_model_cache_clear()
     if not switchModel.switch:
-        await matcher.finish(f"已经关掉{group_nick}的{pluginModel.display_name}了~")
+        await matcher.finish(f"已经关掉`{group_nick}`的`{pluginModel.display_name}`了~")
     else:
-        await matcher.finish(f"{group_nick}的{pluginModel.display_name}开了！")
+        await matcher.finish(f"`{group_nick}`的`{pluginModel.display_name}`开了！")
 
 
 disable_plug = on_command("全局禁用插件",
@@ -491,7 +491,7 @@ OSBot v0.1beta
 
 使用`超管功能帮助 插件名`来查看超级管理员专属帮助（大部分插件应该都没有）
 可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理
-需要远程控制插件状态可以通过`插件管理 组标识 组ID 插件名称 状态`来远程设置
+需要远程控制插件状态可以通过`插件管理 群/私聊 ID 插件名称 状态`来远程设置
 通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
 通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
 通过`还得是你/优先响应`切换优先响应

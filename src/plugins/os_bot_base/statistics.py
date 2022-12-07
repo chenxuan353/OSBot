@@ -196,7 +196,7 @@ def get_statistics_system_info():
 
 statistics_system_info = on_command(
     "系统状态",
-    aliases={"系统运行状态", "当前系统状态", "当前系统运行状态"},
+    aliases={"系统运行状态", "当前系统状态", "当前系统运行状态", "运行状态"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER,
