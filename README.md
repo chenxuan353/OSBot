@@ -2,10 +2,18 @@
 
 基于Nonebot的一体化机器人，要求`python>=3.8`
 
+### 配置
+
+复制`.env.example`为`.env.prod`并修改其中配置
+
+将`.env`文件中的`ENVIRONMENT=dev`改为`ENVIRONMENT=prod`
+
 ### 使用
 
 ```shell
 pip install -r requirements.txt
+playwright install
+playwright install-deps
 ```
 
 可能需要的依赖(ubuntu)
