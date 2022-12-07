@@ -92,7 +92,7 @@ class PollTwitterUpdate(TwitterUpdate):
         """
         msg = f"{user.name}@{user.username}"
         if bot_type == V11Adapter.get_type():
-            msg += "\n" + v11.MessageSegment.image(file=user.profile_image_url)
+            msg += v11.Message("\n") + v11.MessageSegment.image(file=user.profile_image_url)
         else:
             logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
         msg += f"\n粉丝 {user.followers_count} 关注 {user.following_count}"
@@ -332,8 +332,8 @@ class PollTwitterUpdate(TwitterUpdate):
                        f"新：{new_val}")
             elif update_type == "头像":
                 msg = f"{user.name}的头像更新咯！"
-                msg += "\n旧：" + v11.MessageSegment.image(file=old_val)
-                msg += "\n新：" + v11.MessageSegment.image(file=new_val)
+                msg += v11.Message("\n旧：") + v11.MessageSegment.image(file=old_val)
+                msg += v11.Message("\n新：") + v11.MessageSegment.image(file=new_val)
             elif update_type in ("粉丝数涨到", "粉丝数跌到"):
                 msg = f"{user.name}的{update_type}{new_val}了~"
             else:
