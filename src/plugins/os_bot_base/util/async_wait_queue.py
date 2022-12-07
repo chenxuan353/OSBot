@@ -53,7 +53,7 @@ class AsyncWaitQueue:
             try:
                 asyncfunc = await self.queue.get()
                 logger.debug(
-                    f"处理循环 {{}} 取得了一个任务 剩余 {{}}", self.name, self.queue.qsize())
+                    f"处理循环 {{}}-{{}} 取得了一个任务 剩余 {{}}", self.name, deal_num, self.queue.qsize())
                 start_time = time()
                 await asyncfunc
                 deal_time = time() - start_time
