@@ -110,6 +110,7 @@ class TwitterTrans:
             screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
             screenshot_path = os.path.join(self.screenshot_path,
                                            screenshot_filename)
+            logger.debug("烤推开始 {} 存档文件 {}", tweet_id, screenshot_filename)
             page = await self.context.new_page()
             await page.goto(
                 f"https://twitter.com/{tweet_username}/status/{tweet_id}")
@@ -148,8 +149,9 @@ class TwitterTrans:
 
             await page.locator("#static_elem").screenshot(path=screenshot_path)
             await page.close()
+            logger.debug("烤推完成 {} 存档文件 {}", tweet_id, screenshot_filename)
             return screenshot_filename
-        except BaseException as e:
+        except (BaseException, TransException) as e:
             raise e
         except Exception as e:
             raise TransException("未知原因异常", cause=e)

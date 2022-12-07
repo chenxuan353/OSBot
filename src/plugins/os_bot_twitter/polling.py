@@ -434,11 +434,11 @@ class PollTwitterUpdate(TwitterUpdate):
         if not old_tweet:
             return await self.tweet_new(tweet)
         if time() - tweet.created_at.timestamp() > self.ignore_update_time:
-            logger.debug("历史推文更新：{}@{} | {} -> {}", tweet.author_name,
-                         tweet.author_username, tweet.id, tweet.display_text)
+            # logger.debug("历史推文更新：{}@{} | {} -> {}", tweet.author_name,
+            #              tweet.author_username, tweet.id, tweet.display_text)
             return
-        logger.debug("推文更新：{}@{} | {} -> {}", tweet.author_name,
-                     tweet.author_username, tweet.id, tweet.display_text)
+        # logger.debug("推文更新：{}@{} | {} -> {}", tweet.author_name,
+        #              tweet.author_username, tweet.id, tweet.display_text)
 
     async def user_new(self, user: TwitterUserModel):
         """
@@ -453,7 +453,7 @@ class PollTwitterUpdate(TwitterUpdate):
         """
         if not old_user:
             return await self.user_new(user)
-        logger.debug("用户更新 {}@{} [{}]", user.name, user.username, user.id)
+        # logger.debug("用户更新 {}@{} [{}]", user.name, user.username, user.id)
         update_types = []
         if old_user.name is not None and old_user.name != user.name:
             update_type = "昵称"
