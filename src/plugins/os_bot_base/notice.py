@@ -338,13 +338,25 @@ async def _():
 @driver.on_bot_disconnect
 async def _(bot: v11.Bot):
     # bot断开提醒
-    if config.os_ob_notice_disconnect and not driver_shutdown:
+    if config.os_ob_notice_disconnect:
         nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
         name = f"{nick}({bot.self_id})"
-        finish_msgs = [f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"]
-        await UrgentNotice.send(finish_msgs[random.randint(
-            0,
-            len(finish_msgs) - 1)])
+
+        async def await_send():
+            await asyncio.sleep(10)
+            if driver_shutdown:
+                return
+            bots = get_bots()
+            if bot.self_id not in bots:
+                finish_msgs = [
+                    f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"
+                ]
+                await UrgentNotice.send(finish_msgs[random.randint(
+                    0,
+                    len(finish_msgs) - 1)])
+
+        asyncio.gather(await_send())
+
 
 
 notify_clear = on_command("清空紧急通知列表",
