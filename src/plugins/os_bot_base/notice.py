@@ -67,7 +67,7 @@ class BotSend:
                 return await cls.ob_send_private_msg(send_params["user_id"],
                                                      msg)
             elif "group_id" in send_params:
-                return await BotSend.ob_send_group_msg(send_params["group_id"],
+                return await cls.ob_send_group_msg(send_params["group_id"],
                                                        msg)
             else:
                 logger.warning("{} 消息通知不支持的参数 {}", bot_type, send_params)
