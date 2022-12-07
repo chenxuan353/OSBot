@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 class Config(BaseSettings):
     os_data_path: str = Field(default=os.path.join(".", "data"))
+    os_log_file_debug: bool = Field(default=False)
     log_level: str = Field(default="INFO")
 
     class Config:
@@ -65,12 +66,14 @@ logger_file_info_id = nonebot.logger.add(os.path.join(config.os_data_path,
                                          diagnose=False,
                                          format=default_format,
                                          rotation="3:00",
+                                         retention='15 days',
                                          compression="zip")
 logger_file_warning_id = nonebot.logger.add(
     os.path.join(config.os_data_path, "log", "warning.log"),
     level=nonebot.logger.level("WARNING").no,
     diagnose=False,
     format=default_format,
+    retention='15 days',
     rotation="3:00",
     compression="zip")
 logger_file_error_id = nonebot.logger.add(
@@ -78,16 +81,18 @@ logger_file_error_id = nonebot.logger.add(
     level=nonebot.logger.level("ERROR").no,
     diagnose=False,
     format=default_format,
+    retention='15 days',
     rotation="3:00",
     compression="zip")
 
-if config.log_level == "DEBUG":
+if config.os_log_file_debug or config.log_level == "DEBUG":
     logger_file_debug_id = nonebot.logger.add(
         os.path.join(config.os_data_path, "log", "debug.log"),
         level=nonebot.logger.level("DEBUG").no,
         diagnose=False,
         format=default_format,
         rotation="3:00",
+        retention='15 days',
         compression="zip")
 
 logger = nonebot.logger.bind()
