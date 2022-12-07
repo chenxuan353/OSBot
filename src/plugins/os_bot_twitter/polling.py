@@ -71,7 +71,7 @@ class PollTwitterUpdate(TwitterUpdate):
         """推文创建多长时间后忽略更新事件，单位秒"""
         self.update_user_precision = 1000
         """粉丝数通知精度，默认千位"""
-        self.update_mention_followers = 3000
+        self.update_mention_followers = 5000
         """相关推送最低粉丝数限制"""
         self.update_mention_verified = True
         """相关推送包含已验证账户"""
@@ -108,6 +108,8 @@ class PollTwitterUpdate(TwitterUpdate):
             tags.append("推文受保护")
         if user.verified:
             tags.append("已验证")
+        if tags:
+            msg += '\ntag:' + "、".join(tags)
         msg += f"\n建于 {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
         return msg
 
