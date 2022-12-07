@@ -48,6 +48,10 @@ async def _():
     async def _():
         await twitterTransManage.clear_screenshot_file()
 
+@driver.on_shutdown
+async def _():
+    await twitterTransManage.stop()
+
 
 async def get_user_from_search(msg: str,
                                allow_api: bool = False

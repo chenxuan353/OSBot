@@ -86,6 +86,9 @@ class TwitterTrans:
         await asyncio.sleep(3)
         await self.async_startup()
 
+    async def async_stop(self):
+        self.playwright.stop()
+
     async def trans(self,
                     tweet_id: str,
                     trans: Optional[Dict[str, Any]] = None,
@@ -238,3 +241,6 @@ class TwitterTransManage:
                         continue
                     logger.debug("移除超过{}天的烤推文件 {}", str(expire_days),
                                  file_path)
+
+    async def stop(self):
+        await self.twitter_trans.async_stop()

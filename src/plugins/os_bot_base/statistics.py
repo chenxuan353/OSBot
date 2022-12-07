@@ -62,7 +62,7 @@ class StatisticsRecord:
         """
         self.api_call_error_count = 0
         self.api_call_count = 0
-        self.bot_disconnect = 0
+        self.bot_disconnect_count = 0
 
     def clear_count(self, reason: str):
         logger.warning(f"[数据分析] 清空计数 {reason}")
@@ -162,7 +162,7 @@ def get_statistics_info():
         f"事件计数(消息/总数)：{statistics_record.event_message_count}/{statistics_record.event_count}\n"
         f"Api请求 错误数/总计数 (错误率):{statistics_record.api_call_error_count}/{statistics_record.api_call_count} "
         f"({(statistics_record.api_call_error_count/(statistics_record.api_call_count or 1))*100:.5f}%)\n"
-        f"Bot断开计数:{statistics_record.bot_disconnect}")
+        f"Bot断开计数:{statistics_record.bot_disconnect_count}")
 
 
 statistics_info = on_command(

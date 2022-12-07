@@ -327,10 +327,18 @@ class UrgentNotice:
         self.onebot_group_notify = self.__read("onebot_group")
 
 
+driver_shutdown = False
+
+@driver.on_shutdown
+async def _():
+    global driver_shutdown
+    driver_shutdown = True
+
+
 @driver.on_bot_disconnect
 async def _(bot: v11.Bot):
     # bot断开提醒
-    if config.os_ob_notice_disconnect:
+    if config.os_ob_notice_disconnect and not driver_shutdown:
         nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
         name = f"{nick}({bot.self_id})"
         finish_msgs = [f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"]
