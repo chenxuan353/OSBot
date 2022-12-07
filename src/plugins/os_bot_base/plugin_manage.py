@@ -141,7 +141,7 @@ async def _(bot: Bot, event: Event, matcher: Matcher):
                 raise IgnoredException(
                     f"插件管理器已限制`{plugin.name}`(组设置)! group={group_mark}")
         if plugModel and not plugModel.default_switch:
-            raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)!")
+            raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)! group={group_mark}")
 
         logger.debug(f"插件管理器已放行`{plugin.name}`(插件默认值)! group={group_mark}")
     except IgnoredException as e:
@@ -156,6 +156,11 @@ class ManageArg(ArgMatch):
     class Meta(ArgMatch.Meta):
         name = "插件管理的参数"
         des = "管理插件的开关"
+
+    drive_type: str = Field.Keys(
+        "驱动", {
+            "ob11": ["onebot11", "gocqhttp"],
+        }, default="ob11", require=False)
 
     group_type: str = Field.Keys(
         "组标识", {
@@ -220,8 +225,10 @@ async def _(matcher: Matcher,
         group_nick = await adapter.get_group_nick(arg.group_id)
     else:
         group_nick = await adapter.get_unit_nick(arg.group_id)
-    mark = f"{arg.group_type}-{arg.group_id}"
+    mark = f"{arg.drive_type}-global-{arg.group_type}-{arg.group_id}"
     entity = {"name": arg.plugin_name, "group_mark": mark}
+    if arg.switch is None:
+        arg.switch = await plug_is_disable(**entity)
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
@@ -304,7 +311,6 @@ def_enable_plug = on_command("默认启用插件",
 async def _(matcher: Matcher, bot: Bot,
             arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
-    adapter = AdapterFactory.get_adapter(bot)
     if pluginModel.default_switch == True:
         await matcher.finish(f"{pluginModel.display_name}默认就是打开的哦！")
     pluginModel.default_switch = True
