@@ -6,7 +6,12 @@
 
 ```shell
 pip install -r requirements.txt
-pip install nb-cli
+```
+
+可能需要的依赖(ubuntu)
+
+```shell
+apt-get install python3.8 build-essential python3.8-dev libssl-dev libffi-dev libxml2 libxml2-dev libxslt1-dev zlib1g-dev
 ```
 
 ### 启动
@@ -14,4 +19,3 @@ pip install nb-cli
 ```
 nb run
 ```
-
