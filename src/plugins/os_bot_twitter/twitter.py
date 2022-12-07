@@ -406,14 +406,14 @@ class AsyncTwitterClient:
             public_metrics: Dict[str, int] = user.public_metrics
             followers_count = public_metrics.get(
                 "followers_count", user_model.followers_count)
-            if followers_count > user_model.followers_count or user_model.followers_count - followers_count > 1000:
+            if followers_count > user_model.followers_count or user_model.followers_count - followers_count > 10000:
                 user_model.followers_count = followers_count
             user_model.following_count = public_metrics.get(
                 "following_count", user_model.following_count)
             user_model.tweet_count = public_metrics.get(
                 "tweet_count", user_model.tweet_count)
             user_model.listed_count = public_metrics.get(
-                "followers_count", user_model.listed_count)
+                "listed_count", user_model.listed_count)
 
         await user_model.save()
         asyncio.gather(self.update.user_update(user_model, old_model))
