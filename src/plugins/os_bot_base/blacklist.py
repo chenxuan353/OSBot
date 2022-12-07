@@ -279,12 +279,12 @@ async def _(matcher: Matcher,
             cache: OnebotCache = OBCacheDepend(),
             session: BlackSession = SessionPluginDepend(BlackSession)):
     ban_user_list = {
-        f'{cache.get_unit_nick(uid)}({session.ban_user_list[uid].ban_time_str()})'
+        f'{cache.get_unit_nick(uid)}({uid})-{session.ban_user_list[uid].ban_time_str()}'
         for uid in session.ban_user_list
         if session.ban_user_list[uid].is_ban()
     }
     ban_group_list = {
-        f'{cache.get_group_nick(gid)}({session.ban_group_list[gid].ban_time_str()})'
+        f'{cache.get_group_nick(gid)}({gid})-{session.ban_group_list[gid].ban_time_str()}'
         for gid in session.ban_group_list
         if session.ban_group_list[gid].is_ban()
     }
@@ -308,8 +308,8 @@ async def _(matcher: Matcher, cache: OnebotCache = OBCacheDepend()):
     if not config.os_ob_black_user_list and not config.os_ob_black_group_list:
         await matcher.finish("系统黑名单列表是空的！")
     msg = "注：此列表为配置文件中的强制封禁名单。"
-    msg += f"\n封禁人：{'、'.join({cache.get_unit_nick(uid) for uid in config.os_ob_black_user_list})}"
-    msg += f"\n封禁组：{'、'.join({cache.get_group_nick(gid) for gid in config.os_ob_black_group_list})}"
+    msg += f"\n封禁人：{'、'.join({cache.get_unit_nick(uid) + '(' + str(uid) + ')' for uid in config.os_ob_black_user_list})}"
+    msg += f"\n封禁组：{'、'.join({cache.get_group_nick(gid) + '(' + str(gid) + ')' for gid in config.os_ob_black_group_list})}"
     await matcher.finish(msg)
 
 
