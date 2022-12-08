@@ -71,6 +71,10 @@ async def get_user_from_search(msg: str,
             user = await polling.client.get_user(username=msg)
         except Exception as e:
             logger.opt(exception=True).debug("意外的报错")
+
+    if user and not await polling.client.model_user_get_or_none(msg):
+        # 在意外的情况下更新缓存，保证订阅正常进行
+        polling.client.model_user_get_or_none_update(user.id, user)
     return user
 
 
@@ -756,6 +760,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                     len(finish_msgs) - 1)])
     if msg.startswith("#"):
         msg = msg[1:]
+    if msg.startswith("#"):
+        msg = msg[1:]
     arg = TransArg()(msg)
     tweet_id = deal_tweet_link(arg.tweet_str, session)
     tweet_username = ""
@@ -1127,11 +1133,12 @@ async def _(matcher: Matcher):
         "格式\n"
         "##标记 内容\n"
         "支持的标记\n"
-        "x/层x/第x层、回复x、层内x/引用x/内嵌x、图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖、模版\n"
-        "默认情况下不覆盖\n"
+        "x/层x/第x层、回复x、层内x/引用x/内嵌x、图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖、(无)模版\n"
+        "默认情况下不覆盖，默认模版为翻译自日语\n"
         "例\n"
         "##1 内容 ##引用 内容\n"
-        "##1 状态 ##选项1 摸鱼 ##选项2 摆烂")
+        "##1 状态 ##选项1 摸鱼 ##选项2 摆烂\n"
+        "管理员通过`设置烤推模版 内容`可以设置默认参数")
 
 
 tweet_help = on_command("转推配置帮助",
@@ -1157,3 +1164,34 @@ tweet_tran_reload_script = on_command("重载烤推脚本",
 async def _(matcher: Matcher):
     await twitterTransManage.reload_script()
     await matcher.finish("完成")
+
+
+tweet_tran_reload_inreload = False
+tweet_tran_reload = on_command("重启烤推引擎",
+                                      permission=SUPERUSER,
+                                      rule=only_command(),
+                                      block=True)
+
+
+@tweet_tran_reload.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    if tweet_tran_reload_inreload:
+        await matcher.finish("正在重启，请勿重复使用此命令")
+    await matcher.pause(
+        f">>警告，导致烤推功能暂不可用，回复`确认`继续<<"
+    )
+
+
+@tweet_tran_reload.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            message: v11.Message = CommandArg()):
+    msg = str(message).strip()
+    if msg == "确认":
+        global tweet_tran_reload_inreload
+        tweet_tran_reload_inreload = True
+        await twitterTransManage.restart()
+        tweet_tran_reload_inreload = False
+        await matcher.finish("重新启动完成~")
+    await matcher.finish("取消操作")

@@ -856,6 +856,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                     replay_cover: trans.replay_cover || false,
                     quote_cover: trans.quote_cover || false,
                     main_cover: trans.main_cover || false,
+                    template_disable: trans.template_disable || false,
                 };
                 // 创建DOM的函数 tweettext transtype
                 let createInsertDom = function (type, data) {
@@ -1006,7 +1007,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                                 // 主元素
                                 let dom = insertTransFlag(
                                     tweetAnchor.textAnchors[0].dom,
-                                    trans.template,
+                                    !trans.template_disable && trans.template || "",
                                 );
                                 // 仅覆盖原文时使用原文坐标，非覆盖情况下使用注入标签后的标签坐标
                                 insertTextData(
@@ -1125,6 +1126,7 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                 main_cover: false,  // 主推文覆盖
                 replay_cover: false,  // 回复覆盖
                 quote_cover: false,  // 转评覆盖
+                template_disable: false, // 无模版
                 template: template,  // 烤推模版(Html)
                 levels: {
                     1:{
@@ -1274,19 +1276,25 @@ var GLOBAL_TOOL = typeof playwright_config != "undefined" && playwright_config |
                     },
                     {
                         mark: "config",
-                        expre: /^模版/,
+                        expre: /^无模版|无模板|无logo/,
+                        default: () => true,
+                        value: (match) => "template_disable",
+                    },
+                    {
+                        mark: "config",
+                        expre: /^模版|模板|logo/,
                         default: () => "template",
                         value: (match) => "template",
                     },
                     {
                         mark: "config",
-                        expre: /^烤推模版/,
+                        expre: /^烤推模版|烤推模板/,
                         default: () => "template",
                         value: (match) => "template",
                     },
                     {
                         mark: "config",
-                        expre: /^默认模版/,
+                        expre: /^默认模版|默认模板/,
                         default: () => "defalutTemplate",
                         value: (match) => "template",
                     },

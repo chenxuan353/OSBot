@@ -380,6 +380,7 @@ class AsyncTwitterClient:
         await tweet_model.save()
 
         asyncio.gather(self.update.tweet_update(tweet_model, old_model))
+        self.model_tweet_get_or_none_update(tweet_model.id, tweet_model)
         return tweet_model
 
     async def conversion_user(self, user: User) -> TwitterUserModel:
@@ -416,6 +417,7 @@ class AsyncTwitterClient:
                 "listed_count", user_model.listed_count)
 
         await user_model.save()
+        self.model_user_get_or_none_update(user_model.id, user_model)
         asyncio.gather(self.update.user_update(user_model, old_model))
         return user_model
 

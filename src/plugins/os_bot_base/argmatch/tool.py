@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 
 class ProcessTool:
 
+    _basic_regex_str_cache = None
+
     @staticmethod
     def isStrict(field: "Field", am: "ArgMatch"):
         # 检查是否为严格模式 isStrict(field, am)
@@ -15,8 +17,8 @@ class ProcessTool:
             return am.Meta.strict
         return field._strict
 
-    @staticmethod
-    def splitArg(msg: str, field: "Field", am: "ArgMatch"):
+    @classmethod
+    def splitArg(cls, msg: str, field: "Field", am: "ArgMatch"):
         """
             分离参数
             split
@@ -25,8 +27,12 @@ class ProcessTool:
         """
         if not msg:
             return ["", ""]
-        regex = field._basic_regex_str.format(sep=am.Meta.separator)
-        res = re.split(regex, msg, maxsplit=1)
+        if not cls._basic_regex_str_cache:
+            cls._basic_regex_str_cache = re.compile(
+                field._basic_regex_str.format(
+                    sep=am.Meta.separator if am.Meta.separator != " " else "\\s"
+                ))
+        res = cls._basic_regex_str_cache.split(msg, maxsplit=1)
         return [res[1], res[3]]
 
     @staticmethod
