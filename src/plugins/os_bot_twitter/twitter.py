@@ -129,7 +129,7 @@ async def model_tweet_get_or_none(tweet_id: str):
 def model_tweet_get_or_none_update(tweet_id: str, model: TwitterTweetModel):
     key = model_tweet_get_or_none.cache_key(tweet_id)
     model_tweet_get_or_none.cache.set(key, model, None)
-    logger.debug("model_tweet_get_or_none 更新缓存 {}", tweet_id)
+    # logger.debug("model_tweet_get_or_none 更新缓存 {}", tweet_id)
 
 @lru_memoize(maxsize=256)
 async def model_user_get_or_none(user_id: str):
@@ -138,7 +138,7 @@ async def model_user_get_or_none(user_id: str):
 def model_user_get_or_none_update(user_id: str, model: TwitterUserModel):
     key = model_user_get_or_none.cache_key(user_id)
     model_user_get_or_none.cache.set(key, model, None)
-    logger.debug("model_user_get_or_none_update 更新缓存 {}", user_id)
+    # logger.debug("model_user_get_or_none_update 更新缓存 {}", user_id)
 
 class AsyncTwitterClient:
     """

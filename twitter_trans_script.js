@@ -3264,7 +3264,12 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                     null,
                     GLOBAL_TOOL.TRANS_DICT,
                 );
-                await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+                try {
+                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+                } catch (e) {
+                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
+                }
+                
                 return rtnVal;
             } else {
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
@@ -3274,7 +3279,11 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                         null,
                     ),
                 );
-                await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+                try {
+                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+                } catch (e) {
+                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
+                }
                 return rtnVal;
             }
         } catch (e) {
