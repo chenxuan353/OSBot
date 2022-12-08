@@ -56,7 +56,7 @@ async def _(matcher: Matcher,
             "msg": str(message)
         })
     fb_msg = feedback_format(feedback)
-    # asyncio.gather(UrgentNotice.send(f"新的反馈消息：\n{fb_msg}"))
+    asyncio.gather(UrgentNotice.send(f"新的反馈消息：\n{fb_msg}"))
     finish_msgs = ["收到~", "已转达！"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
@@ -87,7 +87,7 @@ async def _(matcher: Matcher,
             "msg": str(message)
         })
     fb_msg = feedback_format(feedback)
-    # asyncio.gather(UrgentNotice.send(f"新的反馈消息：\n{fb_msg}"))
+    asyncio.gather(UrgentNotice.send(f"新的反馈消息：\n{fb_msg}"))
     finish_msgs = ["收到~", "已转达！"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
