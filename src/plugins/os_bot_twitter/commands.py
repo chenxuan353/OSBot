@@ -863,8 +863,9 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         await bot.send(event, msg)
 
     asyncio.gather(wait_result())
+    wait_time = math.ceil(wait_time)
     if wait_num == 0:
-        finish_msgs = ["烤！", f"烤制{wait_time:.2f}秒~", "制作中~", "放入烤架！"]
+        finish_msgs = ["烤！", f"烤制{wait_time}秒~", "制作中~", f"定时{wait_time}秒", "放入烤架！"]
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
