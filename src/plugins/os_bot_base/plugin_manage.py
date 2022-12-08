@@ -471,14 +471,17 @@ async def _(matcher: Matcher,
 
     await matcher.finish(f"{status}\n{pluginModel.usage or '空空如也'}")
 
+version = "v0.5beta"
 
-help_msg = """
-OSBot v0.1beta
+help_msg = f"""
+OSBot {version}
 包含多引擎翻译、烤推、转推、转动态等功能~
 维护者：晨轩(3309003591)
+仓库：https://github.com/chenxuan353/OSBot
 
 使用`功能列表 页码(可略)`及`功能帮助 插件名`来查看帮助信息
-注：使用指令时使用空格分隔参数执行更准确哦。
+使用指令时使用空格分隔参数执行更准确哦。
+遇到问题可以使用`反馈 内容`，会尽快处理。
 
 >>非必要请勿禁言<<
 """.strip()
@@ -494,8 +497,8 @@ async def _(matcher: Matcher):
     await matcher.finish(help_msg)
 
 
-admin_help_msg = """
-OSBot v0.1beta
+admin_help_msg = f"""
+OSBot {version}
 
 使用`超管功能帮助 插件名`来查看超级管理员专属帮助（大部分插件应该都没有）
 可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理

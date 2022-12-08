@@ -146,10 +146,10 @@ async def _(matcher: Matcher, arg: IntArgMatch = ArgMatchDepend(IntArgMatch)):
     await matcher.finish(feedback_format(feedback))
 
 
-fb_get = on_command("处理反馈", aliases={"反馈处理", "完成反馈"}, permission=SUPERUSER)
+fb_deal = on_command("处理反馈", aliases={"反馈处理", "完成反馈"}, permission=SUPERUSER)
 
 
-@fb_get.handle()
+@fb_deal.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher, arg: IntArgMatch = ArgMatchDepend(IntArgMatch)):
     feedback = await Feedback.get_or_none(**{"id": arg.num})
