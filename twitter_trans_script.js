@@ -2917,12 +2917,6 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     },
                     {
                         mark: "config",
-                        expre: /^(推文)?不覆盖(推文)?/,
-                        default: () => false,
-                        value: (match) => "main_cover",
-                    },
-                    {
-                        mark: "config",
                         expre: /^回复不覆盖|不覆盖回复/,
                         default: () => false,
                         value: (match) => "replay_cover",
@@ -2976,6 +2970,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         default: () => true,
                         value: (match) => "main_cover",
                     },
+                    {
+                        mark: "config",
+                        expre: /^(推文)?不覆盖(推文)?/,
+                        default: () => false,
+                        value: (match) => "main_cover",
+                    },
                 ],
             };
             let createNewLevel = function () {
@@ -3011,7 +3011,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 }
                 try {
                     if (markitem == null) {
-                        for (let mark in MARKS) {
+                        let mark_list = ["config", "level", "inlevel", "vote", "img"]
+                        for (let mark_i in mark_list) {
+                            let mark = mark_list[mark_i];
                             for (let ii = 0; ii < MARKS[mark].length; ii++) {
                                 let matchitem = MARKS[mark][ii];
                                 let match = nowstr.match(matchitem.expre);
