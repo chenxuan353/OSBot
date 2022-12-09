@@ -6,14 +6,13 @@ import random
 import re
 import aiohttp
 from time import time
-from typing import List, Optional
+from typing import Optional
 from tortoise.expressions import Q
 from tortoise.query_utils import Prefetch
 from nonebot import on_command, Bot, get_driver, on_startswith
 from nonebot.permission import SUPERUSER
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg, EventMessage
-from nonebot.adapters import Event
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
 from nonebot_plugin_apscheduler import scheduler
@@ -302,6 +301,10 @@ async def _(matcher: Matcher,
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
     tweet = await polling.client.model_tweet_get_or_none(tweet_id)
+    trans_model = await TwitterTransModel.filter(
+        group_mark=await adapter.mark_group_without_drive(bot, event)
+    ).order_by("-id").first()
+
     has_perm = await (SUPERUSER | GROUP_ADMIN | GROUP_OWNER)(bot, event)
     if not tweet:
         if has_perm:
@@ -318,10 +321,31 @@ async def _(matcher: Matcher,
             session.failure_list.remove(tweet.id)
     update: PollTwitterUpdate = polling.client.update  # type: ignore
     finish_msgs = ["看看我发现了什么~\n", "合 成 推 文\n", "找到了\n"]
-    await matcher.finish(
-        v11.Message(finish_msgs[random.randint(0,
-                                               len(finish_msgs) - 1)]) +
-        await update.tweet_to_message(tweet, None, adapter.type, False))
+    msg = (v11.Message(finish_msgs[random.randint(0,
+                                                  len(finish_msgs) - 1)]) +
+           await update.tweet_to_message(tweet, None, adapter.type, False))
+    if trans_model:
+        filename = trans_model.file_name
+        file = os.path.join(twitterTransManage.screenshot_path, filename)
+        if not os.path.isfile(file):
+            msg += "\n烤推结果已失效，可能是被清理掉了..."
+        else:
+            if config.os_twitter_trans_image_proxy:
+                url = f"{config.os_twitter_trans_image_proxy}/{filename}"
+                msg += f"\n {url} \n"
+                msg += v11.MessageSegment.image(url)
+            else:
+                try:
+                    with open(file, 'rb') as f:
+                        img_data = f.read()
+                        base64_data = base64.b64encode(img_data)
+                except Exception as e:
+                    logger.opt(exception=True).error("读取烤推文件时异常")
+                    msg += "\n获取烤推结果时错误，请联系管理！"
+                    return
+                msg += v11.MessageSegment.image(
+                    f"base64://{str(base64_data, 'utf-8')}")
+    await matcher.finish(msg)
 
 
 subscribe_option = on_command(
@@ -866,7 +890,9 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
     asyncio.gather(wait_result())
     wait_time = math.ceil(wait_time)
     if wait_num == 0:
-        finish_msgs = ["烤！", f"烤制{wait_time}秒~", "制作中~", f"定时{wait_time}秒", "放入烤架！"]
+        finish_msgs = [
+            "烤！", f"烤制{wait_time}秒~", "制作中~", f"定时{wait_time}秒", "放入烤架！"
+        ]
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
@@ -1131,20 +1157,19 @@ tweet_tran_help = on_command("烤推帮助",
 @tweet_tran_help.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
-    await matcher.finish(
-        "格式\n"
-        "##序号/推文链接 ##标记 内容\n"
-        "正文标记：回复、引用、图片、投票、层x"
-        "选项：覆盖、回复、模版"
-        "标记为空时默认为回复或主推文，序号之后的空格是必要的，标记后可以不包含空格"
-        "默认情况下不覆盖，默认模版为翻译自日语\n"
-        "例\n"
-        "烤推 ##序号 内容\n"
-        "烤转评 ##序号 内容 ##引用 看这里\n"
-        "烤投票 ##序号 精神状态 ##投票1 摸鱼 ##投票2 开摆desu ##投票3 活着\n"
-        "烤回复 ##序号 ##阿哲 ##这是回复1 ##这是回复2\n"
-        "注意，回复超过回复链时会顺序烤制推文的其它回复，烤制指定回复可以使用层x标记(x为整数)\n"
-        "管理员通过`设置烤推模版 内容`可以设置默认参数")
+    await matcher.finish("格式\n"
+                         "##序号/推文链接 ##标记 内容\n"
+                         "正文标记：回复、引用、图片、投票、层x\n"
+                         "选项：覆盖、回复、模版\n"
+                         "标记为空时默认为回复或主推文，序号之后的空格是必要的，标记后可以不包含空格\n"
+                         "默认情况下不覆盖，默认模版为翻译自日语\n"
+                         "例\n"
+                         "烤推 ##序号 内容\n"
+                         "烤转评 ##序号 内容 ##引用 看这里\n"
+                         "烤投票 ##序号 精神状态 ##投票1 摸鱼 ##投票2 开摆desu ##投票3 活着\n"
+                         "烤回复 ##序号 ##阿哲 ##引用 如果有引用推文，可以这样烤 ##这是回复1 ##这是回复2\n"
+                         "注意，回复超过回复链时会顺序烤制推文的其它回复，烤制指定回复可以使用层x标记(x为整数)\n"
+                         "管理员通过`设置烤推模版 内容`可以设置默认参数")
 
 
 tweet_help = on_command("转推配置帮助",
@@ -1174,9 +1199,9 @@ async def _(matcher: Matcher):
 
 tweet_tran_reload_inreload = False
 tweet_tran_reload = on_command("重启烤推引擎",
-                                      permission=SUPERUSER,
-                                      rule=only_command(),
-                                      block=True)
+                               permission=SUPERUSER,
+                               rule=only_command(),
+                               block=True)
 
 
 @tweet_tran_reload.handle()
@@ -1184,9 +1209,7 @@ tweet_tran_reload = on_command("重启烤推引擎",
 async def _(matcher: Matcher):
     if tweet_tran_reload_inreload:
         await matcher.finish("正在重启，请勿重复使用此命令")
-    await matcher.pause(
-        f">>警告，导致烤推功能暂不可用，回复`确认`继续<<"
-    )
+    await matcher.pause(f">>警告，导致烤推功能暂不可用，回复`确认`继续<<")
 
 
 @tweet_tran_reload.handle()
@@ -1197,12 +1220,14 @@ async def _(matcher: Matcher,
             message: v11.Message = CommandArg()):
     msg = str(message).strip()
     if msg == "确认":
+
         async def restart():
             global tweet_tran_reload_inreload
             tweet_tran_reload_inreload = True
             await twitterTransManage.restart()
             tweet_tran_reload_inreload = False
             await bot.send(event, "重新启动完成")
+
         asyncio.gather(restart())
         await matcher.finish("开始重启")
     await matcher.finish("取消操作")

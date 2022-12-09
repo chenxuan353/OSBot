@@ -58,6 +58,13 @@ async def __session_get(mark: str, matcher: Matcher,
     return await sm.get(mark, domain, SessionType)
 
 
+async def get_session_depend(bot: Bot, matcher: Matcher, event: Event, SessionType: Type[Session]):
+    adapter = AdapterFactory.get_adapter(bot)
+    return await __session_get(
+        await adapter.mark_group_without_drive(bot, event), matcher,
+        SessionType)
+
+
 def SessionDepend(SessionType: Optional[Type[Session]] = None) -> Any:
     """
         获取当前事件`session`，组粒度。
