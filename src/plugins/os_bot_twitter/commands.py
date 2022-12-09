@@ -1139,7 +1139,7 @@ async def _(matcher: Matcher):
     msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
     await matcher.finish(
         f"{msg}"
-        f"{queue.queue.qsize() + await queue.get_free_loop_count()}"
+        f"{queue.queue.qsize() + await queue.get_deal_loop_count()}"
         f"个在烤，烤架大小{queue.queue_size}")
 
 

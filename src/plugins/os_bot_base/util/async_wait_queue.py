@@ -151,3 +151,11 @@ class AsyncWaitQueue:
                 count += 1
 
         return count
+
+    async def get_deal_loop_count(self) -> int:
+        count = 0
+        for key in self.queue_status:
+            if self.queue_status[key]:
+                count += 1
+
+        return count
