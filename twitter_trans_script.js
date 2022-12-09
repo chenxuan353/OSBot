@@ -934,6 +934,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     let tempDom = createInsertDom("tweettext", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
+                    let imgs = tempDom.querySelectorAll("img");
+                    imgs.forEach(function(img){
+                        if(!img.style.height){
+                            img.style.height = "1.2em";
+                        }
+                    })
                     // 添加隐藏标识
                     sourcedom.classList.add(MARK_HIDE_CLASS);
                     if (cover_flag) {
@@ -965,6 +971,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     }
                     let tempDom = createInsertDom("vote", data);
                     sourcedom.innerHTML = "";
+                    let imgs = tempDom.querySelectorAll("img");
+                    imgs.forEach(function(img){
+                        if(!img.style.height){
+                            img.style.height = "1em";
+                        }
+                    })
                     sourcedom.appendChild(tempDom);
                     return tempDom;
                 };
@@ -977,6 +989,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
                     insertAfter(tempDom, sourcedom);
+                    let imgs = tempDom.querySelectorAll("img");
+                    imgs.forEach(function(img){
+                        if(!img.style.height){
+                            img.style.height = "3em";
+                        }
+                    })
                     return tempDom;
                 };
                 // 推文计数

@@ -779,7 +779,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         elif msgseg.type == "image":
             url = msgseg.data.get("url", "")
             if url:
-                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url, maxsize_kb=1024)}" style="height: 3em;" alt="图片"/>'
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url, maxsize_kb=1024)}" alt="图片"/>'
                 imgnum += 1
                 if imgnum <= maximgnum:
                     continue
@@ -972,7 +972,7 @@ async def _(matcher: Matcher,
         elif msgseg.type == "image":
             url = msgseg.data.get("url", "")
             if url:
-                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" alt="图片"/>'
                 imgnum += 1
                 if imgnum <= maximgnum:
                     continue
@@ -1023,7 +1023,7 @@ async def _(matcher: Matcher,
         elif msgseg.type == "image":
             url = msgseg.data.get("url", "")
             if url:
-                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" style="height: 3em;" alt="图片"/>'
+                msg += f'<img src="data:image/jpg;base64,{await download_to_base64(url)}" alt="图片"/>'
     arg = TweetUserArg()(msg)
     user = await get_user_from_search(arg.user_search, await
                                       SUPERUSER(bot, event))
