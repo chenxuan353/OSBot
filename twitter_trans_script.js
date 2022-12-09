@@ -956,6 +956,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         data = TweetHtml.textparse(data);
                     }
                     let tempDom = createInsertDom("media", data);
+                    let imgs = tempDom.querySelectorAll("img");
+                    imgs.forEach(function(img){
+                        if(!img.style.width){
+                            img.style.width = "100%";
+                        }
+                    })
                     sourcedom.innerHTML = "";
                     sourcedom.appendChild(tempDom);
                     return tempDom;
