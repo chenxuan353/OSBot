@@ -303,8 +303,8 @@ async def _(matcher: Matcher,
     tweet = await polling.client.model_tweet_get_or_none(tweet_id)
     trans_model = await TwitterTransModel.filter(
         tweet_id=tweet_id,
-        group_mark=await adapter.mark_group_without_drive(bot, event)
-    ).order_by("-id").first()
+        group_mark=await
+        adapter.mark_group_without_drive(bot, event)).order_by("-id").first()
 
     has_perm = await (SUPERUSER | GROUP_ADMIN | GROUP_OWNER)(bot, event)
     if not tweet:
@@ -521,8 +521,8 @@ async def _(matcher: Matcher,
         for tweet in tweets:
             if tweet.id == session.tweet_map[str(tweet_key)]:
                 append_msg = f"\n{tweet_key} | {type_map[tweet.type]}"
-                if not tweet.trans and session.tweet_map[
-                        str(tweet_key)] in session.failure_list:
+                if not tweet.trans and session.tweet_map[str(
+                        tweet_key)] in session.failure_list:
                     append_msg += " ★"
                 if tweet.trans:
                     tran_models = list(tweet.relate_trans)
@@ -835,11 +835,12 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             len(finish_msgs) - 1)])
 
     async def wait_result():
-        tran_user_nick = await adapter.get_unit_nick_from_event(event.user_id, bot, event)
+        tran_user_nick = await adapter.get_unit_nick_from_event(
+            event.user_id, bot, event)
         try:
             filename = await task
         except TransException as e:
-            
+
             await bot.send(event, f"@{tran_user_nick}\n{e.info}")
             return
         except Exception as e:
@@ -857,7 +858,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                 if tweet:
                     trans_model.subscribe = tweet.author_id
                 trans_model.drive_mark = await adapter.mark_drive(bot, event)
-                
+
                 trans_model.bot_type = bot.type
                 trans_model.bot_id = bot.self_id
                 trans_model.user_id = f"{event.user_id}"
@@ -875,7 +876,9 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             await tweet.save(update_fields=["trans"])
 
         finish_msgs = ["烤好啦", "熟啦", "叮！", "出锅！"]
-        msg = f"@{tran_user_nick} " + finish_msgs[random.randint(0, len(finish_msgs) - 1)] + "\n"
+        msg = f"@{tran_user_nick} " + finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)] + "\n"
         if config.os_twitter_trans_image_proxy:
             url = f"{config.os_twitter_trans_image_proxy}/{filename}"
             msg += f"\n {url}\n"
@@ -1103,37 +1106,41 @@ async def _(matcher: Matcher,
 
 
 tweet_tran_engine_status = on_command("烤推引擎状态",
-                                rule=only_command(),
-                                permission=SUPERUSER,
-                                block=True)
+                                      rule=only_command(),
+                                      permission=SUPERUSER,
+                                      block=True)
 
 
 @tweet_tran_engine_status.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
-    
+    status_strs = [
+        '繁忙' if twitterTransManage.queue.queue_status[status] else '空闲'
+        for status in twitterTransManage.queue.queue_status
+    ]
     await matcher.finish(
         f"当前任务数：{twitterTransManage.queue.queue.qsize()}\n"
         f"平均处理时间：{twitterTransManage.queue.avg_deal_ms()/1000:.2f}s\n"
-        f"并行处理数：{twitterTransManage.queue.concurrent}"
-    )
+        f"并行处理数：{twitterTransManage.queue.concurrent}\n"
+        f"并行处理状态：{'、'.join(status_strs)}")
 
 
 tweet_tran_status = on_command("烤推状态",
-                                aliases={"烤架状态", "烤架"},
-                                rule=only_command(),
-                                block=True)
+                               aliases={"烤架状态", "烤架"},
+                               rule=only_command(),
+                               block=True)
 
 
 @tweet_tran_status.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
     finish_msgs = ["烤架~烤架~烤架~\n", "目前是这样，", f"好，有"]
+    queue = twitterTransManage.queue
     msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
     await matcher.finish(
         f"{msg}"
-        f"{twitterTransManage.queue.queue.qsize()}个在烤，烤架大小{twitterTransManage.queue.queue_size}"
-    )
+        f"{queue.queue.qsize() + await queue.get_free_loop_count()}"
+        f"个在烤，烤架大小{queue.queue_size}")
 
 
 class TransIdArg(ArgMatch):
