@@ -278,7 +278,8 @@ class AsyncTwitterClient:
             tweet_model.minor_data = is_minor
             tweet_model.author_id = f"{tweet.author_id}"
             tweet_model.type = await self.tweet_get_type(tweet)
-            tweet_model.text = tweet.text
+            tweet_model.text = str(tweet.text)
+            tweet_model.text = tweet_model.text.replace('&lt;', '<').replace('&gt;', '>')
             tweet_model.display_text = await self.render_text(
                 tweet.text, tweet.entities,
                 tweet_model.type == TweetTypeEnum.tweet)

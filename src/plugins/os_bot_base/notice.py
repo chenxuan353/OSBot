@@ -5,7 +5,7 @@ import random
 from typing_extensions import Self
 from nonebot import get_bots, on_command, get_driver
 from nonebot.adapters import Bot, Event
-from nonebot.params import CommandArg
+from nonebot.params import CommandArg, EventMessage
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
@@ -376,7 +376,7 @@ async def _(matcher: Matcher):
 
 @notify_clear.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, message: v11.Message = CommandArg()):
+async def _(matcher: Matcher, message: v11.Message = EventMessage()):
     msg = str(message).strip()
     if msg == "确认清空":
         UrgentNotice.clear()

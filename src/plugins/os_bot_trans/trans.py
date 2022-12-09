@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from nonebot import on_command, on_startswith, on_message
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
-from nonebot.params import CommandArg
+from nonebot.params import CommandArg, EventMessage
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
 from nonebot.adapters.onebot import v11
@@ -377,7 +377,7 @@ async def _(matcher: Matcher, session: TransSession = SessionDepend()):
 @stream_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
-            message: v11.Message = CommandArg(),
+            message: v11.Message = EventMessage(),
             session: TransSession = SessionDepend()):
     streamlist = session.stream_list
     msg = str(message).strip()

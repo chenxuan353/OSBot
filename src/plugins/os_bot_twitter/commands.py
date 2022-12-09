@@ -1100,6 +1100,39 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
+tweet_tran_engine_status = on_command("烤推引擎状态",
+                                rule=only_command(),
+                                permission=SUPERUSER,
+                                block=True)
+
+
+@tweet_tran_engine_status.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    
+    await matcher.finish(
+        f"当前任务数：{twitterTransManage.queue.queue.qsize()}\n"
+        f"平均处理时间：{twitterTransManage.queue.avg_deal_ms()/1000:.2f}s\n"
+        f"并行处理数：{twitterTransManage.queue.concurrent}"
+    )
+
+
+tweet_tran_status = on_command("烤推状态",
+                                aliases={"烤架状态", "烤架"},
+                                rule=only_command(),
+                                block=True)
+
+
+@tweet_tran_status.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    finish_msgs = ["烤架~烤架~烤架~\n", "目前是这样，", f"好，有"]
+    msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+    await matcher.finish(
+        f"{twitterTransManage.queue.queue.qsize()}个在烤({twitterTransManage.queue.queue_size})"
+    )
+
+
 class TransIdArg(ArgMatch):
 
     class Meta(ArgMatch.Meta):
@@ -1224,7 +1257,7 @@ async def _(matcher: Matcher):
 async def _(matcher: Matcher,
             bot: Bot,
             event: v11.Event,
-            message: v11.Message = CommandArg()):
+            message: v11.Message = EventMessage()):
     msg = str(message).strip()
     if msg == "确认":
 
