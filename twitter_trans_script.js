@@ -2088,8 +2088,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 /((https?|ftp|file):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])/g,
                 '<a style="color:#1DA1F2;">$1</a>',
             ); // 链接颜色处理
+            text = text.replace(/\n([^\n]+)/gi, "\n<p>$1</p>"); // 行包裹
             text = text.replace(/([^\n]+)\n/gi, "<p>$1</p>"); // 行包裹
-            text = text.replace(/\n/gi, "<br>\n"); // 纯换行处理
+            text = text.replace(/\n/gi, "<p></p>\n"); // 纯换行处理
             text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
             text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
             text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
@@ -2853,12 +2854,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         default: () => getNewLevel(),
                         value: (match) => match[1] && parseInt(match[1]) + 1,
                     },
-                    {
-                        mark: "level",
-                        expre: /^([0-9]+)/,
-                        default: () => getNewLevel(),
-                        value: (match) => match[1],
-                    },
+                    // {
+                    //     mark: "level",
+                    //     expre: /^([0-9]+)/,
+                    //     default: () => getNewLevel(),
+                    //     value: (match) => match[1],
+                    // },
                 ],
                 inlevel: [
                     {
@@ -3269,7 +3270,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                 } catch (e) {
                     GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
                 }
-                
+
                 return rtnVal;
             } else {
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(

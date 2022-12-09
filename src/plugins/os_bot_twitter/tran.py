@@ -80,9 +80,9 @@ class TwitterTrans:
 
             关闭并等待3秒后重新启动
         """
-        self._enable = False
         await self.context.close()
-        self.playwright.stop()
+        await self.async_stop()
+        self._enable = False
         await asyncio.sleep(3)
         await self.async_startup()
 

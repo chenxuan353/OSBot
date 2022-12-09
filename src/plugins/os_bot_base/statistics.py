@@ -167,7 +167,7 @@ def get_statistics_info():
 
 statistics_info = on_command(
     "运行数据统计",
-    aliases={"数据统计", "数据分析统计"},
+    aliases={"数据统计", "数据分析", "数据分析统计"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER,

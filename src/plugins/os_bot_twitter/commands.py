@@ -13,6 +13,7 @@ from nonebot import on_command, Bot, get_driver, on_startswith
 from nonebot.permission import SUPERUSER
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg, EventMessage
+from nonebot.adapters import Event
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
 from nonebot_plugin_apscheduler import scheduler
@@ -446,7 +447,7 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-tweet_list = on_command("推文列表", block=True)
+tweet_list = on_command("推文列表", aliases={"仓库", "打开仓库", "看看仓库"}, block=True)
 
 
 @tweet_list.handle()
@@ -500,7 +501,7 @@ async def _(matcher: Matcher,
                     tran_models = list(tweet.relate_trans)
                     if tran_models:
                         tran_model = tran_models[0]
-                        append_msg += "熟 > {0}".format(
+                        append_msg += " 熟 > {0}".format(
                             tran_model.trans_text[:10].replace('\n', ''))
                     else:
                         append_msg += " > {0}".format(
@@ -1132,13 +1133,17 @@ tweet_tran_help = on_command("烤推帮助",
 async def _(matcher: Matcher):
     await matcher.finish(
         "格式\n"
-        "##标记 内容\n"
-        "支持的标记\n"
-        "x/层x/第x层、回复x、层内x/引用x/内嵌x、图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖、(无)模版\n"
+        "##序号/推文链接 ##标记 内容\n"
+        "正文标记：回复、引用、图片、投票、层x"
+        "选项：覆盖、回复、模版"
+        "标记为空时默认为回复或主推文，序号之后的空格是必要的，标记后可以不包含空格"
         "默认情况下不覆盖，默认模版为翻译自日语\n"
         "例\n"
-        "##1 内容 ##引用 内容\n"
-        "##1 状态 ##选项1 摸鱼 ##选项2 摆烂\n"
+        "烤推 ##序号 内容\n"
+        "烤转评 ##序号 内容 ##引用 看这里\n"
+        "烤投票 ##序号 精神状态 ##投票1 摸鱼 ##投票2 开摆desu ##投票3 活着\n"
+        "烤回复 ##序号 ##阿哲 ##这是回复1 ##这是回复2\n"
+        "注意，回复超过回复链时会顺序烤制推文的其它回复，烤制指定回复可以使用层x标记(x为整数)\n"
         "管理员通过`设置烤推模版 内容`可以设置默认参数")
 
 
@@ -1187,12 +1192,17 @@ async def _(matcher: Matcher):
 @tweet_tran_reload.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.Event,
             message: v11.Message = CommandArg()):
     msg = str(message).strip()
     if msg == "确认":
-        global tweet_tran_reload_inreload
-        tweet_tran_reload_inreload = True
-        await twitterTransManage.restart()
-        tweet_tran_reload_inreload = False
-        await matcher.finish("重新启动完成~")
+        async def restart():
+            global tweet_tran_reload_inreload
+            tweet_tran_reload_inreload = True
+            await twitterTransManage.restart()
+            tweet_tran_reload_inreload = False
+            await bot.send(event, "重新启动完成")
+        asyncio.gather(restart())
+        await matcher.finish("开始重启")
     await matcher.finish("取消操作")
