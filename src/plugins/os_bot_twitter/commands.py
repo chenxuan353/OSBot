@@ -1140,7 +1140,7 @@ async def _(matcher: Matcher):
     await matcher.finish(
         f"{msg}"
         f"{queue.queue.qsize() + await queue.get_deal_loop_count()}"
-        f"个在烤，烤架大小{queue.queue_size}")
+        f"个在烤，烤架大小{queue.queue_size + queue.concurrent}")
 
 
 class TransIdArg(ArgMatch):
