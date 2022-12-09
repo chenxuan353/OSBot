@@ -165,7 +165,6 @@ async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
     target = arg.target
     text = arg.tail.strip()
     if text.startswith("#"):
-        text = text[1:]
         try:
             from ..os_bot_twitter.os_bot_trans_interface import trans_tran_tweet
             tweet = await trans_tran_tweet(matcher, bot, event, text)

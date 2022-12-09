@@ -16,6 +16,8 @@ async def trans_tran_tweet(matcher: Matcher, bot: Bot, event: Event,
     session: TwitterSession = await get_session_depend(matcher, bot, event,
                                                        TwitterSession
                                                        )  # type: ignore
+    if not session:
+        await matcher.finish("获取推文文本时异常，请联系管理员")
     tweet_id = deal_tweet_link(msg, session)
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")

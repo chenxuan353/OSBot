@@ -117,7 +117,6 @@ class TwitterSession(Session):
     template_map: Dict[str, str]
     """模版映射"""
 
-
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
         self.failure_list = []
@@ -132,6 +131,9 @@ class TwitterSession(Session):
         self.num = int(self.num)
         return self
 
+    @classmethod
+    def domain(cls):
+        return "os_bot_twitter"
 
 __plugin_meta__ = PluginMetadata(
     name="推特",

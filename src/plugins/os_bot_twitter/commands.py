@@ -302,6 +302,7 @@ async def _(matcher: Matcher,
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
     tweet = await polling.client.model_tweet_get_or_none(tweet_id)
     trans_model = await TwitterTransModel.filter(
+        tweet_id=tweet_id,
         group_mark=await adapter.mark_group_without_drive(bot, event)
     ).order_by("-id").first()
 
@@ -343,6 +344,7 @@ async def _(matcher: Matcher,
                     logger.opt(exception=True).error("读取烤推文件时异常")
                     msg += "\n获取烤推结果时错误，请联系管理！"
                     return
+                msg += f"\n烤推结果 {trans_model.id}"
                 msg += v11.MessageSegment.image(
                     f"base64://{str(base64_data, 'utf-8')}")
     await matcher.finish(msg)
@@ -482,7 +484,8 @@ async def _(matcher: Matcher,
             adapter: Adapter = AdapterDepend(),
             arg: PageArgMatch = ArgMatchDepend(PageArgMatch),
             session: TwitterSession = SessionDepend(TwitterSession)):
-    tweet_keys = list(session.tweet_map.keys())
+    tweet_keys = [int(key) for key in session.tweet_map]
+    tweet_keys.sort(reverse=True)
     size = 10
     tweet_count = len(tweet_keys)
     maxpage = math.ceil(tweet_count / size)
@@ -496,7 +499,7 @@ async def _(matcher: Matcher,
     tmp_tweet_keys = tweet_keys[(arg.page - 1) * size:arg.page * size]
     tweet_ids = []
     for tweet_key in tmp_tweet_keys:
-        tweet_ids.append(session.tweet_map[tweet_key])
+        tweet_ids.append(session.tweet_map[str(tweet_key)])
 
     group_mark = await adapter.mark_group_without_drive(bot, event)
     tweets = await TwitterTweetModel.filter(
@@ -516,17 +519,18 @@ async def _(matcher: Matcher,
     for tweet_key in tmp_tweet_keys:
         append_msg = ""
         for tweet in tweets:
-            if tweet.id == session.tweet_map[tweet_key]:
+            if tweet.id == session.tweet_map[str(tweet_key)]:
                 append_msg = f"\n{tweet_key} | {type_map[tweet.type]}"
                 if not tweet.trans and session.tweet_map[
-                        tweet_key] in session.failure_list:
+                        str(tweet_key)] in session.failure_list:
                     append_msg += " ★"
                 if tweet.trans:
                     tran_models = list(tweet.relate_trans)
                     if tran_models:
                         tran_model = tran_models[0]
-                        append_msg += " 熟 > {0}".format(
-                            tran_model.trans_text[:10].replace('\n', ''))
+                        if tran_model.trans_text:
+                            append_msg += " 熟 > {0}".format(
+                                tran_model.trans_text[:10].replace('\n', ''))
                     else:
                         append_msg += " > {0}".format(
                             tweet.display_text[:10].replace('\n', ''))
@@ -843,19 +847,22 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
 
         # 存档
         try:
-            trans_model = TwitterTransModel()
-            trans_model.group_mark = await adapter.mark_group_without_drive(
-                bot, event)
-            if tweet:
-                trans_model.subscribe = tweet.author_id
-            trans_model.drive_mark = await adapter.mark_drive(bot, event)
-            trans_model.bot_type = bot.type
-            trans_model.bot_id = bot.self_id
-            trans_model.user_id = f"{event.user_id}"
-            trans_model.trans_text = arg.tail
-            trans_model.tweet_id = tweet_id
-            trans_model.file_name = filename
-            await trans_model.save()
+            if arg.tail:
+                # 仅截图时不存档
+                trans_model = TwitterTransModel()
+                trans_model.group_mark = await adapter.mark_group_without_drive(
+                    bot, event)
+                if tweet:
+                    trans_model.subscribe = tweet.author_id
+                trans_model.drive_mark = await adapter.mark_drive(bot, event)
+                
+                trans_model.bot_type = bot.type
+                trans_model.bot_id = bot.self_id
+                trans_model.user_id = f"{event.user_id}"
+                trans_model.trans_text = arg.tail
+                trans_model.tweet_id = tweet_id
+                trans_model.file_name = filename
+                await trans_model.save()
         except Exception as e:
             logger.opt(exception=True).error("保存烤推记录时异常！")
             await bot.send(event, "烤推时异常，请联系管理员")
