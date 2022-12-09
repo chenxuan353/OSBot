@@ -4,15 +4,18 @@ from nonebot.adapters import Bot, Event
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
-from .commands import deal_tweet_link, SessionDepend, polling
+from .commands import deal_tweet_link, polling
 from .model import TwitterTweetModel
 from .config import TwitterSession
 
 from ..os_bot_base.depends import get_session_depend
 
 
-async def trans_tran_tweet(matcher: Matcher, bot: Bot, event: Event, msg: str) -> TwitterTweetModel:
-    session = await SessionDepend(TwitterSession)()
+async def trans_tran_tweet(matcher: Matcher, bot: Bot, event: Event,
+                           msg: str) -> TwitterTweetModel:
+    session: TwitterSession = await get_session_depend(matcher, bot, event,
+                                                       TwitterSession
+                                                       )  # type: ignore
     tweet_id = deal_tweet_link(msg, session)
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
@@ -28,5 +31,5 @@ async def trans_tran_tweet(matcher: Matcher, bot: Bot, event: Event, msg: str) -
             len(finish_msgs) - 1)])
     if tweet.possibly_sensitive and not has_perm:
         await matcher.finish("推文被标记可能存在敏感内容，不予显示。")
-    
+
     return tweet
