@@ -835,10 +835,12 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             len(finish_msgs) - 1)])
 
     async def wait_result():
+        tran_user_nick = await adapter.get_unit_nick_from_event(event.user_id, bot, event)
         try:
             filename = await task
         except TransException as e:
-            await bot.send(event, e.info)
+            
+            await bot.send(event, f"@{tran_user_nick}\n{e.info}")
             return
         except Exception as e:
             logger.opt(exception=True).error("烤推时异常")
@@ -873,7 +875,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             await tweet.save(update_fields=["trans"])
 
         finish_msgs = ["烤好啦", "熟啦", "叮！", "出锅！"]
-        msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)] + "\n"
+        msg = f"@{tran_user_nick} " + finish_msgs[random.randint(0, len(finish_msgs) - 1)] + "\n"
         if config.os_twitter_trans_image_proxy:
             url = f"{config.os_twitter_trans_image_proxy}/{filename}"
             msg += f"\n {url}\n"
