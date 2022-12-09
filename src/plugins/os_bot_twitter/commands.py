@@ -1129,7 +1129,8 @@ async def _(matcher: Matcher):
     finish_msgs = ["烤架~烤架~烤架~\n", "目前是这样，", f"好，有"]
     msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
     await matcher.finish(
-        f"{twitterTransManage.queue.queue.qsize()}个在烤({twitterTransManage.queue.queue_size})"
+        f"{msg}"
+        f"{twitterTransManage.queue.queue.qsize()}个在烤，烤架大小{twitterTransManage.queue.queue_size}"
     )
 
 
