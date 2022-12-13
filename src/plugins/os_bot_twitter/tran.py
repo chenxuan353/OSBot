@@ -154,7 +154,7 @@ class TwitterTrans:
         except (BaseException, TransException) as e:
             raise e
         except Exception as e:
-            raise TransException("未知原因异常", cause=e)
+            raise TransException("未知原因异常，请联系管理员", cause=e)
 
     def load_script(self):
         """

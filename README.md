@@ -19,7 +19,8 @@ playwright install-deps
 可能需要的依赖(ubuntu)
 
 ```shell
-apt-get install python3.8 python3.8-pip python3.8-dev build-essential libssl-dev libffi-dev libxml2 libxml2-dev libxslt1-dev zlib1g-dev
+apt-get update
+apt-get -y install python3.8 python3-pip python3.8-dev build-essential libssl-dev libffi-dev libxml2 libxml2-dev libxslt1-dev zlib1g-dev
 python3.8 -m pip install --upgrade pip
 ```
 

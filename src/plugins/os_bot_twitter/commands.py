@@ -140,7 +140,7 @@ class SubscribeArg(ArgMatch):
 
 
 subscribe_add = on_command("推特订阅",
-                           aliases={"订阅推特", "加推"},
+                           aliases={"订阅推特", "加推", "添加转推"},
                            permission=SUPERUSER,
                            block=True)
 
@@ -202,7 +202,7 @@ async def _(matcher: Matcher,
 
 
 subscribe_del = on_command("取消推特订阅",
-                           aliases={"取消订阅推特", "减推"},
+                           aliases={"取消订阅推特", "减推", "减少转推", "移除转推"},
                            block=True,
                            permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                            | PRIVATE_FRIEND)
@@ -398,6 +398,7 @@ async def _(matcher: Matcher,
 
 
 subscribe_list = on_command("推特订阅列表",
+                            aliases={"转推列表"},
                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER,
                             block=True)
 
@@ -502,6 +503,9 @@ async def _(matcher: Matcher,
         tweet_ids.append(session.tweet_map[str(tweet_key)])
 
     group_mark = await adapter.mark_group_without_drive(bot, event)
+    subscribes = await TwitterSubscribeModel.filter(
+        group_mark=group_mark
+    ).order_by("-id").only("subscribe").values_list("subscribe", flat=True)
     tweets = await TwitterTweetModel.filter(
         Q(id__in=tweet_ids)).order_by("-id").prefetch_related(
             Prefetch('relate_trans',
@@ -512,7 +516,8 @@ async def _(matcher: Matcher,
         TweetTypeEnum.tweet: "发",
         TweetTypeEnum.retweet: "转",
         TweetTypeEnum.quote: "评",
-        TweetTypeEnum.replay: "回"
+        TweetTypeEnum.replay: "回",
+        TweetTypeEnum.quote_replay: "引用回复"
     }
 
     msg = f"库"
@@ -520,7 +525,10 @@ async def _(matcher: Matcher,
         append_msg = ""
         for tweet in tweets:
             if tweet.id == session.tweet_map[str(tweet_key)]:
-                append_msg = f"\n{tweet_key} | {type_map[tweet.type]}"
+                if tweet.author_id in subscribes:
+                    append_msg = f"\n{tweet_key} | {type_map[tweet.type]}"
+                else:
+                    append_msg = f"\n{tweet_key} | 相关"
                 if not tweet.trans and session.tweet_map[str(
                         tweet_key)] in session.failure_list:
                     append_msg += " ★"
@@ -840,8 +848,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         try:
             filename = await task
         except TransException as e:
-
             await bot.send(event, f"@{tran_user_nick}\n{e.info}")
+            logger.opt(exception=True).error("烤推时异常")
             return
         except Exception as e:
             logger.opt(exception=True).error("烤推时异常")
@@ -859,8 +867,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                     trans_model.subscribe = tweet.author_id
                 trans_model.drive_mark = await adapter.mark_drive(bot, event)
 
-                trans_model.bot_type = bot.type
-                trans_model.bot_id = bot.self_id
+                trans_model.bot_type = adapter.get_type()
+                trans_model.bot_id = await adapter.get_bot_id(bot, event)
                 trans_model.user_id = f"{event.user_id}"
                 trans_model.trans_text = arg.tail
                 trans_model.tweet_id = tweet_id
@@ -1119,7 +1127,7 @@ async def _(matcher: Matcher):
         for status in twitterTransManage.queue.queue_status
     ]
     await matcher.finish(
-        f"当前任务数：{twitterTransManage.queue.queue.qsize()}\n"
+        f"当前任务数：{twitterTransManage.queue.queue.qsize()}/{twitterTransManage.queue.queue_size}\n"
         f"平均处理时间：{twitterTransManage.queue.avg_deal_ms()/1000:.2f}s\n"
         f"并行处理数：{twitterTransManage.queue.concurrent}\n"
         f"并行处理状态：{'、'.join(status_strs)}")
