@@ -151,6 +151,7 @@ async def _(matcher: Matcher,
             bot: Bot,
             event: v11.MessageEvent,
             arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
+            session: TwitterSession = SessionDepend(TwitterSession),
             adapter: Adapter = AdapterDepend()):
     group_mark = await adapter.mark_group_without_drive(bot, event)
     user = await get_user_from_search(arg.user_search, True)
@@ -198,6 +199,9 @@ async def _(matcher: Matcher,
     option_ins._submit_to_model(subscribe)
     await subscribe.save()
     twitter_subscribe_invalid_cache()
+    if not session.default_sub_id:
+        async with session:
+            session.default_sub_id = user.id
     await matcher.finish(f"订阅了{user.name}@{user.username}~")
 
 
@@ -214,6 +218,7 @@ async def _(matcher: Matcher,
             bot: Bot,
             event: v11.MessageEvent,
             arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
+            session: TwitterSession = SessionDepend(TwitterSession),
             adapter: Adapter = AdapterDepend()):
     group_mark = await adapter.mark_group_without_drive(bot, event)
     user = await get_user_from_search(arg.user_search, True)
@@ -233,6 +238,9 @@ async def _(matcher: Matcher,
 
     await subscribe.delete()
     twitter_subscribe_invalid_cache()
+    if session.default_sub_id and session.default_sub_id == user.id:
+        async with session:
+            session.default_sub_id = None
     await matcher.finish(f"取消了对{user.name}@{user.username}的订阅")
 
 
@@ -363,8 +371,13 @@ async def _(matcher: Matcher,
             bot: Bot,
             event: v11.MessageEvent,
             arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
+            session: TwitterSession = SessionDepend(TwitterSession),
             adapter: Adapter = AdapterDepend()):
     group_mark = await adapter.mark_group_without_drive(bot, event)
+    if arg.user_search == "def" and session.default_sub_id:
+        arg.user_search = session.default_sub_id
+    else:
+        await matcher.finish("没有配置默认值哦")
     user = await get_user_from_search(arg.user_search, True)
     if not user:
         finish_msgs = ["找不到用户哦……", "唔……用户不存在……？"]
@@ -568,14 +581,20 @@ class TweetArg(ArgMatch):
 
 
 tweet_cache_list = on_command("查看缓存推文列表",
-                              aliases={"缓存推文列表"},
+                              aliases={"缓存推文列表", "用户推文列表"},
                               permission=SUPERUSER,
                               block=True)
 
 
 @tweet_cache_list.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, arg: TweetArg = ArgMatchDepend(TweetArg)):
+async def _(matcher: Matcher,
+            arg: TweetArg = ArgMatchDepend(TweetArg),
+            session: TwitterSession = SessionDepend(TwitterSession)):
+    if arg.user_search == "def" and session.default_sub_id:
+        arg.user_search = session.default_sub_id
+    else:
+        await matcher.finish("没有配置默认值哦")
     user = await get_user_from_search(arg.user_search)
     if not user:
         finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
@@ -604,6 +623,33 @@ async def _(matcher: Matcher, arg: TweetArg = ArgMatchDepend(TweetArg)):
             and '...')
     msg += f"\n{arg.page}/{maxpage}"
     await matcher.finish(msg)
+
+
+tweet_def_user_set = on_command("默认推特用户",
+                              aliases={"设置默认推特用户", "默认推特用户设置", "配置默认推特用户", "默认推特用户配置"},
+                              permission=SUPERUSER,
+                              block=True)
+
+
+@tweet_def_user_set.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
+            session: TwitterSession = SessionDepend(TwitterSession)):
+    if arg.user_search == "def":
+        if session.default_sub_id:
+            arg.user_search = session.default_sub_id
+        else:
+            await matcher.finish("没有配置默认值哦")
+    user = await get_user_from_search(arg.user_search)
+    if not user:
+        finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    async with session:
+        session.default_sub_id = user.id
+    await matcher.finish(f"默认用户 {user.name}@{user.username}")
 
 
 cache_clear = on_command("清空推特缓存",
@@ -818,7 +864,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
     if tweet_username:
         user = await get_user_from_search(tweet_username)
         if user and user.id in session_plug.blacklist_following_list:
-            logger.debug("用户被禁用，烤推操作取消 QQ {} -> user {}", event.user_id,
+            logger.info("用户被禁用，烤推操作取消 QQ {} -> user {}", event.user_id,
                          user.username)
             await matcher.finish()
     tweet_tran_str = arg.tail

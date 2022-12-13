@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from typing_extensions import Self
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
@@ -116,6 +116,8 @@ class TwitterSession(Session):
     """默认模版"""
     template_map: Dict[str, str]
     """模版映射"""
+    default_sub_id: Optional[str]
+    """当前的默认订阅（缓存推文列表等指令的默认订阅值）"""
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
@@ -125,6 +127,7 @@ class TwitterSession(Session):
         self.tweet_map = {}
         self.default_template = "翻译自日语"
         self.template_map = {}
+        self.default_sub_id = None
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
