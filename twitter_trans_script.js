@@ -1620,7 +1620,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         return new Promise((resolve) => {
             return GLOBAL_TOOL.TweetHtml.waitLoad(
                 (isOK, reason) => resolve([isOK, reason]),
-                timeout,
+                timeout
             );
         });
     }
@@ -1633,10 +1633,13 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                 return [false, result[1], result];
             }
             // 推文解析
+            GLOBAL_TOOL.Logger.debug("推文解析");
             GLOBAL_TOOL.TweetHtml.parsing();
             // 显示静态元素
+            GLOBAL_TOOL.Logger.debug("显示静态元素");
             GLOBAL_TOOL.TweetHtml.staticAnchorSwitch(null, true);
             // 移除影响元素
+            GLOBAL_TOOL.Logger.debug("移除影响元素");
             GLOBAL_TOOL.TweetHtml.removeSomeDom();
         } catch (e) {
             return [false, "未知报错", e.toString()];
@@ -1648,11 +1651,12 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         }
         try {
             if (GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR) {
+                GLOBAL_TOOL.Logger.info("注入推文 烤制模式：文本");
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
                     GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null),
                 );
-                GLOBAL_TOOL.Logger.info("进行最终等待");
+                GLOBAL_TOOL.Logger.debug("进行最终等待");
                 try {
                     await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
                 } catch (e) {
@@ -1661,11 +1665,12 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                 GLOBAL_TOOL.Logger.info("烤推完成");
                 return rtnVal;
             } else {
+                GLOBAL_TOOL.Logger.info("注入推文 烤制模式：字典");
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
                     GLOBAL_TOOL.TRANS_DICT
                 );
-                GLOBAL_TOOL.Logger.info("进行最终等待");
+                GLOBAL_TOOL.Logger.debug("进行最终等待");
                 try {
                     await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
                 } catch (e) {
