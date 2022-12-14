@@ -16,6 +16,7 @@ from nonebot.adapters import Event, Bot
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot_plugin_apscheduler import scheduler
+from .config import config
 from .consts import STATE_STATISTICE_DEAL
 from .logger import logger
 from .util import seconds_to_dhms, matcher_exception_try, only_command
@@ -219,24 +220,38 @@ async def print_statistics_info():
                 f"\n{get_statistics_system_info()}")
 
 
-@scheduler.scheduled_job("interval", minutes=5 * 3600, name="运行状态检查")
-async def statistics_info_check():
-    disks = psutil.disk_partitions()
-    disk_usage_totel = 0
-    for disk in disks:
-        disk_usage = psutil.disk_usage(disk.mountpoint)
-        disk_usage_totel += disk_usage.percent
-    disk_usage_percent = disk_usage_totel / len(disks)
-    if disk_usage_percent > 90:
-        logger.warning("磁盘使用量超过90%")
-    if disk_usage_percent > 95:
-        logger.warning("磁盘使用量超过95%")
-        await UrgentNotice.send("磁盘用量超过95%了哦")
+if config.os_ob_notice_distusage:
+    @scheduler.scheduled_job("interval", minutes=5 * 60, name="运行状态检查")
+    async def statistics_info_check():
+        disks = psutil.disk_partitions()
 
-    await asyncio.sleep(10)
+        if config.os_ob_notice_distusage_single:
+            for disk in disks:
+                disk_usage = psutil.disk_usage(disk.mountpoint)
+                if disk_usage.percent > 95:
+                    logger.warning(f"磁盘 {disk.mountpoint} 用量超过95%了哦")
+                    await UrgentNotice.send(f"磁盘 {disk.mountpoint} 用量超过95%了哦")
+                elif disk_usage.percent > config.os_ob_notice_distusage_percent:
+                    logger.warning("磁盘 {} 用量超过{}%了哦", disk.mountpoint, config.os_ob_notice_distusage_percent)
+                    await UrgentNotice.send(f"磁盘 {disk.mountpoint} 用量超过{config.os_ob_notice_distusage_percent}%了哦")
+        else:
+            disk_usage_totel = 0
+            for disk in disks:
+                disk_usage = psutil.disk_usage(disk.mountpoint)
+                disk_usage_totel += disk_usage.percent
+            disk_usage_percent = disk_usage_totel / len(disks)
+            if disk_usage_percent > 95:
+                logger.warning("综合磁盘使用量超过95%")
+                await UrgentNotice.send("综合磁盘用量超过95%了哦")
+            elif disk_usage_percent > config.os_ob_notice_distusage_percent:
+                logger.warning("综合磁盘使用量超过{}%", config.os_ob_notice_distusage_percent)
+                await UrgentNotice.send(f"综合磁盘用量超过{config.os_ob_notice_distusage_percent}%了哦")
 
-    if psutil.virtual_memory().percent > 90:
-        await UrgentNotice.send("内存用量超过90%了哦")
+
+        await asyncio.sleep(10)
+
+        if psutil.virtual_memory().percent > 90:
+            await UrgentNotice.send("内存用量超过90%了哦")
 
 
 @driver.on_startup
