@@ -126,13 +126,13 @@ class TwitterTrans:
                         logstr += " {}"
                         values.append(result)
                 if logstr:
-                    logger.debug(f"脚本输出 - {logstr}", *values)
+                    logger.debug(f"烤推脚本输出 - {logstr}", *values)
 
             page.on("console", print_args)
 
             playwright_config = {
                 "ENABLE_PLAYWRIGHT": True,
-                "WAIT_TIMEOUT": 30,
+                "WAIT_TIMEOUT": config.os_twitter_trans_timeout,
                 "TRANS_DICT": trans,
                 "TRANS_STR": trans_str,
             }
@@ -146,10 +146,10 @@ class TwitterTrans:
             if not result[0]:
                 raise TransException(f"失败了，{result[1]}",
                                      cause=Exception(result))
-
+            logger.debug("烤推完成 {} 正在存档", tweet_id)
             await page.locator("#static_elem").screenshot(path=screenshot_path)
             await page.close()
-            logger.debug("烤推完成 {} 存档文件 {}", tweet_id, screenshot_filename)
+            logger.debug("烤推存档完成 {} 存档文件 {}", tweet_id, screenshot_filename)
             return screenshot_filename
         except (BaseException, TransException) as e:
             raise e

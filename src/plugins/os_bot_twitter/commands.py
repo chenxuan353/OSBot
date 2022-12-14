@@ -374,7 +374,7 @@ async def _(matcher: Matcher,
             session: TwitterSession = SessionDepend(TwitterSession),
             adapter: Adapter = AdapterDepend()):
     group_mark = await adapter.mark_group_without_drive(bot, event)
-    if arg.user_search == "def" and session.default_sub_id:
+    if arg.user_search in ("def", "默认", "-") and session.default_sub_id:
         arg.user_search = session.default_sub_id
     else:
         await matcher.finish("没有配置默认值哦")
@@ -591,7 +591,7 @@ tweet_cache_list = on_command("查看缓存推文列表",
 async def _(matcher: Matcher,
             arg: TweetArg = ArgMatchDepend(TweetArg),
             session: TwitterSession = SessionDepend(TwitterSession)):
-    if arg.user_search == "def" and session.default_sub_id:
+    if arg.user_search in ("def", "默认", "-") and session.default_sub_id:
         arg.user_search = session.default_sub_id
     else:
         await matcher.finish("没有配置默认值哦")
@@ -636,7 +636,7 @@ tweet_def_user_set = on_command("默认推特用户",
 async def _(matcher: Matcher,
             arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
             session: TwitterSession = SessionDepend(TwitterSession)):
-    if arg.user_search == "def":
+    if arg.user_search in ("def", "默认", "-"):
         if session.default_sub_id:
             arg.user_search = session.default_sub_id
         else:
@@ -816,7 +816,7 @@ async def download_to_base64(url: str,
     return urlbase64
 
 
-tweet_tran = on_command("烤推", aliases={"烤"}, block=True)
+tweet_tran = on_command("烤推", aliases={"烤", "烤制"}, block=True)
 tweet_tran_startswith = on_startswith("##", priority=4)
 
 
