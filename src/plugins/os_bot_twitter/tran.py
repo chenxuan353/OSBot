@@ -139,6 +139,7 @@ class TwitterTrans:
                 "WAIT_TIMEOUT": config.os_twitter_trans_timeout,
                 "TRANS_DICT": trans,
                 "TRANS_STR": trans_str,
+                "USE_STR": True
             }
 
             result = await page.evaluate(

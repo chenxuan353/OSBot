@@ -850,6 +850,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             }
             tweetAnchors由getAnchors生成
             */
+            if(!trans){
+                return [false, "烤推字典为空", null];
+            }
             tweetAnchors =
                 tweetAnchors ||
                 (TweetHtml.parseAnchors && TweetHtml.parseAnchors.tweetAnchors);
@@ -1638,16 +1641,16 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         } catch (e) {
             return [false, "未知报错", e.toString()];
         }
-        if(GLOBAL_TOOL.TRANS_STR){
+        if(GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR){
             GLOBAL_TOOL.Logger.info("烤制模式：文本");
         }else{
             GLOBAL_TOOL.Logger.info("烤制模式：字典");
         }
         try {
-            if (GLOBAL_TOOL.TRANS_STR) {
+            if (GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR) {
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
-                    GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR),
+                    GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null),
                 );
                 GLOBAL_TOOL.Logger.info("进行最终等待");
                 try {
