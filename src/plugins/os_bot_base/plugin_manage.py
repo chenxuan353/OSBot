@@ -141,7 +141,7 @@ async def _(bot: Bot, event: Event, matcher: Matcher):
                 raise IgnoredException(
                     f"插件管理器已限制`{plugin.name}`(组设置)! group={group_mark}")
         if plugModel and not plugModel.default_switch:
-            raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)!")
+            raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)! group={group_mark}")
 
         logger.debug(f"插件管理器已放行`{plugin.name}`(插件默认值)! group={group_mark}")
     except IgnoredException as e:
@@ -157,6 +157,11 @@ class ManageArg(ArgMatch):
         name = "插件管理的参数"
         des = "管理插件的开关"
 
+    drive_type: str = Field.Keys(
+        "驱动", {
+            "ob11": ["onebot11", "gocqhttp"],
+        }, default="ob11", require=False)
+
     group_type: str = Field.Keys(
         "组标识", {
             "group": ["g", "group", "组", "群", "群聊"],
@@ -169,7 +174,7 @@ class ManageArg(ArgMatch):
 
     def __init__(self) -> None:
         super().__init__(
-            [self.group_type, self.group_id, self.plugin_name,
+            [self.drive_type, self.group_type, self.group_id, self.plugin_name,
              self.switch])
 
 
@@ -220,21 +225,23 @@ async def _(matcher: Matcher,
         group_nick = await adapter.get_group_nick(arg.group_id)
     else:
         group_nick = await adapter.get_unit_nick(arg.group_id)
-    mark = f"{arg.group_type}-{arg.group_id}"
-    entity = {"name": arg.plugin_name, "group_mark": mark}
+    mark = f"{arg.drive_type}-global-{arg.group_type}-{arg.group_id}"
+    entity = {"name": pluginModel.name, "group_mark": mark}
+    if arg.switch is None:
+        arg.switch = await plug_is_disable(pluginModel.name, mark)
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
     elif switchModel.switch == arg.switch:
-        await matcher.finish(f"{group_nick}的{pluginModel.display_name}的状态没有变化哦"
+        await matcher.finish(f"`{group_nick}`的`{pluginModel.display_name}`的状态没有变化哦"
                              )
     switchModel.switch = arg.switch
     await switchModel.save()
     plug_model_cache_clear()
     if not switchModel.switch:
-        await matcher.finish(f"已经关掉{group_nick}的{pluginModel.display_name}了~")
+        await matcher.finish(f"已经关掉`{group_nick}`的`{pluginModel.display_name}`了~")
     else:
-        await matcher.finish(f"{group_nick}的{pluginModel.display_name}开了！")
+        await matcher.finish(f"`{group_nick}`的`{pluginModel.display_name}`开了！")
 
 
 disable_plug = on_command("全局禁用插件",
@@ -304,7 +311,6 @@ def_enable_plug = on_command("默认启用插件",
 async def _(matcher: Matcher, bot: Bot,
             arg: PlugArg = ArgMatchDepend(PlugArg)):
     pluginModel = await get_plugin(arg.plugin_name)
-    adapter = AdapterFactory.get_adapter(bot)
     if pluginModel.default_switch == True:
         await matcher.finish(f"{pluginModel.display_name}默认就是打开的哦！")
     pluginModel.default_switch = True
@@ -327,7 +333,7 @@ async def _(matcher: Matcher,
     pluginModel = await get_plugin(arg.plugin_name)
     adapter = AdapterFactory.get_adapter(bot)
     mark = await adapter.mark_group_without_drive(bot, event)
-    entity = {"name": arg.plugin_name, "group_mark": mark}
+    entity = {"name": pluginModel.name, "group_mark": mark}
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
@@ -355,7 +361,7 @@ async def _(matcher: Matcher,
         await matcher.finish(f"{pluginModel.display_name}在哪里都不能用哦。")
     adapter = AdapterFactory.get_adapter(bot)
     mark = await adapter.mark_group_without_drive(bot, event)
-    entity = {"name": arg.plugin_name, "group_mark": mark}
+    entity = {"name": pluginModel.name, "group_mark": mark}
     switchModel = await PluginSwitchModel.get_or_none(**entity)
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
@@ -465,14 +471,19 @@ async def _(matcher: Matcher,
 
     await matcher.finish(f"{status}\n{pluginModel.usage or '空空如也'}")
 
+version = "v0.5beta"
 
-help_msg = """
-OSBot v0.1beta
+help_msg = f"""
+OSBot {version}
 包含多引擎翻译、烤推、转推、转动态等功能~
 维护者：晨轩(3309003591)
+仓库：https://github.com/chenxuan353/OSBot
 
 使用`功能列表 页码(可略)`及`功能帮助 插件名`来查看帮助信息
-注：使用指令时使用空格分隔参数执行更准确哦。
+使用指令时使用空格分隔参数执行更准确哦。
+遇到问题可以使用`反馈 内容`，会尽快处理。
+
+>>非必要请勿禁言<<
 """.strip()
 
 help = on_command("帮助", aliases={
@@ -486,12 +497,12 @@ async def _(matcher: Matcher):
     await matcher.finish(help_msg)
 
 
-admin_help_msg = """
-OSBot v0.1beta
+admin_help_msg = f"""
+OSBot {version}
 
 使用`超管功能帮助 插件名`来查看超级管理员专属帮助（大部分插件应该都没有）
 可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理
-需要远程控制插件状态可以通过`插件管理 组标识 组ID 插件名称 状态`来远程设置
+需要远程控制插件状态可以通过`插件管理 群/私聊 ID 插件名称 状态`来远程设置
 通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
 通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
 通过`还得是你/优先响应`切换优先响应

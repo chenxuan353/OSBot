@@ -5,7 +5,7 @@ import random
 from typing_extensions import Self
 from nonebot import get_bots, on_command, get_driver
 from nonebot.adapters import Bot, Event
-from nonebot.params import CommandArg
+from nonebot.params import CommandArg, EventMessage
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
@@ -67,7 +67,7 @@ class BotSend:
                 return await cls.ob_send_private_msg(send_params["user_id"],
                                                      msg)
             elif "group_id" in send_params:
-                return await BotSend.ob_send_group_msg(send_params["group_id"],
+                return await cls.ob_send_group_msg(send_params["group_id"],
                                                        msg)
             else:
                 logger.warning("{} 消息通知不支持的参数 {}", bot_type, send_params)
@@ -327,16 +327,36 @@ class UrgentNotice:
         self.onebot_group_notify = self.__read("onebot_group")
 
 
+driver_shutdown = False
+
+@driver.on_shutdown
+async def _():
+    global driver_shutdown
+    driver_shutdown = True
+
+
 @driver.on_bot_disconnect
 async def _(bot: v11.Bot):
     # bot断开提醒
     if config.os_ob_notice_disconnect:
         nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
         name = f"{nick}({bot.self_id})"
-        finish_msgs = [f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"]
-        await UrgentNotice.send(finish_msgs[random.randint(
-            0,
-            len(finish_msgs) - 1)])
+
+        async def await_send():
+            await asyncio.sleep(10)
+            if driver_shutdown:
+                return
+            bots = get_bots()
+            if bot.self_id not in bots:
+                finish_msgs = [
+                    f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"
+                ]
+                await UrgentNotice.send(finish_msgs[random.randint(
+                    0,
+                    len(finish_msgs) - 1)])
+
+        asyncio.gather(await_send())
+
 
 
 notify_clear = on_command("清空紧急通知列表",
@@ -356,7 +376,7 @@ async def _(matcher: Matcher):
 
 @notify_clear.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher, message: v11.Message = CommandArg()):
+async def _(matcher: Matcher, message: v11.Message = EventMessage()):
     msg = str(message).strip()
     if msg == "确认清空":
         UrgentNotice.clear()

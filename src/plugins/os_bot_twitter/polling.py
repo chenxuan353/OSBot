@@ -71,7 +71,7 @@ class PollTwitterUpdate(TwitterUpdate):
         """推文创建多长时间后忽略更新事件，单位秒"""
         self.update_user_precision = 1000
         """粉丝数通知精度，默认千位"""
-        self.update_mention_followers = 3000
+        self.update_mention_followers = 5000
         """相关推送最低粉丝数限制"""
         self.update_mention_verified = True
         """相关推送包含已验证账户"""
@@ -90,9 +90,13 @@ class PollTwitterUpdate(TwitterUpdate):
         """
             用户查看用途
         """
-        msg = f"{user.name}@{user.username}"
+        msg = v11.Message(f"{user.name}@{user.username}")
         if bot_type == V11Adapter.get_type():
-            msg += "\n" + v11.MessageSegment.image(file=user.profile_image_url)
+            if user.profile_image_url:
+                url = user.profile_image_url
+                if url.endswith(("_normal.jpg", "_normal.png")):
+                    url = url[:-len("_normal.jpg")] + url[-4:]
+                msg += v11.Message("\n") + v11.MessageSegment.image(file=url)
         else:
             logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
         msg += f"\n粉丝 {user.followers_count} 关注 {user.following_count}"
@@ -104,6 +108,8 @@ class PollTwitterUpdate(TwitterUpdate):
             tags.append("推文受保护")
         if user.verified:
             tags.append("已验证")
+        if tags:
+            msg += '\n' + "、".join(tags)
         msg += f"\n建于 {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
         return msg
 
@@ -121,7 +127,7 @@ class PollTwitterUpdate(TwitterUpdate):
             relate_tweet = await self.client.model_tweet_get_or_none(
                 tweet.referenced_tweet_id)
         # 标题及依赖推文
-        msg = ""
+        msg = v11.Message()
         if tweet.type == TweetTypeEnum.tweet:
             msg = f"{tweet.author_name}的推文~"
             # 附加主推文
@@ -331,9 +337,17 @@ class PollTwitterUpdate(TwitterUpdate):
                        f"旧：{old_val}\n"
                        f"新：{new_val}")
             elif update_type == "头像":
-                msg = f"{user.name}的头像更新咯！"
-                msg += "\n旧：" + v11.MessageSegment.image(file=old_val)
-                msg += "\n新：" + v11.MessageSegment.image(file=new_val)
+                msg = v11.Message(f"{user.name}的头像更新咯！")
+                assert isinstance(old_val, str)
+                assert isinstance(new_val, str)
+                if old_val.endswith(("_normal.jpg", "_normal.png")):
+                    old_val = old_val[:-len("_normal.jpg")] + old_val[-4:]
+                msg += v11.Message("\n旧：") + v11.MessageSegment.image(file=old_val)
+
+                if new_val.endswith(("_normal.jpg", "_normal.png")):
+                    new_val = new_val[:-len("_normal.jpg")] + new_val[-4:]
+                msg += v11.Message("\n新：") + v11.MessageSegment.image(file=new_val)
+                
             elif update_type in ("粉丝数涨到", "粉丝数跌到"):
                 msg = f"{user.name}的{update_type}{new_val}了~"
             else:
@@ -371,6 +385,8 @@ class PollTwitterUpdate(TwitterUpdate):
         main_listeners = listeners_map.get(tweet.author_id, [])
 
         for listener in main_listeners:
+            if not isinstance(tweet.type, TweetTypeEnum):
+                logger.warning("意外的推文类型({})：{}", tweet.id, tweet.type)
             if tweet.type == TweetTypeEnum.tweet:
                 await self.push_tweet_message(listener,
                                               tweet,
@@ -383,12 +399,22 @@ class PollTwitterUpdate(TwitterUpdate):
                 await self.push_tweet_message(listener,
                                               tweet,
                                               only_add_failure=is_timeout)
-            elif tweet.type == TweetTypeEnum.replay and listener.update_replay:
+            elif tweet.type == TweetTypeEnum.replay:
+                if not listener.update_replay:
+                    if not tweet.referenced_tweet_author_id:
+                        continue
+                    user = await self.client.model_user_get_or_none(tweet.referenced_tweet_author_id)
+                    if not user:
+                        continue
+                    if not ((self.update_mention_verified and user.verified)
+                            or user.followers_count > self.update_mention_followers):
+                        """
+                            账户已验证 或 粉丝数大于设定的值 才被视为真相关
+                        """
+                        continue
                 await self.push_tweet_message(listener,
                                               tweet,
                                               only_add_failure=is_timeout)
-            else:
-                logger.warning("意外的推文类型({})：{}", tweet.id, tweet.type)
 
         if tweet.possibly_sensitive:
             """
@@ -404,6 +430,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 账户已验证 或 粉丝数大于设定的值 才被视为真相关
             """
             return
+        
         for user_id in tweet.mentions:
             listeners = listeners_map.get(user_id, [])
             for listener in listeners:
@@ -420,11 +447,11 @@ class PollTwitterUpdate(TwitterUpdate):
         if not old_tweet:
             return await self.tweet_new(tweet)
         if time() - tweet.created_at.timestamp() > self.ignore_update_time:
-            logger.debug("历史推文更新：{}@{} | {} -> {}", tweet.author_name,
-                         tweet.author_username, tweet.id, tweet.display_text)
+            # logger.debug("历史推文更新：{}@{} | {} -> {}", tweet.author_name,
+            #              tweet.author_username, tweet.id, tweet.display_text)
             return
-        logger.debug("推文更新：{}@{} | {} -> {}", tweet.author_name,
-                     tweet.author_username, tweet.id, tweet.display_text)
+        # logger.debug("推文更新：{}@{} | {} -> {}", tweet.author_name,
+        #              tweet.author_username, tweet.id, tweet.display_text)
 
     async def user_new(self, user: TwitterUserModel):
         """
@@ -439,7 +466,7 @@ class PollTwitterUpdate(TwitterUpdate):
         """
         if not old_user:
             return await self.user_new(user)
-        logger.debug("用户更新 {}@{} [{}]", user.name, user.username, user.id)
+        # logger.debug("用户更新 {}@{} [{}]", user.name, user.username, user.id)
         update_types = []
         if old_user.name is not None and old_user.name != user.name:
             update_type = "昵称"
@@ -560,13 +587,14 @@ async def user_follow_and_update(id: str) -> bool:
             if user.protected:
                 logger.error(" {} 的时间线，受保护，已取消关注操作", id)
                 return False
-            
-            await client.self_following(id)
-            session.following_list.append(id)
-            await session.save()
-            # 同时更新时间线
-            await client.get_timeline(id=id)
-            logger.debug("已初始化 {}@{} 的时间线", user.name, user.username)
+            if id not in session.following_list:
+                # 只关注没有关注的新用户
+                await client.self_following(id)
+                session.following_list.append(id)
+                await session.save()
+                # 同时更新时间线
+                await client.get_timeline(id=id)
+                logger.info("已关注并初始化 {}@{} 的时间线", user.name, user.username)
             return True
         except MatcherErrorFinsh as e:
             raise e
@@ -624,6 +652,8 @@ async def _():
             启动初始化
         """
         session._enable=False
+        # 让nonebot在正常加载完成后再进行完整检查
+        await asyncio.sleep(10)
         strat_time = time()
         logger.info("检查并更新用户关注")
         strat_deal_time = time()

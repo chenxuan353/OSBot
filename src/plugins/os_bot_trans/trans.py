@@ -5,8 +5,8 @@ import time
 from typing import Dict, List, Optional
 from nonebot import on_command, on_startswith, on_message
 from nonebot.matcher import Matcher
-from nonebot.adapters import Event
-from nonebot.params import CommandArg
+from nonebot.adapters import Bot, Event
+from nonebot.params import CommandArg, EventMessage
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
 from nonebot.adapters.onebot import v11
@@ -83,8 +83,7 @@ class TransArgs(ArgMatch):
                              require=False)
 
     def __init__(self) -> None:
-        super().__init__([self.engine, self.source,
-                          self.target])
+        super().__init__([self.engine, self.source, self.target])
 
 
 async def trans_before_handle(source, target, text, deftarget="ja"):
@@ -159,12 +158,19 @@ trans = on_command("翻译", aliases={"机翻"})
 trans_msg = on_startswith("机翻", priority=4)
 
 
-async def trans_handle(matcher: Matcher, arg: TransArgs,
-                       session: TransSession):
+async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
+                       bot: Bot, event: Event):
     engine: Engine = engines[arg.engine]
     source = arg.source
     target = arg.target
     text = arg.tail.strip()
+    if text.startswith("#"):
+        try:
+            from ..os_bot_twitter.os_bot_trans_interface import trans_tran_tweet
+            tweet = await trans_tran_tweet(matcher, bot, event, text)
+            text = tweet.text
+        except ImportError as e:
+            pass
     source, target, text = await trans_before_handle(source, target, text,
                                                      session.default_trans)
     if not text:
@@ -187,14 +193,17 @@ async def trans_handle(matcher: Matcher, arg: TransArgs,
 @trans.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
             arg: TransArgs = ArgMatchDepend(TransArgs),
             session: TransSession = SessionDepend()):
-    await trans_handle(matcher, arg, session)
+    await trans_handle(matcher, arg, session, bot, event)
 
 
 @trans_msg.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: Bot,
             event: Event,
             session: TransSession = SessionDepend()):
     text = event.get_plaintext().strip()
@@ -203,7 +212,7 @@ async def _(matcher: Matcher,
     else:
         await matcher.finish()
     arg = TransArgs()(text)
-    await trans_handle(matcher, arg, session)
+    await trans_handle(matcher, arg, session, bot, event)
 
 
 class StreamArgs(ArgMatch):
@@ -368,7 +377,7 @@ async def _(matcher: Matcher, session: TransSession = SessionDepend()):
 @stream_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
-            message: v11.Message = CommandArg(),
+            message: v11.Message = EventMessage(),
             session: TransSession = SessionDepend()):
     streamlist = session.stream_list
     msg = str(message).strip()

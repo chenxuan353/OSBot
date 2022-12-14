@@ -1,7 +1,7 @@
 import asyncio
 from collections import deque
 from functools import wraps
-from typing import Any, Awaitable, Callable, Coroutine, Deque, Optional, Tuple, Union
+from typing import Any, Awaitable, Callable, Coroutine, Deque, Dict, Optional, Tuple, Union
 from time import time
 import math
 from ..logger import logger
@@ -28,6 +28,8 @@ class AsyncWaitQueue:
         self.name = name or f"{int(time())}"
         self.concurrent = concurrent
         self.queue_size = queue_size
+        self.queue_status: Dict[Union[str, int], bool] = {}
+        """队列状态，true忙碌false空闲"""
         self.queue: asyncio.Queue[Awaitable] = asyncio.Queue(self.queue_size)
         self.statistics: Deque[float] = deque(maxlen=100)  # 统计千次内的平均时间，计算等待时间。
         self.future: Optional[asyncio.Future] = None
@@ -49,9 +51,13 @@ class AsyncWaitQueue:
             deal_num 处理序号
         """
         logger.debug("处理循环 {}-{} 启动", self.name, deal_num)
+        self.queue_status[deal_num] = False
         while True:
             try:
                 asyncfunc = await self.queue.get()
+                self.queue_status[deal_num] = True
+                logger.debug(
+                    f"处理循环 {{}}-{{}} 取得了一个任务 剩余 {{}}", self.name, deal_num, self.queue.qsize())
                 start_time = time()
                 await asyncfunc
                 deal_time = time() - start_time
@@ -59,6 +65,7 @@ class AsyncWaitQueue:
                     f"处理循环 {{}}-{{}} 处理了一个任务 耗时{deal_time:.2f}s  剩余队列 {{}}",
                     self.name, deal_num, self.queue.qsize())
                 self.statistics.append(deal_time)
+                self.queue_status[deal_num] = False
                 self.queue.task_done()
             except Exception as e:
                 logger.opt(exception=True).error("处理循环异常！")
@@ -136,3 +143,19 @@ class AsyncWaitQueue:
         if self.future:
             self.future.cancel()
             self.future = None
+
+    async def get_free_loop_count(self) -> int:
+        count = 0
+        for key in self.queue_status:
+            if not self.queue_status[key]:
+                count += 1
+
+        return count
+
+    async def get_deal_loop_count(self) -> int:
+        count = 0
+        for key in self.queue_status:
+            if self.queue_status[key]:
+                count += 1
+
+        return count

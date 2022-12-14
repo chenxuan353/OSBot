@@ -16,6 +16,7 @@ from nonebot.adapters import Event, Bot
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot_plugin_apscheduler import scheduler
+from .config import config
 from .consts import STATE_STATISTICE_DEAL
 from .logger import logger
 from .util import seconds_to_dhms, matcher_exception_try, only_command
@@ -62,7 +63,7 @@ class StatisticsRecord:
         """
         self.api_call_error_count = 0
         self.api_call_count = 0
-        self.bot_disconnect = 0
+        self.bot_disconnect_count = 0
 
     def clear_count(self, reason: str):
         logger.warning(f"[数据分析] 清空计数 {reason}")
@@ -162,12 +163,12 @@ def get_statistics_info():
         f"事件计数(消息/总数)：{statistics_record.event_message_count}/{statistics_record.event_count}\n"
         f"Api请求 错误数/总计数 (错误率):{statistics_record.api_call_error_count}/{statistics_record.api_call_count} "
         f"({(statistics_record.api_call_error_count/(statistics_record.api_call_count or 1))*100:.5f}%)\n"
-        f"Bot断开计数:{statistics_record.bot_disconnect}")
+        f"Bot断开计数:{statistics_record.bot_disconnect_count}")
 
 
 statistics_info = on_command(
     "运行数据统计",
-    aliases={"数据统计", "数据分析统计"},
+    aliases={"数据统计", "数据分析", "数据分析统计"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER,
@@ -196,7 +197,7 @@ def get_statistics_system_info():
 
 statistics_system_info = on_command(
     "系统状态",
-    aliases={"系统运行状态", "当前系统状态", "当前系统运行状态"},
+    aliases={"系统运行状态", "当前系统状态", "当前系统运行状态", "运行状态"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER,
@@ -219,24 +220,41 @@ async def print_statistics_info():
                 f"\n{get_statistics_system_info()}")
 
 
-@scheduler.scheduled_job("interval", minutes=5 * 3600, name="运行状态检查")
+
+@scheduler.scheduled_job("interval", minutes=5 * 60, name="运行状态检查")
 async def statistics_info_check():
-    disks = psutil.disk_partitions()
-    disk_usage_totel = 0
-    for disk in disks:
-        disk_usage = psutil.disk_usage(disk.mountpoint)
-        disk_usage_totel += disk_usage.percent
-    disk_usage_percent = disk_usage_totel / len(disks)
-    if disk_usage_percent > 90:
-        logger.warning("磁盘使用量超过90%")
-    if disk_usage_percent > 95:
-        logger.warning("磁盘使用量超过95%")
-        await UrgentNotice.send("磁盘用量超过95%了哦")
+    """
+        检查内存与磁盘状态
+    """
+    if config.os_ob_notice_distusage:
+        disks = psutil.disk_partitions()
+        if config.os_ob_notice_distusage_single:
+            for disk in disks:
+                disk_usage = psutil.disk_usage(disk.mountpoint)
+                if disk_usage.percent > 95:
+                    logger.warning(f"磁盘 {disk.mountpoint} 用量超过95%了哦")
+                    await UrgentNotice.send(f"磁盘 {disk.mountpoint} 用量超过95%了哦")
+                elif disk_usage.percent > config.os_ob_notice_distusage_percent:
+                    logger.warning("磁盘 {} 用量超过{}%了哦", disk.mountpoint, config.os_ob_notice_distusage_percent)
+                    await UrgentNotice.send(f"磁盘 {disk.mountpoint} 用量超过{config.os_ob_notice_distusage_percent}%了哦")
+        else:
+            disk_usage_totel = 0
+            for disk in disks:
+                disk_usage = psutil.disk_usage(disk.mountpoint)
+                disk_usage_totel += disk_usage.percent
+            disk_usage_percent = disk_usage_totel / len(disks)
+            if disk_usage_percent > 95:
+                logger.warning("综合磁盘使用量超过95%")
+                await UrgentNotice.send("综合磁盘用量超过95%了哦")
+            elif disk_usage_percent > config.os_ob_notice_distusage_percent:
+                logger.warning("综合磁盘使用量超过{}%", config.os_ob_notice_distusage_percent)
+                await UrgentNotice.send(f"综合磁盘用量超过{config.os_ob_notice_distusage_percent}%了哦")
 
-    await asyncio.sleep(10)
+        await asyncio.sleep(10)
 
-    if psutil.virtual_memory().percent > 90:
-        await UrgentNotice.send("内存用量超过90%了哦")
+    if config.os_ob_notice_memoryusage:
+        if psutil.virtual_memory().percent > config.os_ob_notice_memoryusage_percent:
+            await UrgentNotice.send(f"内存用量超过{config.os_ob_notice_memoryusage_percent}%了哦")
 
 
 @driver.on_startup

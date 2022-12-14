@@ -1,12 +1,12 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from typing_extensions import Self
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 
 from ..os_bot_base import Session
-from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY
+from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_DEFAULT_SWITCH
 
 if TYPE_CHECKING:
     from .model import TwitterSubscribeModel
@@ -116,7 +116,8 @@ class TwitterSession(Session):
     """默认模版"""
     template_map: Dict[str, str]
     """模版映射"""
-
+    default_sub_id: Optional[str]
+    """当前的默认订阅（缓存推文列表等指令的默认订阅值）"""
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
@@ -126,12 +127,16 @@ class TwitterSession(Session):
         self.tweet_map = {}
         self.default_template = "翻译自日语"
         self.template_map = {}
+        self.default_sub_id = None
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
         self.num = int(self.num)
         return self
 
+    @classmethod
+    def domain(cls):
+        return "os_bot_twitter"
 
 __plugin_meta__ = PluginMetadata(
     name="推特",
@@ -147,11 +152,13 @@ __plugin_meta__ = PluginMetadata(
         META_AUTHOR_KEY: "ChenXuan",
         META_ADMIN_USAGE: """
             通过`订阅推特 用户名 [选项]`、`取消推特订阅 用户名`、`推特订阅配置 用户名 [选项]`、`推特订阅列表`、`全局推特订阅列表`来管理订阅
-            其它指令`看推 推文链接/序号`、`设置烤推模版 模版`、`设置用户烤推模版 用户 模版`、`重载烤推脚本`
-            维护指令`清空推特缓存`、`移除/添加转推黑名单`、`转推黑名单列表`、`全局烤推历史`
+            其它指令`看推 推文链接/序号`、`设置烤推模版 模版`、`设置用户烤推模版 用户 模版`
+            维护指令`移除/添加转推黑名单`、`转推黑名单列表`、`全局烤推历史`、`清空推特缓存`、`重载烤推脚本`、`重启烤推引擎`、`烤推引擎状态`
             可以通过`转推配置帮助`命令查看配置详细介绍
+            隐藏的常规命令`烤架`用于获取烤推状态
         """,  # 管理员可以获取的帮助
-        META_SESSION_KEY: TwitterSession
+        META_SESSION_KEY: TwitterSession,
+        META_DEFAULT_SWITCH: False
     },
 )
 

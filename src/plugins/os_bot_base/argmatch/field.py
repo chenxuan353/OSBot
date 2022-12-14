@@ -203,21 +203,20 @@ class Field:
             else:
                 keys = field._keys
             for key in keys:
-                t_msg = msg.strip()
+                t_msg = msg.strip().replace("\r", "")
                 # 忽略大小写？
                 if "ignoreCase" in field.am_config and field.am_config[
                         "ignoreCase"]:
                     t_msg = t_msg.lower()
                     key: str = key.lower()
                 # 检查是否可以匹配
-                if t_msg.startswith(
-                        key + am.Meta.separator) or t_msg.startswith(key):
+                if t_msg.startswith(key):
                     if ProcessTool.isStrict(field, am) and not (
                             key == t_msg
                             or t_msg.startswith(key + am.Meta.separator)):
                         continue
                     ProcessTool.setVal(keys[key], field, am)
-                    if t_msg.startswith(key + am.Meta.separator):
+                    if t_msg.startswith(key + am.Meta.separator) or (am.Meta.separator == "" and t_msg.startswith(key + "\n")):
                         return msg[len(key + am.Meta.separator):]
                     return msg[len(key):]
             raise ValidationError(msg="{name} 不在关键词列表中", field=field)

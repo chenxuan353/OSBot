@@ -129,7 +129,7 @@ async def model_tweet_get_or_none(tweet_id: str):
 def model_tweet_get_or_none_update(tweet_id: str, model: TwitterTweetModel):
     key = model_tweet_get_or_none.cache_key(tweet_id)
     model_tweet_get_or_none.cache.set(key, model, None)
-    logger.debug("model_tweet_get_or_none 更新缓存 {}", tweet_id)
+    # logger.debug("model_tweet_get_or_none 更新缓存 {}", tweet_id)
 
 @lru_memoize(maxsize=256)
 async def model_user_get_or_none(user_id: str):
@@ -138,7 +138,7 @@ async def model_user_get_or_none(user_id: str):
 def model_user_get_or_none_update(user_id: str, model: TwitterUserModel):
     key = model_user_get_or_none.cache_key(user_id)
     model_user_get_or_none.cache.set(key, model, None)
-    logger.debug("model_user_get_or_none_update 更新缓存 {}", user_id)
+    # logger.debug("model_user_get_or_none_update 更新缓存 {}", user_id)
 
 class AsyncTwitterClient:
     """
@@ -278,7 +278,8 @@ class AsyncTwitterClient:
             tweet_model.minor_data = is_minor
             tweet_model.author_id = f"{tweet.author_id}"
             tweet_model.type = await self.tweet_get_type(tweet)
-            tweet_model.text = tweet.text
+            tweet_model.text = str(tweet.text)
+            tweet_model.text = tweet_model.text.replace('&lt;', '<').replace('&gt;', '>')
             tweet_model.display_text = await self.render_text(
                 tweet.text, tweet.entities,
                 tweet_model.type == TweetTypeEnum.tweet)
@@ -380,6 +381,7 @@ class AsyncTwitterClient:
         await tweet_model.save()
 
         asyncio.gather(self.update.tweet_update(tweet_model, old_model))
+        self.model_tweet_get_or_none_update(tweet_model.id, tweet_model)
         return tweet_model
 
     async def conversion_user(self, user: User) -> TwitterUserModel:
@@ -406,16 +408,17 @@ class AsyncTwitterClient:
             public_metrics: Dict[str, int] = user.public_metrics
             followers_count = public_metrics.get(
                 "followers_count", user_model.followers_count)
-            if followers_count > user_model.followers_count or user_model.followers_count - followers_count > 1000:
+            if followers_count > user_model.followers_count or user_model.followers_count - followers_count > 10000:
                 user_model.followers_count = followers_count
             user_model.following_count = public_metrics.get(
                 "following_count", user_model.following_count)
             user_model.tweet_count = public_metrics.get(
                 "tweet_count", user_model.tweet_count)
             user_model.listed_count = public_metrics.get(
-                "followers_count", user_model.listed_count)
+                "listed_count", user_model.listed_count)
 
         await user_model.save()
+        self.model_user_get_or_none_update(user_model.id, user_model)
         asyncio.gather(self.update.user_update(user_model, old_model))
         return user_model
 

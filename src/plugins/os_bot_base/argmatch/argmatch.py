@@ -115,9 +115,8 @@ class ArgMatch(abc.ABC):
     def __call__(self, text: str) -> Self:
         """
             运行消息分离器
-
         """
-        now_text = text
+        now_text = text.replace("\r", "")  # 移除干扰项
         args = self._args
         for arg in args:
             try:

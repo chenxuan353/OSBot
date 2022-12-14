@@ -421,12 +421,12 @@ class OnebotCache:
 
     def get_group_nick(self, id: int) -> str:
         if id not in self.cache_groups:
-            return ""
+            return f"{id}"
         return self.cache_groups[id].get_nick()
 
     def get_unit_nick(self, id: int) -> str:
         if id not in self.cache_units:
-            return ""
+            return f"{id}"
         return self.cache_units[id].get_nick()
 
 

@@ -80,11 +80,14 @@ class TwitterTrans:
 
             关闭并等待3秒后重新启动
         """
-        self._enable = False
         await self.context.close()
-        self.playwright.stop()
+        await self.async_stop()
+        self._enable = False
         await asyncio.sleep(3)
         await self.async_startup()
+
+    async def async_stop(self):
+        await self.playwright.stop()  # type: ignore
 
     async def trans(self,
                     tweet_id: str,
@@ -101,12 +104,17 @@ class TwitterTrans:
         """
         if not self.script_str:
             raise TransException("烤推脚本未加载！")
-        if not trans and not trans_str:
+        if trans is None and trans_str is None:
             raise BaseException("必须提供`trans`与`trans_str`的其中一个参数")
         try:
             screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
             screenshot_path = os.path.join(self.screenshot_path,
                                            screenshot_filename)
+            while os.path.isfile(screenshot_path):
+                screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
+                screenshot_path = os.path.join(self.screenshot_path,
+                                            screenshot_filename)
+            logger.debug("烤推开始 {} 存档文件 {}", tweet_id, screenshot_filename)
             page = await self.context.new_page()
             await page.goto(
                 f"https://twitter.com/{tweet_username}/status/{tweet_id}")
@@ -122,15 +130,16 @@ class TwitterTrans:
                         logstr += " {}"
                         values.append(result)
                 if logstr:
-                    logger.debug(f"脚本输出 - {logstr}", *values)
+                    logger.debug(f"烤推脚本输出 - {logstr}", *values)
 
             page.on("console", print_args)
 
             playwright_config = {
                 "ENABLE_PLAYWRIGHT": True,
-                "WAIT_TIMEOUT": 30,
+                "WAIT_TIMEOUT": config.os_twitter_trans_timeout,
                 "TRANS_DICT": trans,
                 "TRANS_STR": trans_str,
+                "USE_STR": True
             }
 
             result = await page.evaluate(
@@ -142,14 +151,15 @@ class TwitterTrans:
             if not result[0]:
                 raise TransException(f"失败了，{result[1]}",
                                      cause=Exception(result))
-
+            logger.debug("烤推完成 {} 正在存档", tweet_id)
             await page.locator("#static_elem").screenshot(path=screenshot_path)
             await page.close()
+            logger.debug("烤推存档完成 {} 存档文件 {}", tweet_id, screenshot_filename)
             return screenshot_filename
-        except BaseException as e:
+        except (BaseException, TransException) as e:
             raise e
         except Exception as e:
-            raise TransException("未知原因异常", cause=e)
+            raise TransException("未知原因异常，请联系管理员", cause=e)
 
     def load_script(self):
         """
@@ -238,3 +248,6 @@ class TwitterTransManage:
                         continue
                     logger.debug("移除超过{}天的烤推文件 {}", str(expire_days),
                                  file_path)
+
+    async def stop(self):
+        await self.twitter_trans.async_stop()
