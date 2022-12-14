@@ -220,11 +220,14 @@ async def print_statistics_info():
                 f"\n{get_statistics_system_info()}")
 
 
-if config.os_ob_notice_distusage:
-    @scheduler.scheduled_job("interval", minutes=5 * 60, name="运行状态检查")
-    async def statistics_info_check():
-        disks = psutil.disk_partitions()
 
+@scheduler.scheduled_job("interval", minutes=5 * 60, name="运行状态检查")
+async def statistics_info_check():
+    """
+        检查内存与磁盘状态
+    """
+    if config.os_ob_notice_distusage:
+        disks = psutil.disk_partitions()
         if config.os_ob_notice_distusage_single:
             for disk in disks:
                 disk_usage = psutil.disk_usage(disk.mountpoint)
@@ -247,11 +250,11 @@ if config.os_ob_notice_distusage:
                 logger.warning("综合磁盘使用量超过{}%", config.os_ob_notice_distusage_percent)
                 await UrgentNotice.send(f"综合磁盘用量超过{config.os_ob_notice_distusage_percent}%了哦")
 
-
         await asyncio.sleep(10)
 
-        if psutil.virtual_memory().percent > 90:
-            await UrgentNotice.send("内存用量超过90%了哦")
+    if config.os_ob_notice_memoryusage:
+        if psutil.virtual_memory().percent > config.os_ob_notice_memoryusage_percent:
+            await UrgentNotice.send(f"内存用量超过{config.os_ob_notice_memoryusage_percent}%了哦")
 
 
 @driver.on_startup

@@ -385,6 +385,8 @@ class PollTwitterUpdate(TwitterUpdate):
         main_listeners = listeners_map.get(tweet.author_id, [])
 
         for listener in main_listeners:
+            if not isinstance(tweet.type, TweetTypeEnum):
+                logger.warning("意外的推文类型({})：{}", tweet.id, tweet.type)
             if tweet.type == TweetTypeEnum.tweet:
                 await self.push_tweet_message(listener,
                                               tweet,
@@ -397,12 +399,22 @@ class PollTwitterUpdate(TwitterUpdate):
                 await self.push_tweet_message(listener,
                                               tweet,
                                               only_add_failure=is_timeout)
-            elif tweet.type == TweetTypeEnum.replay and listener.update_replay:
+            elif tweet.type == TweetTypeEnum.replay:
+                if not listener.update_replay:
+                    if not tweet.referenced_tweet_author_id:
+                        continue
+                    user = await self.client.model_user_get_or_none(tweet.referenced_tweet_author_id)
+                    if not user:
+                        continue
+                    if not ((self.update_mention_verified and user.verified)
+                            or user.followers_count > self.update_mention_followers):
+                        """
+                            账户已验证 或 粉丝数大于设定的值 才被视为真相关
+                        """
+                        continue
                 await self.push_tweet_message(listener,
                                               tweet,
                                               only_add_failure=is_timeout)
-            elif not isinstance(tweet.type, TweetTypeEnum):
-                logger.warning("意外的推文类型({})：{}", tweet.id, tweet.type)
 
         if tweet.possibly_sensitive:
             """
@@ -418,6 +430,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 账户已验证 或 粉丝数大于设定的值 才被视为真相关
             """
             return
+        
         for user_id in tweet.mentions:
             listeners = listeners_map.get(user_id, [])
             for listener in listeners:
