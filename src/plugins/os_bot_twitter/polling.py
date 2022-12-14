@@ -639,6 +639,8 @@ async def _():
             启动初始化
         """
         session._enable=False
+        # 让nonebot在正常加载完成后再进行完整检查
+        await asyncio.sleep(10)
         strat_time = time()
         logger.info("检查并更新用户关注")
         strat_deal_time = time()

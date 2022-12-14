@@ -1647,7 +1647,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
             if (GLOBAL_TOOL.TRANS_STR) {
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
-                    GLOBAL_TOOL.TRANS_STR,
+                    GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR),
                 );
                 GLOBAL_TOOL.Logger.info("进行最终等待");
                 try {
@@ -1660,10 +1660,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
             } else {
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
-                    GLOBAL_TOOL.TweetHtml.parsingArgStr(
-                        GLOBAL_TOOL.TRANS_DICT,
-                        null,
-                    ),
+                    GLOBAL_TOOL.TRANS_DICT
                 );
                 GLOBAL_TOOL.Logger.info("进行最终等待");
                 try {
