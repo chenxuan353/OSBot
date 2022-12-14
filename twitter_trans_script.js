@@ -178,6 +178,34 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
     };
 
+    Date.prototype.format = function(format) {
+        /*
+         * eg:format="YYYY-MM-dd hh:mm:ss";
+    
+         */
+        var o = {
+            "M+" :this.getMonth() + 1, // month
+            "d+" :this.getDate(), // day
+            "h+" :this.getHours(), // hour
+            "m+" :this.getMinutes(), // minute
+            "s+" :this.getSeconds(), // second
+            "q+" :Math.floor((this.getMonth() + 3) / 3), // quarter
+            "S" :this.getMilliseconds()
+        // millisecond
+        }
+        if (/(y+)/.test(format)) {
+            format = format.replace(RegExp.$1, (this.getFullYear() + "")
+                    .substr(4 - RegExp.$1.length));
+        }
+        for ( var k in o) {
+            if (new RegExp("(" + k + ")").test(format)) {
+                format = format.replace(RegExp.$1, RegExp.$1.length == 1 ? o[k]
+                        : ("00" + o[k]).substr(("" + o[k]).length));
+            }
+        }
+        return format;
+    }
+    
     // 日志
     const Logger = {};
     (function () {
@@ -201,7 +229,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         Logger.LEVELS = LOG_LEVELS;
         Logger.out = function (msg, level = Logger.LEVELS.NORMAL, ...args) {
             if (level <= Logger.LEVEL) {
-                log(Logger.LEVELSTRS[level], msg, ...args);
+                log(new Date().format("yyyy-MM-dd hh:mm:ss.S"), Logger.LEVELSTRS[level], msg, ...args);
             }
         };
         Logger.normal = function (msg, ...args) {
@@ -1633,8 +1661,8 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                 return [false, result[1], result];
             }
             // 推文解析
-            GLOBAL_TOOL.Logger.debug("推文解析");
-            GLOBAL_TOOL.TweetHtml.parsing();
+            nowstatus=GLOBAL_TOOL.TweetHtml.parsing();
+            GLOBAL_TOOL.Logger.debug("推文解析", nowstatus);
             // 显示静态元素
             GLOBAL_TOOL.Logger.debug("显示静态元素");
             GLOBAL_TOOL.TweetHtml.staticAnchorSwitch(null, true);
@@ -1656,12 +1684,12 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                     null,
                     GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null),
                 );
-                GLOBAL_TOOL.Logger.debug("进行最终等待");
-                try {
-                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
-                } catch (e) {
-                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
-                }
+                // GLOBAL_TOOL.Logger.debug("进行最终等待");
+                // try {
+                //     await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+                // } catch (e) {
+                //     GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
+                // }
                 GLOBAL_TOOL.Logger.info("烤推完成");
                 return rtnVal;
             } else {

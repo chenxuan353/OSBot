@@ -349,7 +349,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 msg += v11.Message("\n新：") + v11.MessageSegment.image(file=new_val)
                 
             elif update_type in ("粉丝数涨到", "粉丝数跌到"):
-                msg = f"{user.name}的{update_type}{new_val}了~"
+                msg = f"{user.name}的{update_type}{int(new_val/10)*10}了~"
             else:
                 msg = (f"{user.name}的{update_type}更新~"
                        f"{old_val} => {new_val}")
