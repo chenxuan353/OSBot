@@ -110,6 +110,10 @@ class TwitterTrans:
             screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
             screenshot_path = os.path.join(self.screenshot_path,
                                            screenshot_filename)
+            while os.path.isfile(screenshot_path):
+                screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
+                screenshot_path = os.path.join(self.screenshot_path,
+                                            screenshot_filename)
             logger.debug("烤推开始 {} 存档文件 {}", tweet_id, screenshot_filename)
             page = await self.context.new_page()
             await page.goto(
