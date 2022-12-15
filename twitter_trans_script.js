@@ -995,7 +995,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 媒体注入 参数 原始dom，新元素标识，新元素内容数据
                 let insertMediaData = function (sourcedom, data) {
                     if (parseText) {
-                        data = TweetHtml.textparse(data);
+                        data = TweetHtml.textparse(data, true);
                     }
                     let tempDom = createInsertDom("media", data);
                     let imgs = tempDom.querySelectorAll("img");
@@ -1011,7 +1011,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 投票注入 参数 原始dom，元素标识，元素内容
                 let insertVoteData = function (sourcedom, data) {
                     if (parseText) {
-                        data = TweetHtml.textparse(data)
+                        data = TweetHtml.textparse(data, true)
                             .replace("\n", "")
                             .replace("<br>", "")
                             .replace("<br/>", "")
@@ -1031,7 +1031,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 翻译标识注入 参数 原始dom，元素标识，元素内容
                 let insertTransFlag = function (sourcedom, data) {
                     if (parseText) {
-                        data = TweetHtml.textparse(data);
+                        data = TweetHtml.textparse(data, true);
                     }
                     Logger.debug("翻译标识解析完毕");
                     let tempDom = createInsertDom("transtype", data);
