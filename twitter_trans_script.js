@@ -49,6 +49,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         UI_ENALBE: false, // 是否启用UI支持
         SHOW_HIDE: true, // 是否在等待中包含 解锁隐藏
         URL_CHECK_ENALBE: false, // 是否启用URL切换检测
+        ONLY_MAIN:true, // 仅允许烤制主推文
         LOG_LEVEL: LOG_LEVELS.DEBUG, // 日志等级
     };
     // 静态变量配置
@@ -625,6 +626,10 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     if (!mainTweet) {
                         tweetAnchors.push(tweetAnchor);
                         tweetAnchor = [];
+                        if(CONFIG_CORE.ONLY_MAIN){
+                            Logger.debug("注入节点已禁用非核心推文部分");
+                            break;
+                        }
                         continue;
                     }
                 }
@@ -959,18 +964,21 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     if (parseText) {
                         data = TweetHtml.textparse(data);
                     }
+                    Logger.debug("文本段解析完毕");
                     if (isMain == false && cover_flag == false) {
                         data = "<p>--------</p>" + data;
                     }
                     let tempDom = createInsertDom("tweettext", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
+                    Logger.debug("文本段元素注入完毕");
                     let imgs = tempDom.querySelectorAll("img");
                     imgs.forEach(function(img){
                         if(!img.style.height){
                             img.style.height = "1.2em";
                         }
                     })
+                    Logger.debug("文本段图片默认高度设定完成");
                     // 添加隐藏标识
                     sourcedom.classList.add(MARK_HIDE_CLASS);
                     if (cover_flag) {
@@ -1022,16 +1030,19 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     if (parseText) {
                         data = TweetHtml.textparse(data);
                     }
+                    Logger.debug("翻译标识解析完毕");
                     let tempDom = createInsertDom("transtype", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
                     insertAfter(tempDom, sourcedom);
+                    Logger.debug("翻译标识注入成功");
                     let imgs = tempDom.querySelectorAll("img");
                     imgs.forEach(function(img){
                         if(!img.style.height){
                             img.style.height = "3em";
                         }
                     })
+                    Logger.debug("翻译标识图片样式设定成功");
                     return tempDom;
                 };
                 // 推文计数
@@ -1074,12 +1085,13 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         // 文本注入
                         if (tweetAnchor.textAnchors[0]) {
                             if (i == 0 && j == inTweetAnchors.length - 1) {
-                                Logger.debug("INSERT 主元素注入");
+                                Logger.debug("INSERT 主元素Logo注入");
                                 // 主元素
                                 let dom = insertTransFlag(
                                     tweetAnchor.textAnchors[0].dom,
                                     trans.template || "",
                                 );
+                                Logger.debug("INSERT 主元素内容注入");
                                 // 仅覆盖原文时使用原文坐标，非覆盖情况下使用注入标签后的标签坐标
                                 insertTextData(
                                     coverconfig.main_cover,
@@ -1545,6 +1557,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
              *
              * 参数：待解析文本，模版
              */
+            TweetHtml.removeSomeDom();
             TweetHtml.removeAllInsert();
             transSwitch(true);
             return TweetHtml.insertTrans(
