@@ -456,8 +456,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     style: "height: 1em;width: 1em;margin: 0.05em 0.1em;vertical-align: -0.1em;",
                 };
             };
+            
             // XSS过滤
             text = filterXSS(text, options);
+            !simple_deal && Logger.debug("XSS过滤完成");
+
             // 文本处理
             if(!simple_deal){
                 text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
@@ -482,7 +485,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             text = text.replace(/\n([^\n]+)/gi, "\n<p>$1</p>"); // 行包裹
             text = text.replace(/([^\n]+)\n/gi, "<p>$1</p>"); // 行包裹
             text = text.replace(/\n/gi, "<p></p>\n"); // 纯换行处理
-
+            !simple_deal && Logger.debug("行处理完成");
             return twemoji.parse(text, {
                 attributes: attributesCallback,
                 base: "https://abs-0.twimg.com/emoji/v2/",
