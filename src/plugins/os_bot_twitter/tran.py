@@ -217,6 +217,7 @@ class TwitterTransManage:
 
     async def reload_script(self):
         """重新加载脚本"""
+        self.queue.statistics.clear()
         self.twitter_trans.load_script()
 
     async def clear_screenshot_file(self):

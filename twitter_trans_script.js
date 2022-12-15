@@ -420,7 +420,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         TweetHtml.CSSAnchor = CSSAnchor;
         TweetHtml.parseAnchors = null;
         // 译文解析（emoji转img、文本颜色）
-        TweetHtml.textparse = function (text) {
+        TweetHtml.textparse = function (text, simple_deal=true) {
             let options = {
                 whiteList: {
                     a: ["style"],
@@ -457,29 +457,32 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 };
             };
             // XSS过滤
-            // text = filterXSS(text, options);
+            text = filterXSS(text, options);
             // 文本处理
-            text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
-            text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
-            text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
-            text = text.replace(
-                /(\S*)(#[^\s#\!0-9]{1}\S*)/gi,
-                '$1<a style="color:#1DA1F2;">$2</a>',
-            ); // 话题颜色处理
-            text = text.replace(
-                /([\S]*)(@[A-Za-z0-9_]{4,15})/gi,
-                '$1<a style="color:#1DA1F2;">$2</a>',
-            ); // 提及颜色处理
-            text = text.replace(
-                /((https?|ftp|file):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])/g,
-                '<a style="color:#1DA1F2;">$1</a>',
-            ); // 链接颜色处理
+            if(simple_deal){
+                text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
+                text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
+                text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
+                text = text.replace(
+                    /(\S*)(#[^\s#\!0-9]{1}\S*)/gi,
+                    '$1<a style="color:#1DA1F2;">$2</a>',
+                ); // 话题颜色处理
+                text = text.replace(
+                    /([\S]*)(@[A-Za-z0-9_]{4,15})/gi,
+                    '$1<a style="color:#1DA1F2;">$2</a>',
+                ); // 提及颜色处理
+                text = text.replace(
+                    /((https?|ftp|file):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])/g,
+                    '<a style="color:#1DA1F2;">$1</a>',
+                ); // 链接颜色处理
+                text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
+                text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
+                text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
+            }
             text = text.replace(/\n([^\n]+)/gi, "\n<p>$1</p>"); // 行包裹
             text = text.replace(/([^\n]+)\n/gi, "<p>$1</p>"); // 行包裹
             text = text.replace(/\n/gi, "<p></p>\n"); // 纯换行处理
-            text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
-            text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
-            text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
+
             return twemoji.parse(text, {
                 attributes: attributesCallback,
                 base: "https://abs-0.twimg.com/emoji/v2/",
