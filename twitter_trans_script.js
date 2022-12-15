@@ -1035,8 +1035,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 let insertTransFlag = function (sourcedom, data) {
                     if (parseText) {
                         data = TweetHtml.textparse(data, true);
+                        Logger.debug("翻译标识解析完毕");
                     }
-                    Logger.debug("翻译标识解析完毕");
                     let tempDom = createInsertDom("transtype", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
@@ -1697,6 +1697,10 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
             GLOBAL_TOOL.TweetHtml.removeSomeDom();
         } catch (e) {
             return [false, "未知报错", e.toString()];
+        }
+        if(GLOBAL_TOOL.SCREENSHOTS){
+            GLOBAL_TOOL.Logger.info("烤制模式：截图");
+            return [true, "成功", null];
         }
         if(GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR){
             GLOBAL_TOOL.Logger.info("烤制模式：文本");
