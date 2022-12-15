@@ -1173,7 +1173,7 @@ async def _(matcher: Matcher):
         for status in twitterTransManage.queue.queue_status
     ]
     await matcher.finish(
-        f"当前任务数：{twitterTransManage.queue.queue.qsize()}/{twitterTransManage.queue.queue_size}\n"
+        f"待处理任务数：{twitterTransManage.queue.queue.qsize()}/{twitterTransManage.queue.queue_size}\n"
         f"平均处理时间：{twitterTransManage.queue.avg_deal_ms()/1000:.2f}s\n"
         f"并行处理数：{twitterTransManage.queue.concurrent}\n"
         f"并行处理状态：{'、'.join(status_strs)}")

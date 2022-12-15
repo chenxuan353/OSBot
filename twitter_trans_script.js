@@ -458,8 +458,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             };
             
             // XSS过滤
-            // text = filterXSS(text, options);
-            // !simple_deal && Logger.debug("XSS过滤完成");
+            text = filterXSS(text, options);
+            Logger.debug("XSS过滤完成");
 
             // 文本处理
             if(!simple_deal){
@@ -482,10 +482,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
                 text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
             }
-            text = text.replace(/\n([^\n]+)/gi, "\n<p>$1</p>"); // 行包裹
-            text = text.replace(/([^\n]+)\n/gi, "<p>$1</p>"); // 行包裹
-            text = text.replace(/\n/gi, "<p></p>\n"); // 纯换行处理
-            !simple_deal && Logger.debug("行处理完成");
+            let texts = text.split("\n");
+            text = ""
+            texts.forEach(function(elem){
+                text += "<p>" + elem + "</p>\n";
+            })
+            Logger.debug("行处理完成");
             return twemoji.parse(text, {
                 attributes: attributesCallback,
                 base: "https://abs-0.twimg.com/emoji/v2/",
