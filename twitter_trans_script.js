@@ -485,6 +485,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             let texts = text.split("\n");
             text = ""
             texts.forEach(function(elem){
+                if(elem == ""){
+                    elem = "\n"
+                }
                 text += "<p>" + elem + "</p>";
             })
             Logger.debug("行处理完成");
