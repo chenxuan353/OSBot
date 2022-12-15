@@ -420,7 +420,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         TweetHtml.CSSAnchor = CSSAnchor;
         TweetHtml.parseAnchors = null;
         // 译文解析（emoji转img、文本颜色）
-        TweetHtml.textparse = function (text, simple_deal=true) {
+        TweetHtml.textparse = function (text, simple_deal=false) {
             let options = {
                 whiteList: {
                     a: ["style"],
