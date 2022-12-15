@@ -485,7 +485,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             let texts = text.split("\n");
             text = ""
             texts.forEach(function(elem){
-                text += "<p>" + elem + "</p>\n";
+                text += "<p>" + elem + "</p>";
             })
             Logger.debug("行处理完成");
             return twemoji.parse(text, {
