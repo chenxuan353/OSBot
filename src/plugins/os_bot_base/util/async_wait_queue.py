@@ -128,7 +128,7 @@ class AsyncWaitQueue:
     async def startup(self):
         """启动"""
         if self.future:
-            self.future.cancel()
+            await self.close()
         coroutines = []
         for i in range(self.concurrent):
             coroutines.append(self._deal_loop(i + 1))
@@ -142,6 +142,7 @@ class AsyncWaitQueue:
         """关闭"""
         if self.future:
             self.future.cancel()
+            self.statistics.clear()
             self.future = None
 
     async def get_free_loop_count(self) -> int:
