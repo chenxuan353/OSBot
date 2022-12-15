@@ -459,7 +459,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             // XSS过滤
             text = filterXSS(text, options);
             // 文本处理
-            if(simple_deal){
+            if(!simple_deal){
                 text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
                 text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
                 text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
