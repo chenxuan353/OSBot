@@ -458,8 +458,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             };
             
             // XSS过滤
-            text = filterXSS(text, options);
-            !simple_deal && Logger.debug("XSS过滤完成");
+            // text = filterXSS(text, options);
+            // !simple_deal && Logger.debug("XSS过滤完成");
 
             // 文本处理
             if(!simple_deal){
