@@ -1048,9 +1048,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             trans.levels["last"] || trans.levels["main"];
                     }
                 }
-
+                
+                Logger.debug("INSERT 开始注入 锚点总长 " + tweetAnchors.length);
                 for (let i = 0; i < tweetAnchors.length; i++) {
                     inTweetAnchors = tweetAnchors[i];
+                    Logger.debug("注入节点 " + i + " 长度 " + inTweetAnchors.length);
                     for (let j = 0; j < inTweetAnchors.length; j++) {
                         // 遍历推文注入点
                         // 当 i == 1 时存在特殊注入点last或main，用于主推文置入
@@ -1068,10 +1070,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             tweetAnchor.dom.style.display = "";
                         }
                         // 开始注入
-
+                        Logger.debug("INSERT 开始注入 序号 " + i + " 内节点 " + j);
                         // 文本注入
                         if (tweetAnchor.textAnchors[0]) {
                             if (i == 0 && j == inTweetAnchors.length - 1) {
+                                Logger.debug("INSERT 主元素注入");
                                 // 主元素
                                 let dom = insertTransFlag(
                                     tweetAnchor.textAnchors[0].dom,
@@ -1087,6 +1090,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                     true,
                                 );
                             } else {
+                                Logger.debug("INSERT 回复注入");
                                 insertTextData(
                                     coverconfig.replay_cover,
                                     tweetAnchor.textAnchors[0].dom,
@@ -1096,6 +1100,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                         // 内嵌文本
                         if (tweetAnchor.textAnchors.length > 1) {
+                            Logger.debug("INSERT 引用注入 " + tweetAnchor.textAnchors.length);
                             for (
                                 let k = 1;
                                 k < tweetAnchor.textAnchors.length;
@@ -1115,6 +1120,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
 
                         // 媒体注入（图片）
                         if (tweetAnchor.imgAnchors.length > 0) {
+                            Logger.debug("INSERT 媒体注入 " + tweetAnchor.imgAnchors.length);
                             for (
                                 let k = 0;
                                 k < tweetAnchor.imgAnchors.length;
@@ -1132,6 +1138,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                         // 投票注入
                         if (tweetAnchor.voteAnchors.length > 0) {
+                            Logger.debug("INSERT 投票注入 " + tweetAnchor.voteAnchors.length);
                             for (
                                 let k = 0;
                                 k < tweetAnchor.voteAnchors.length;
@@ -1149,7 +1156,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                     }
                 }
-
+                Logger.debug("INSERT 主要工作完成");
                 // 后处理 给P元素指定通用样式
                 let p_style =
                     "margin-bottom: 0px;margin-left: 0px;margin-right: 0px;margin-top: 0px;padding-bottom: 0px;padding-left: 0px;padding-right: 0px;padding-top: 0px;";
@@ -1680,16 +1687,18 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         try {
             if (GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR) {
                 GLOBAL_TOOL.Logger.info("注入推文 烤制模式：文本");
+                let insert_data = GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null);
+                GLOBAL_TOOL.Logger.debug("注入推文 文本解析完成");
                 let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
-                    GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null),
+                    insert_data
                 );
-                // GLOBAL_TOOL.Logger.debug("进行最终等待");
-                // try {
-                //     await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
-                // } catch (e) {
-                //     GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
-                // }
+                GLOBAL_TOOL.Logger.debug("进行最终等待");
+                try {
+                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+                } catch (e) {
+                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
+                }
                 GLOBAL_TOOL.Logger.info("烤推完成");
                 return rtnVal;
             } else {
