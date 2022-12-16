@@ -46,7 +46,9 @@ async def _():
 
     @scheduler.scheduled_job('cron', hour='3', minute='30', name="烤推清理")
     async def _():
+        logger.info("开始烤推清理")
         await twitterTransManage.clear_screenshot_file()
+        logger.info("烤推清理完成")
 
 
 @driver.on_shutdown

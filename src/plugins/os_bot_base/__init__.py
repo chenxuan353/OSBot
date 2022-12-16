@@ -22,6 +22,7 @@ from . import blacklist
 from . import statistics
 from . import failover
 from . import apscheduler
+from . import backup
 
 from .exception import BaseException, StoreException
 
