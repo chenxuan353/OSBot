@@ -28,11 +28,11 @@ class ZipBackup:
             cls.instance = cls()
         return cls.instance
 
-    def _pool_backup_database(self):
-        dbpath = os.path.join(config.os_data_path, "database")
+    def _pool_backup_to_zip(self, path: str, file_key: str):
+        dbpath = os.path.join(config.os_data_path, path)
         bk_file_path = os.path.join(
             config.os_data_path, "backup",
-            f"database-{strftime('%Y-%m-%d_%H%M%S')}.bak.zip")
+            f"{file_key}-{strftime('%Y-%m-%d_%H%M%S')}.bak.zip")
         zf = zipfile.ZipFile(bk_file_path, 'w', zipfile.ZIP_DEFLATED)
         for root, dirs, files in os.walk(dbpath):
             for item in files:
@@ -40,8 +40,17 @@ class ZipBackup:
                 zf.write(file_path, item)
         zf.close()
 
+    def _pool_backup_database(self):
+        self._pool_backup_to_zip("database", "database")
+
+    def _pool_backup_session(self):
+        self._pool_backup_to_zip("session", "session")
+
     def _pool_backup(self):
-        self._pool_backup_database()
+        if config.os_backup_database_enable:
+            self._pool_backup_database()
+        if config.os_backup_session_enable:
+            self._pool_backup_session()
 
     async def backup(self):
         return await pool.submit(self._pool_backup)
@@ -69,11 +78,12 @@ class ZipBackup:
                     logger.info("移除超过{}天的备份文件 {}", str(expire_days), file_path)
 
 
-@scheduler.scheduled_job('cron', hour='4', minute='30', name="自动备份")
-async def _():
-    zip_backup = ZipBackup.get_instance()
-    logger.info("开始自动备份")
-    await zip_backup.backup()
-    logger.info("自动备份完成")
-    await zip_backup.clear_backup_file()
-    logger.info("超期备份清理完成")
+if config.os_backup_enable:
+    @scheduler.scheduled_job('cron', hour='4', minute='30', name="自动备份")
+    async def _():
+        zip_backup = ZipBackup.get_instance()
+        logger.info("开始自动备份")
+        await zip_backup.backup()
+        logger.info("自动备份完成")
+        await zip_backup.clear_backup_file()
+        logger.info("超期备份清理完成")

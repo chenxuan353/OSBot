@@ -33,6 +33,8 @@ class Config(BaseSettings):
         - `os_notice_memoryusage_percent` 内存用量提醒临界值
         - `os_backup_enable` 是否启用备份
         - `os_backup_day` 最大备份天数
+        - `os_backup_session_enable` 启用session备份
+        - `os_backup_database_enable` 启用database备份
 
     """
     superusers: List[Union[int, str]] = Field(default=[])
@@ -59,6 +61,8 @@ class Config(BaseSettings):
     os_notice_memoryusage_percent: int = Field(default=90)
     os_backup_enable: bool = Field(default=True)
     os_backup_day: int = Field(default=7)
+    os_backup_session_enable: bool = Field(default=True)
+    os_backup_database_enable: bool = Field(default=True)
 
     class Config:
         extra = "ignore"
