@@ -23,6 +23,7 @@ from . import statistics
 from . import failover
 from . import apscheduler
 from . import backup
+from . import request
 
 from .exception import BaseException, StoreException
 
