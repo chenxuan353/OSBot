@@ -376,10 +376,10 @@ async def _(matcher: Matcher,
             session: TwitterSession = SessionDepend(TwitterSession),
             adapter: Adapter = AdapterDepend()):
     group_mark = await adapter.mark_group_without_drive(bot, event)
-    if arg.user_search in ("def", "默认", "-") and session.default_sub_id:
+    if arg.user_search in ("def", "默认", "-"):
+        if not session.default_sub_id:
+            await matcher.finish("没有配置默认值哦")
         arg.user_search = session.default_sub_id
-    else:
-        await matcher.finish("没有配置默认值哦")
     user = await get_user_from_search(arg.user_search, True)
     if not user:
         finish_msgs = ["找不到用户哦……", "唔……用户不存在……？"]
@@ -593,10 +593,11 @@ tweet_cache_list = on_command("查看缓存推文列表",
 async def _(matcher: Matcher,
             arg: TweetArg = ArgMatchDepend(TweetArg),
             session: TwitterSession = SessionDepend(TwitterSession)):
-    if arg.user_search in ("def", "默认", "-") and session.default_sub_id:
+    if arg.user_search in ("def", "默认", "-"):
+        if not session.default_sub_id:
+            await matcher.finish("没有配置默认值哦")
         arg.user_search = session.default_sub_id
-    else:
-        await matcher.finish("没有配置默认值哦")
+        
     user = await get_user_from_search(arg.user_search)
     if not user:
         finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
@@ -639,10 +640,10 @@ async def _(matcher: Matcher,
             arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
             session: TwitterSession = SessionDepend(TwitterSession)):
     if arg.user_search in ("def", "默认", "-"):
-        if session.default_sub_id:
-            arg.user_search = session.default_sub_id
-        else:
+        if not session.default_sub_id:
             await matcher.finish("没有配置默认值哦")
+        arg.user_search = session.default_sub_id
+
     user = await get_user_from_search(arg.user_search)
     if not user:
         finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
