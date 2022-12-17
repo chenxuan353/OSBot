@@ -32,7 +32,7 @@ class DatabaseManage:
             if not os.path.isdir(self.base_path):
                 os.makedirs(self.base_path)
         except Exception as e:
-            raise BaseException("数据目录创建失败", cause=e)
+            raise BaseException(f"数据目录 {self.base_path} 创建失败", cause=e)
 
     def add_model(self, model: Type[Model]) -> None:
         """

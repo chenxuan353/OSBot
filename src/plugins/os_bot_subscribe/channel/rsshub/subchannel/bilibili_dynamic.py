@@ -1,6 +1,7 @@
 """
     B站动态
 """
+import random
 import time
 import cv2
 import numpy
@@ -29,6 +30,16 @@ def img_resize(image, width_new, height_new):
                              (int(width * height_new / height), height_new))
     return img_new
 
+def randUserAgent():
+    UAs = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36',
+        'Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2919.83 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2866.71 Safari/537.36',
+        'Mozilla/5.0 (X11; Ubuntu; Linux i686 on x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2820.59 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'
+    ]
+    return UAs[random.randint(0, len(UAs) - 1)]
 
 @lru_memoize(maxsize=256)
 async def download_with_resize_to_base64(url: str, width: int,
@@ -36,8 +47,16 @@ async def download_with_resize_to_base64(url: str, width: int,
     maxsize = 500 * 1024  # byte
     timeout = 15  # s
     try:
+        headers = {
+            "referer": "https://t.bilibili.com/",
+            "accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "accept-encoding": "gzip, deflate, br",
+            'x-requested-with': 'XMLHttpRequest',
+            'user-agent': randUserAgent()
+        }
         req = aiohttp.request("get",
                               url,
+                              headers=headers,
                               timeout=aiohttp.ClientTimeout(total=15))
         async with req as resp:
             code = resp.status
@@ -241,7 +260,9 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                     else:
                         # 无效错误的转换结果
                         download_with_resize_to_base64_invaild(url, 25, 25)
-                        rtnmessage += msgseg
+                        url = msgseg.data.get('url', '')
+                        if url:
+                            rtnmessage += v11.MessageSegment.image(url)
                 else:
                     rtnmessage += msgseg
         return rtnmessage

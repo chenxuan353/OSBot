@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 from nonebot_plugin_apscheduler import scheduler
 from .config import config
 from .logger import logger
+from .exception import BaseException
 
 from ..os_bot_base.util.async_pool import AsyncPool
 
@@ -20,7 +21,12 @@ class ZipBackup:
     instance: Optional[Self] = None
 
     def __init__(self) -> None:
-        pass
+        self.base_path = os.path.join(config.os_data_path, "backup")
+        if not os.path.isdir(self.base_path):
+            try:
+                os.makedirs(self.base_path)
+            except IOError as e:
+                raise BaseException(f"目录 {self.base_path} 创建失败！", e)
 
     @classmethod
     def get_instance(cls) -> Self:
@@ -31,7 +37,7 @@ class ZipBackup:
     def _pool_backup_to_zip(self, path: str, file_key: str):
         dbpath = os.path.join(config.os_data_path, path)
         bk_file_path = os.path.join(
-            config.os_data_path, "backup",
+            self.base_path,
             f"{file_key}-{strftime('%Y-%m-%d_%H%M%S')}.bak.zip")
         zf = zipfile.ZipFile(bk_file_path, 'w', zipfile.ZIP_DEFLATED)
         for root, dirs, files in os.walk(dbpath):
@@ -79,6 +85,7 @@ class ZipBackup:
 
 
 if config.os_backup_enable:
+
     @scheduler.scheduled_job('cron', hour='4', minute='30', name="自动备份")
     async def _():
         zip_backup = ZipBackup.get_instance()

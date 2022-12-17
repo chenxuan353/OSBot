@@ -157,7 +157,7 @@ class UrgentNotice:
             try:
                 os.makedirs(self.base_path)
             except IOError as e:
-                raise InfoCacheException("目录创建失败！", e)
+                raise InfoCacheException(f"目录 {self.base_path} 创建失败！", e)
 
         # 加载通知人
         self.load()
