@@ -260,9 +260,7 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                     else:
                         # 无效错误的转换结果
                         download_with_resize_to_base64_invaild(url, 25, 25)
-                        url = msgseg.data.get('url', '')
-                        if url:
-                            rtnmessage += v11.MessageSegment.image(url)
+                        rtnmessage += v11.MessageSegment.image(url)
                 else:
                     rtnmessage += msgseg
         return rtnmessage
