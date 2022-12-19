@@ -311,10 +311,6 @@ async def _(matcher: Matcher,
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
     tweet = await polling.client.model_tweet_get_or_none(tweet_id)
-    trans_model = await TwitterTransModel.filter(
-        tweet_id=tweet_id,
-        group_mark=await
-        adapter.mark_group_without_drive(bot, event)).order_by("-id").first()
 
     has_perm = await (SUPERUSER | GROUP_ADMIN | GROUP_OWNER)(bot, event)
     if not tweet:
@@ -325,6 +321,12 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
+
+    trans_model = await TwitterTransModel.filter(
+        tweet_id=tweet.id,
+        group_mark=await
+        adapter.mark_group_without_drive(bot, event)).order_by("-id").first()
+
     if tweet.possibly_sensitive and not has_perm:
         await matcher.finish("推文被标记可能存在敏感内容，不予显示。")
     if tweet.id in session.failure_list:
