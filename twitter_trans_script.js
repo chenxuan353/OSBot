@@ -1720,53 +1720,44 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
             // 显示静态元素
             GLOBAL_TOOL.Logger.debug("显示静态元素");
             GLOBAL_TOOL.TweetHtml.staticAnchorSwitch(null, true);
-            // 移除影响元素
-            GLOBAL_TOOL.Logger.debug("移除影响元素");
-            GLOBAL_TOOL.TweetHtml.removeSomeDom();
-        } catch (e) {
-            return [false, "未知报错", e.toString()];
-        }
-        if(GLOBAL_TOOL.SCREENSHOTS){
-            GLOBAL_TOOL.Logger.info("烤制模式：截图");
-            return [true, "成功", null];
-        }
-        if(GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR){
-            GLOBAL_TOOL.Logger.info("烤制模式：文本");
-        }else{
-            GLOBAL_TOOL.Logger.info("烤制模式：字典");
-        }
-        try {
+
+            if(GLOBAL_TOOL.SCREENSHOTS){
+                GLOBAL_TOOL.Logger.info("烤制模式：截图");
+                return [true, "成功", null];
+            }
+            if(GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR){
+                GLOBAL_TOOL.Logger.info("烤制模式：文本");
+            }else{
+                GLOBAL_TOOL.Logger.info("烤制模式：字典");
+            }
+
+            let rtnVal;
             if (GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR) {
                 GLOBAL_TOOL.Logger.info("注入推文 烤制模式：文本");
                 let insert_data = GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null);
                 GLOBAL_TOOL.Logger.debug("注入推文 文本解析完成");
-                let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
+                rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
                     insert_data
                 );
-                GLOBAL_TOOL.Logger.debug("进行最终等待");
-                try {
-                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
-                } catch (e) {
-                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
-                }
-                GLOBAL_TOOL.Logger.info("烤推完成");
-                return rtnVal;
             } else {
                 GLOBAL_TOOL.Logger.info("注入推文 烤制模式：字典");
-                let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
+                rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
                     GLOBAL_TOOL.TRANS_DICT
                 );
-                GLOBAL_TOOL.Logger.debug("进行最终等待");
-                try {
-                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
-                } catch (e) {
-                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
-                }
-                GLOBAL_TOOL.Logger.info("烤推完成");
-                return rtnVal;
             }
+            // 移除影响元素
+            GLOBAL_TOOL.Logger.debug("移除影响元素");
+            GLOBAL_TOOL.TweetHtml.removeSomeDom();
+            GLOBAL_TOOL.Logger.debug("进行最终等待");
+            try {
+                await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+            } catch (e) {
+                GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
+            }
+            GLOBAL_TOOL.Logger.info("烤推完成");
+            return rtnVal;
         } catch (e) {
             GLOBAL_TOOL.Logger.info("未知报错：" + e.toString());
             return [false, "未知报错", e.toString()];
