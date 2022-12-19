@@ -51,6 +51,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         URL_CHECK_ENALBE: false, // 是否启用URL切换检测
         ONLY_MAIN:true, // 仅允许烤制主推文
         LOG_LEVEL: LOG_LEVELS.DEBUG, // 日志等级
+        SIMULATION_BOT: true, // 模拟BOT烤制
     };
     // 静态变量配置
     const CONST_VAL = {
@@ -177,6 +178,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             let dom = document.querySelector("[role=progressbar]");
             return dom;
         },
+        // 需要重新解析的情况
     };
 
     Date.prototype.format = function(format) {
@@ -481,6 +483,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
                 text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
                 text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
+                text = text.replace("\r\n", "\n"); // 兼容win
+                text = text.replace("\r", "\n"); // 兼容mac
             }
             let texts = text.split("\n");
             text = ""
@@ -784,7 +788,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         if (CSSAnchor.twitterNeedWait()) {
                             setTimeout(checkloop, 100);
                         } else {
-                            resolve();
+                            setTimeout(function(){
+                                resolve();
+                            }, 300);
                             return;
                         }
                     };
@@ -807,11 +813,22 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     Logger.debug(
                         "隐藏内容已解锁，计时：" + waitTimeCount + "ms",
                     );
+                    return waitImageComplate(
+                        timeout - waitTimeCount,
+                        function (addTime) {
+                            waitTimeCount += addTime;
+                        },
+                    );
+                })
+                .then(function () {
+                    Logger.debug(
+                        "图片初步加载完成，计时：" + waitTimeCount + "ms",
+                    );
                     return waitNeedWait();
                 })
                 .then(function () {
                     Logger.debug(
-                        "已等待所有需要等待的内容，计时：" +
+                        "页面需等待的内容已完成，计时：" +
                             waitTimeCount +
                             "ms",
                     );
@@ -823,7 +840,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     );
                 })
                 .then(function () {
-                    Logger.debug("图片加载完成，计时：" + waitTimeCount + "ms");
+                    Logger.debug("图片最终加载完成，计时：" + waitTimeCount + "ms");
                     if (loadComplateFunc) {
                         loadComplateFunc(true);
                     }
@@ -1635,6 +1652,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     }, 1500);
                 }
             });
+        }
+        if (CONFIG_CORE.SIMULATION_BOT){
+            Logger.debug(
+                "模拟模式开启"
+            );
+            TweetHtml.staticAnchorSwitch(null, true);
         }
     }
 
