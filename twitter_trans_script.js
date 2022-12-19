@@ -95,7 +95,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 媒体内需等待元素锚点
         articleVideoWait(rootDom) {
-            return rootDom.querySelector("[d='M21 12L4 2v20l17-10z']");
+            return rootDom.querySelector("video");
         },
         // 任意推文图片锚点（与articleInImage合用）
         articleImages(rootDom) {
@@ -618,19 +618,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         });
                     }
 
-                    // // 处理音视频
-                    // let videos = CSSAnchor.articleVideo(elart);
-                    // for (let i = 0; i < videos.length; i++) {
-                    //     let video = CSSAnchor.articleVideoWait(videos[i]);
-                    //     try {
-                    //         if (!video) {
-                    //             return false;
-                    //         }
-                    //     } catch (e) {
-                    //         Logger.exception(e);
-                    //         return true;
-                    //     }
-                    // }
+                    // 处理音视频
+                    let videos = CSSAnchor.articleVideo(elart);
+                    for (let i = 0; i < videos.length; i++) {
+                        let video = CSSAnchor.articleVideoWait(videos[i]);
+                    }
 
                     //检测推文是否结束
                     if (mainTweet) {
@@ -831,6 +823,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             }
                             for (let i = 0; i < videos.length; i++) {
                                 let video = CSSAnchor.articleVideoWait(videos[i]);
+                                // Logger.info("视频元素box:", videos[i].innerHTML);
+                                // Logger.info("视频元素:", video.innerHTML);
                                 try {
                                     if (!video) {
                                         return false;
@@ -839,23 +833,27 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                     Logger.exception(e);
                                     return true;
                                 }
+                                if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT){
+                                    // 偷梁换柱
+                                    videos[i].replaceWith(videos[i].cloneNode(true));
+                                }
                             }
                             return true;
                         };
                         let checkloop = function () {
-                            waitTimeCount += 100;
+                            waitTimeCount += 10;
                             if (waitTimeCount > timeout) {
                                 reject("等待超时！");
                                 return;
                             }
                             if (!videoImgIsAllLoadComplete()) {
-                                setTimeout(checkloop, 100);
+                                setTimeout(checkloop, 10);
                             } else {
                                 resolve();
                             }
                         };
                         // 启动检查循环
-                        setTimeout(checkloop, 100);
+                        setTimeout(checkloop, 10);
                     }catch(e){
                         reject(e);
                     }
