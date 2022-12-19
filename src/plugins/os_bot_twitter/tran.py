@@ -70,7 +70,7 @@ class TwitterTrans:
                 'width': 1920,
                 'height': 3200
             },
-            user_agent=randUserAgent(),
+            # user_agent=randUserAgent(),
         )
         self._enable = True
 

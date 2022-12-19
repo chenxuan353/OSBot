@@ -91,7 +91,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 媒体锚点
         articleVideo(rootDom) {
-            return rootDom.querySelectorAll("video[poster]");
+            return rootDom.querySelectorAll("div[data-testid=videoPlayer]");
+        },
+        // 媒体内需等待元素锚点
+        articleVideoWait(rootDom) {
+            return rootDom.querySelector("[d='M21 12L4 2v20l17-10z']");
         },
         // 任意推文图片锚点（与articleInImage合用）
         articleImages(rootDom) {
@@ -174,8 +178,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             return dom;
         },
         // 需要等待的元素
-        twitterNeedWait() {
-            let dom = document.querySelector("[role=progressbar]");
+        twitterNeedWait(rootDom) {
+            let dom = rootDom.querySelector("[role=progressbar]");
             return dom;
         },
         // 需要重新解析的情况
@@ -613,6 +617,21 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             text: elemvotes[j].innerText,
                         });
                     }
+
+                    // // 处理音视频
+                    // let videos = CSSAnchor.articleVideo(elart);
+                    // for (let i = 0; i < videos.length; i++) {
+                    //     let video = CSSAnchor.articleVideoWait(videos[i]);
+                    //     try {
+                    //         if (!video) {
+                    //             return false;
+                    //         }
+                    //     } catch (e) {
+                    //         Logger.exception(e);
+                    //         return true;
+                    //     }
+                    // }
+
                     //检测推文是否结束
                     if (mainTweet) {
                         // 检索翻译推文按钮
@@ -779,13 +798,14 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             };
             let waitNeedWait = function () {
                 return new Promise(function (resolve, reject) {
+                    let rootDom = CSSAnchor.rootElem();
                     let checkloop = function () {
                         waitTimeCount += 100;
                         if (waitTimeCount > timeout) {
                             reject("等待超时！");
                             return;
                         }
-                        if (CSSAnchor.twitterNeedWait()) {
+                        if (CSSAnchor.twitterNeedWait(rootDom)) {
                             setTimeout(checkloop, 100);
                         } else {
                             setTimeout(function(){
@@ -795,9 +815,52 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                     };
                     // 启动检查循环
-                    setTimeout(checkloop, 100);
+                    setTimeout(checkloop, 0);
                 });
             };
+            let waitVideo = function () {
+                return new Promise(function (resolve, reject) {
+                    try{
+                        let rootDom = CSSAnchor.rootElem();
+                        //判断视频封面是否加载成功
+                        let videoImgIsAllLoadComplete = function () {
+                            let videos = CSSAnchor.articleVideo(rootDom);
+                            if(videos.length == 0){
+                                Logger.info("未找到可加载视频");
+                                return true;
+                            }
+                            for (let i = 0; i < videos.length; i++) {
+                                let video = CSSAnchor.articleVideoWait(videos[i]);
+                                try {
+                                    if (!video) {
+                                        return false;
+                                    }
+                                } catch (e) {
+                                    Logger.exception(e);
+                                    return true;
+                                }
+                            }
+                            return true;
+                        };
+                        let checkloop = function () {
+                            waitTimeCount += 100;
+                            if (waitTimeCount > timeout) {
+                                reject("等待超时！");
+                                return;
+                            }
+                            if (!videoImgIsAllLoadComplete()) {
+                                setTimeout(checkloop, 100);
+                            } else {
+                                resolve();
+                            }
+                        };
+                        // 启动检查循环
+                        setTimeout(checkloop, 100);
+                    }catch(e){
+                        reject(e);
+                    }
+                });
+            }
             let waitImageComplate = TweetHtml.waitImageComplate;
 
             waitRootDom()
@@ -823,6 +886,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 .then(function () {
                     Logger.debug(
                         "图片初步加载完成，计时：" + waitTimeCount + "ms",
+                    );
+                    return waitVideo();
+                })
+                .then(function () {
+                    Logger.debug(
+                        "视频封面加载完成，计时：" + waitTimeCount + "ms",
                     );
                     return waitNeedWait();
                 })
@@ -1687,7 +1756,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         Logger.info("====等待推文加载====");
         TweetHtml.waitLoad(main, CONFIG_CORE.START_WAIT_TIME * 1000);
     }
-    if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
+    if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT || CONFIG_CORE.SIMULATION_BOT) {
         // 注册脚本函数
         GLOBAL_TOOL.TweetHtml = TweetHtml;
         GLOBAL_TOOL.Tool = Tool;
@@ -1716,7 +1785,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
             }
             // 推文解析
             nowstatus=GLOBAL_TOOL.TweetHtml.parsing();
-            GLOBAL_TOOL.Logger.debug("推文解析", nowstatus);
+            GLOBAL_TOOL.Logger.debug("推文解析 " + nowstatus);
             // 显示静态元素
             GLOBAL_TOOL.Logger.debug("显示静态元素");
             GLOBAL_TOOL.TweetHtml.staticAnchorSwitch(null, true);
@@ -1760,7 +1829,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
             return rtnVal;
         } catch (e) {
             GLOBAL_TOOL.Logger.info("未知报错：" + e.toString());
-            return [false, "未知报错", e.toString()];
+            return [false, "未知报错，请联系维护者", e.toString()];
         }
     }
     return playwright();

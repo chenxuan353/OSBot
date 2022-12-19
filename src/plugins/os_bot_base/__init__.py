@@ -54,7 +54,9 @@ async def _():
 
 @driver.on_shutdown
 async def _():
+    from . import backup
     await DatabaseManage.get_instance()._close_()
+    backup.pool._pool.shutdown(wait=True) # 平滑的关闭进程
 
 
 from .meta import __plugin_meta__
