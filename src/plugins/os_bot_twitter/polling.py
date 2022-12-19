@@ -432,6 +432,9 @@ class PollTwitterUpdate(TwitterUpdate):
             return
         
         for user_id in tweet.mentions:
+            if user_id == tweet.author_id:
+                # 排除提及自己的情况
+                continue
             listeners = listeners_map.get(user_id, [])
             for listener in listeners:
                 if listener.update_mention:
