@@ -111,6 +111,10 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             // return rootDom.querySelectorAll("div.r-bnwqim");
             return rootDom.querySelectorAll("div[data-testid=tweetText]");
         },
+        // emoji
+        articleEmoji(rootDom) {
+            return rootDom.querySelectorAll("img[src*='/emoji/v2/svg/']");
+        },
         // 投票锚点
         articleVotes(rootDom) {
             // // 已经结束的投票
@@ -155,7 +159,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         articleTime(rootDom) {
             return rootDom.querySelector("div.r-1r5su4o");
         },
-        // 翻译锚点
+        // 翻译标识锚点
         transNotice(rootDom) {
             return rootDom.querySelector("DIV.r-1w6e6rj");
         },
@@ -517,6 +521,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 {
                                     dom: elemtexts[j],
                                     text: elemtexts[j].innerText,
+                                    emojis: emojis, // 该文本段解析出的emoji
                                 }
                             ],
                             imgAnchors: [  // 推文的图片节点
@@ -593,9 +598,17 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     // 搜索可注入的文本锚点
                     let elemtexts = CSSAnchor.articleTexts(elart);
                     for (let j = 0; j < elemtexts.length; j++) {
+                        let emoji_doms = CSSAnchor.articleEmoji(elemtexts[j]);
+                        let emojis = [];
+                        emoji_doms.forEach(function(elem){
+                            if(elem.alt){
+                                emojis.push(elem.alt);
+                            }
+                        })
                         elartItem.textAnchors.push({
                             dom: elemtexts[j],
                             text: elemtexts[j].innerText,
+                            emojis: emojis
                         });
                     }
                     // 搜索可注入的图片锚点
@@ -1052,11 +1065,20 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 文本段注入 参数 覆盖标识，原始dom，新元素标识，新元素内容数据
                 let insertTextData = function (
                     cover_flag,
-                    sourcedom,
+                    source,
                     data,
                     isMain = false,
                 ) {
+                    let sourcedom = source.dom;
                     if (parseText) {
+                        let data_arr = data.split("\e");
+                        data = data_arr[0];
+                        for(let x = 1; x < data_arr.length; x++){
+                            if(x - 1 >= source.emojis.length){
+                                break;
+                            }
+                            data += source.emojis[x - 1] + data_arr[x];
+                        }
                         data = TweetHtml.textparse(data);
                     }
                     Logger.debug("文本段解析完毕");
@@ -1191,8 +1213,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 insertTextData(
                                     coverconfig.main_cover,
                                     coverconfig.main_cover
-                                        ? tweetAnchor.textAnchors[0].dom
-                                        : dom,
+                                        ? tweetAnchor.textAnchors[0]
+                                        : {
+                                            dom: dom,
+                                            text: tweetAnchor.textAnchors[0].text,
+                                            emojis: tweetAnchor.textAnchors[0].emojis,
+                                        },
                                     tranlevel.content,
                                     true,
                                 );
@@ -1200,7 +1226,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 Logger.debug("INSERT 回复注入");
                                 insertTextData(
                                     coverconfig.replay_cover,
-                                    tweetAnchor.textAnchors[0].dom,
+                                    tweetAnchor.textAnchors[0],
                                     tranlevel.content,
                                 );
                             }
@@ -1217,7 +1243,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                     if (tranlevel.inlevel[k]) {
                                         insertTextData(
                                             coverconfig.quote_cover,
-                                            tweetAnchor.textAnchors[k].dom,
+                                            tweetAnchor.textAnchors[k],
                                             tranlevel.inlevel[k].content,
                                         );
                                     }

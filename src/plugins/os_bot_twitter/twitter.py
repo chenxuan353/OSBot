@@ -228,7 +228,7 @@ class AsyncTwitterClient:
             rtn_text += text[start:tr['start']]
             start = tr['end']
             rtn_text += tr['replace']
-        return rtn_text
+        return rtn_text.replace('&lt;', '<').replace('&gt;', '>')
 
     async def model_tweet_get_or_none(self, tweet_id: str):
         return await model_tweet_get_or_none(tweet_id)
