@@ -1071,7 +1071,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 ) {
                     let sourcedom = source.dom;
                     if (parseText) {
-                        let data_arr = data.split("\\e");
+                        let data_arr = data.split("/e");
                         data = data_arr[0];
                         for(let x = 1; x < data_arr.length; x++){
                             if(x - 1 >= source.emojis.length){
