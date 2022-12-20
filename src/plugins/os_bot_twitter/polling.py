@@ -239,8 +239,9 @@ class PollTwitterUpdate(TwitterUpdate):
                         subscribe.group_mark, subscribe.id)
             return
         session: TwitterSession = await get_session(subscribe.group_mark,
-                                              TwitterSession,
-                                              "os_bot_twitter")  # type: ignore
+                                                    TwitterSession,
+                                                    "os_bot_twitter"
+                                                    )  # type: ignore
         if only_add_failure:
             session.failure_list.append(tweet.id)
             return
@@ -261,36 +262,40 @@ class PollTwitterUpdate(TwitterUpdate):
                 if config.os_twitter_trans_engine in engines:
                     engine = engines[config.os_twitter_trans_engine]
                     if not tweet.trans_text:
+                        source = "auto"
+                        target = "zh-cn"
+                        text = deal_trans_text(tweet.display_text)
                         try:
-                            source = "auto"
-                            if tweet.lang and tweet.lang in base_langs and engine.check_lang(
-                                    tweet.lang, "zh-cn"):
-                                source = tweet.lang
 
+                            if tweet.lang and tweet.lang in base_langs and engine.check_lang(
+                                    tweet.lang, target):
+                                source = tweet.lang
                             tweet.trans_text = await engine.trans(
-                                source, "zh-cn",
-                                deal_trans_text(tweet.display_text))
+                                source, target, text)
                             await tweet.save()
                         except Exception as e:
                             logger.opt(exception=True).warning(
                                 "机翻 {} 失败！使用引擎及参数 {} {} -> {} 内容 {}", tweet.id,
-                                config.os_twitter_trans_engine, "auto", "zh",
-                                tweet.display_text)
+                                config.os_twitter_trans_engine, source, target,
+                                text)
+                    if relate_tweet and not relate_tweet.trans_text:
+                        source = "auto"
+                        target = "zh-cn"
+                        text = deal_trans_text(relate_tweet.display_text)
+                        try:
 
-                    try:
-                        if relate_tweet and not relate_tweet.trans_text:
-                            source = "auto"
                             if relate_tweet.lang and relate_tweet.lang in base_langs and engine.check_lang(
-                                    relate_tweet.lang, "zh-cn"):
+                                    relate_tweet.lang, target):
                                 source = relate_tweet.lang
+
                             relate_tweet.trans_text = await engine.trans(
-                                source, "zh-cn", relate_tweet.display_text)
+                                source, target, text)
                             await relate_tweet.save()
-                    except Exception as e:
-                        logger.opt(exception=True).warning(
-                            "机翻 {}(相关推文) 失败！使用引擎及参数 {} {} -> {} 内容 {}",
-                            tweet.id, config.os_twitter_trans_engine, "auto",
-                            "zh", tweet.display_text)
+                        except Exception as e:
+                            logger.opt(exception=True).warning(
+                                "机翻 {}(相关推文) 失败！使用引擎及参数 {} {} -> {} 内容 {}",
+                                tweet.id, config.os_twitter_trans_engine,
+                                source, target, text)
 
             else:
                 logger.warning("推送{}启用了推文翻译，但未设置翻译引擎！", subscribe.id)
@@ -321,8 +326,9 @@ class PollTwitterUpdate(TwitterUpdate):
                         subscribe.group_mark, subscribe.id)
             return
         session: TwitterSession = await get_session(subscribe.group_mark,
-                                              TwitterSession,
-                                              "os_bot_twitter")  # type: ignore
+                                                    TwitterSession,
+                                                    "os_bot_twitter"
+                                                    )  # type: ignore
         if user.id in session.ban_users:
             logger.debug("{} 内用户 {} 的设置更新推送被禁用 订阅 {}", subscribe.group_mark,
                          user.id, subscribe.id)
@@ -342,12 +348,14 @@ class PollTwitterUpdate(TwitterUpdate):
                 assert isinstance(new_val, str)
                 if old_val.endswith(("_normal.jpg", "_normal.png")):
                     old_val = old_val[:-len("_normal.jpg")] + old_val[-4:]
-                msg += v11.Message("\n旧：") + v11.MessageSegment.image(file=old_val)
+                msg += v11.Message("\n旧：") + v11.MessageSegment.image(
+                    file=old_val)
 
                 if new_val.endswith(("_normal.jpg", "_normal.png")):
                     new_val = new_val[:-len("_normal.jpg")] + new_val[-4:]
-                msg += v11.Message("\n新：") + v11.MessageSegment.image(file=new_val)
-                
+                msg += v11.Message("\n新：") + v11.MessageSegment.image(
+                    file=new_val)
+
             elif update_type in ("粉丝数涨到", "粉丝数跌到"):
                 msg = f"{user.name}的{update_type}{int(new_val/10)*10}了~"
             else:
@@ -403,11 +411,13 @@ class PollTwitterUpdate(TwitterUpdate):
                 if not listener.update_replay:
                     if not tweet.referenced_tweet_author_id:
                         continue
-                    user = await self.client.model_user_get_or_none(tweet.referenced_tweet_author_id)
+                    user = await self.client.model_user_get_or_none(
+                        tweet.referenced_tweet_author_id)
                     if not user:
                         continue
                     if not ((self.update_mention_verified and user.verified)
-                            or user.followers_count > self.update_mention_followers):
+                            or user.followers_count >
+                            self.update_mention_followers):
                         """
                             账户已验证 或 粉丝数大于设定的值 才被视为真相关
                         """
@@ -430,7 +440,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 账户已验证 或 粉丝数大于设定的值 才被视为真相关
             """
             return
-        
+
         for user_id in tweet.mentions:
             if user_id == tweet.author_id:
                 # 排除提及自己的情况
@@ -558,7 +568,8 @@ async def update_all_listener():
                 await asyncio.sleep(10)
                 await client.get_timeline(id=listener)
             logger.debug("已更新 {}@{} 的时间线", user.name, user.username)
-        except (TweepyException, asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+        except (TweepyException, asyncio.exceptions.TimeoutError,
+                aiohttp.ClientError) as e:
             user = None
             try:
                 user = await client.model_user_get_or_none(listener)
@@ -615,8 +626,7 @@ async def _():
         return
     logger.info("推特功能初始化")
     # 进行初始化
-    session = await get_plugin_session(TwitterPlugSession
-                                                           )  # type: ignore
+    session = await get_plugin_session(TwitterPlugSession)  # type: ignore
     session._keep = True
     PollTwitterUpdate.session = session
     client = AsyncTwitterClient(PollTwitterUpdate)
@@ -625,7 +635,8 @@ async def _():
         try:
             try:
                 following_users = await client.self_following_list()
-            except (TweepyException, asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+            except (TweepyException, asyncio.exceptions.TimeoutError,
+                    aiohttp.ClientError) as e:
                 logger.info("获取当前关注列表失败，将在60秒后自动重试。")
                 await asyncio.sleep(60.1)
                 following_users = await client.self_following_list()
@@ -637,7 +648,8 @@ async def _():
 
             session.following_list = following_list
             await session.save()
-        except (TweepyException, asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+        except (TweepyException, asyncio.exceptions.TimeoutError,
+                aiohttp.ClientError) as e:
             logger.warning("初始化关注列表失败！连接不稳定 {} | {}", e.__class__.__name__, e)
         except Exception as e:
             logger.opt(exception=True).error("初始化关注列表失败！")
@@ -654,7 +666,7 @@ async def _():
         """
             启动初始化
         """
-        session._enable=False
+        session._enable = False
         # 让nonebot在正常加载完成后再进行完整检查
         await asyncio.sleep(10)
         strat_time = time()
@@ -667,11 +679,13 @@ async def _():
         await update_all_listener()
         logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
         logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
-        session._enable=True
+        session._enable = True
 
     asyncio.gather(startup())
 
-    @scheduler.scheduled_job("interval", seconds=config.os_twitter_poll_interval, name="推特轮询")
+    @scheduler.scheduled_job("interval",
+                             seconds=config.os_twitter_poll_interval,
+                             name="推特轮询")
     async def _():
         if not config.os_twitter_poll_enable:
             return
@@ -684,7 +698,8 @@ async def _():
             except TweepyException as e:
                 return True
             except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
-                logger.warning("推特更新轮询连接错误 {} | {}", e.__class__.__name__, str(e))
+                logger.warning("推特更新轮询连接错误 {} | {}", e.__class__.__name__,
+                               str(e))
                 return True
             except TwitterDatabaseException as e:
                 session._enable = False

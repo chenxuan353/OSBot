@@ -92,7 +92,7 @@ async def trans_before_handle(source, target, text, deftarget="ja"):
 
         用于优化用户体验及翻译准确度
     """
-    if not config.trena_lang_optimize:
+    if not config.trans_lang_optimize:
         return source, target, text
     text = deal_trans_text(text)  # 处理字符串
     if not text:
@@ -100,7 +100,6 @@ async def trans_before_handle(source, target, text, deftarget="ja"):
     if source == 'auto' and target == 'zh-cn':
         if not re.search(r'[\u3040-\u309F\u30A0-\u30FF\uAC00-\uD7A3]', text):
             target = deftarget
-
         if re.search(r'[\uAC00-\uD7A3]', text):
             source = 'ko'
             target = 'zh-cn'
@@ -164,15 +163,17 @@ async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
     source = arg.source
     target = arg.target
     text = arg.tail.strip()
+    default_trans = session.default_trans
     if text.startswith("#"):
         try:
             from ..os_bot_twitter.os_bot_trans_interface import trans_tran_tweet
             tweet = await trans_tran_tweet(matcher, bot, event, text)
             text = tweet.text
+            default_trans = "zh-cn"
         except ImportError as e:
             pass
     source, target, text = await trans_before_handle(source, target, text,
-                                                     session.default_trans)
+                                                     default_trans)
     if not text:
         await matcher.finish()
     if not engine.check_source_lang(source):
