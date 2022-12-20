@@ -1075,7 +1075,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         data = data_arr[0];
                         for(let x = 1; x < data_arr.length; x++){
                             if(x - 1 >= source.emojis.length){
-                                break;
+                                data += data_arr[x];
+                                continue;
                             }
                             data += source.emojis[x - 1] + data_arr[x];
                         }
