@@ -22,6 +22,8 @@ from . import blacklist
 from . import statistics
 from . import failover
 from . import apscheduler
+from . import backup
+from . import request
 
 from .exception import BaseException, StoreException
 
@@ -52,7 +54,9 @@ async def _():
 
 @driver.on_shutdown
 async def _():
+    from . import backup
     await DatabaseManage.get_instance()._close_()
+    backup.pool._pool.shutdown(wait=True) # 平滑的关闭进程
 
 
 from .meta import __plugin_meta__

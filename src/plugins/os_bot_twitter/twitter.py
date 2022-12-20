@@ -272,9 +272,11 @@ class AsyncTwitterClient:
         if not tweet_model or (tweet_model.minor_data and not is_minor):
             # 初始化 - 当完整性从非完整变更为完整时再度触发
             if not tweet_model:
-                tweet_model = TwitterTweetModel(id=f"{tweet.id}")
-                # 更新缓存
-                self.model_tweet_get_or_none_update(f"{tweet.id}", tweet_model)
+                tweet_model = await self.model_tweet_get_or_none(f"{tweet.id}")
+                if not tweet_model:
+                    tweet_model = TwitterTweetModel(id=f"{tweet.id}")
+                    # 更新缓存
+                    self.model_tweet_get_or_none_update(f"{tweet.id}", tweet_model)
             tweet_model.minor_data = is_minor
             tweet_model.author_id = f"{tweet.author_id}"
             tweet_model.type = await self.tweet_get_type(tweet)
@@ -388,9 +390,11 @@ class AsyncTwitterClient:
         old_model = None
         user_model = await self.model_user_get_or_none(f"{user.id}")
         if not user_model:
-            user_model = TwitterUserModel(id=f"{user.id}")
-            # 更新缓存
-            self.model_user_get_or_none_update(f"{user.id}", user_model)
+            user_model = await self.model_user_get_or_none(f"{user.id}")
+            if not user_model:
+                user_model = TwitterUserModel(id=f"{user.id}")
+                # 更新缓存
+                self.model_user_get_or_none_update(f"{user.id}", user_model)
         else:
             old_model = user_model.clone(user_model.pk)
         user_model.name = user.name

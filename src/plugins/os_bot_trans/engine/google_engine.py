@@ -78,9 +78,9 @@ class GoogleEngine(Engine):
         headers = {
             "referer": "https://translate.google.cn/",
             "content-type": "application/x-www-form-urlencoded",
-            "Accept": "application/json, text/plain, */*",
-            'X-Requested-With': 'XMLHttpRequest',
-            'User-Agent': self.randUserAgent()
+            "accept": "application/json, text/plain, */*",
+            'x-requested-with': 'XMLHttpRequest',
+            'user-agent': self.randUserAgent()
         }
         requrl = url.format(SourceText=SourceText,
                             Source=Source,

@@ -70,7 +70,7 @@ class TwitterTrans:
                 'width': 1920,
                 'height': 3200
             },
-            user_agent=randUserAgent(),
+            # user_agent=randUserAgent(),
         )
         self._enable = True
 
@@ -139,7 +139,8 @@ class TwitterTrans:
                 "WAIT_TIMEOUT": config.os_twitter_trans_timeout,
                 "TRANS_DICT": trans,
                 "TRANS_STR": trans_str,
-                "USE_STR": True
+                "USE_STR": True,
+                "SCREENSHOTS": not trans and not trans_str
             }
 
             result = await page.evaluate(
@@ -217,6 +218,7 @@ class TwitterTransManage:
 
     async def reload_script(self):
         """重新加载脚本"""
+        self.queue.statistics.clear()
         self.twitter_trans.load_script()
 
     async def clear_screenshot_file(self):

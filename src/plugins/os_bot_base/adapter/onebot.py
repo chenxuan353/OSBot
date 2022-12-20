@@ -3,6 +3,7 @@ from nonebot.adapters.onebot import v11
 from .adapter import Adapter
 from ..exception import AdapterException
 from ..cache.onebot import OnebotCache
+from ..logger import logger
 
 
 class V11Adapter(Adapter):
@@ -114,9 +115,12 @@ class V11Adapter(Adapter):
         if nick:
             return nick
         if bot:
-            result = await bot.get_group_info(group_id=group_id)
-            if result and "group_name" in result and result["group_name"]:
-                nick = result["group_name"]
+            try:
+                result = await bot.get_group_info(group_id=group_id)
+                if result and "group_name" in result and result["group_name"]:
+                    nick = result["group_name"]
+            except Exception:
+                logger.opt(exception=True).error("获取群信息时异常")
         if nick:
             return nick
         return f"{group_id}"
@@ -132,9 +136,12 @@ class V11Adapter(Adapter):
         if nick:
             return nick
         if bot:
-            result = await bot.get_stranger_info(user_id=user_id)
-            if "nickname" in result and result["nickname"]:
-                nick = result["nickname"]
+            try:
+                result = await bot.get_stranger_info(user_id=user_id)
+                if "nickname" in result and result["nickname"]:
+                    nick = result["nickname"]
+            except Exception:
+                logger.opt(exception=True).error("获取陌生人信息时异常")
         if nick:
             return nick
         return f"{user_id}"

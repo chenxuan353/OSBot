@@ -6,7 +6,7 @@
 import asyncio
 from time import time
 import psutil
-from typing import Any, Deque, Dict, List, Optional, Union
+from typing import Any, Deque, Dict, Optional, Union
 from typing_extensions import Self
 from collections import deque
 from nonebot import get_driver, get_bots, on_command
@@ -220,23 +220,25 @@ async def print_statistics_info():
                 f"\n{get_statistics_system_info()}")
 
 
-
 @scheduler.scheduled_job("interval", minutes=5 * 60, name="运行状态检查")
 async def statistics_info_check():
     """
         检查内存与磁盘状态
     """
-    if config.os_ob_notice_distusage:
+    if config.os_notice_distusage:
         disks = psutil.disk_partitions()
-        if config.os_ob_notice_distusage_single:
+        if config.os_notice_distusage_single:
             for disk in disks:
                 disk_usage = psutil.disk_usage(disk.mountpoint)
                 if disk_usage.percent > 95:
                     logger.warning(f"磁盘 {disk.mountpoint} 用量超过95%了哦")
                     await UrgentNotice.send(f"磁盘 {disk.mountpoint} 用量超过95%了哦")
-                elif disk_usage.percent > config.os_ob_notice_distusage_percent:
-                    logger.warning("磁盘 {} 用量超过{}%了哦", disk.mountpoint, config.os_ob_notice_distusage_percent)
-                    await UrgentNotice.send(f"磁盘 {disk.mountpoint} 用量超过{config.os_ob_notice_distusage_percent}%了哦")
+                elif disk_usage.percent > config.os_notice_distusage_percent:
+                    logger.warning("磁盘 {} 用量超过{}%了哦", disk.mountpoint,
+                                   config.os_notice_distusage_percent)
+                    await UrgentNotice.send(
+                        f"磁盘 {disk.mountpoint} 用量超过{config.os_notice_distusage_percent}%了哦"
+                    )
         else:
             disk_usage_totel = 0
             for disk in disks:
@@ -246,15 +248,19 @@ async def statistics_info_check():
             if disk_usage_percent > 95:
                 logger.warning("综合磁盘使用量超过95%")
                 await UrgentNotice.send("综合磁盘用量超过95%了哦")
-            elif disk_usage_percent > config.os_ob_notice_distusage_percent:
-                logger.warning("综合磁盘使用量超过{}%", config.os_ob_notice_distusage_percent)
-                await UrgentNotice.send(f"综合磁盘用量超过{config.os_ob_notice_distusage_percent}%了哦")
+            elif disk_usage_percent > config.os_notice_distusage_percent:
+                logger.warning("综合磁盘使用量超过{}%",
+                               config.os_notice_distusage_percent)
+                await UrgentNotice.send(
+                    f"综合磁盘用量超过{config.os_notice_distusage_percent}%了哦")
 
         await asyncio.sleep(10)
 
-    if config.os_ob_notice_memoryusage:
-        if psutil.virtual_memory().percent > config.os_ob_notice_memoryusage_percent:
-            await UrgentNotice.send(f"内存用量超过{config.os_ob_notice_memoryusage_percent}%了哦")
+    if config.os_notice_memoryusage:
+        if psutil.virtual_memory(
+        ).percent > config.os_notice_memoryusage_percent:
+            await UrgentNotice.send(
+                f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
 
 
 @driver.on_startup

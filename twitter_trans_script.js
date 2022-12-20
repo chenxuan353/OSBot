@@ -49,7 +49,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         UI_ENALBE: false, // 是否启用UI支持
         SHOW_HIDE: true, // 是否在等待中包含 解锁隐藏
         URL_CHECK_ENALBE: false, // 是否启用URL切换检测
+        ONLY_MAIN:true, // 仅允许烤制主推文
         LOG_LEVEL: LOG_LEVELS.DEBUG, // 日志等级
+        SIMULATION_BOT: true, // 模拟BOT烤制
     };
     // 静态变量配置
     const CONST_VAL = {
@@ -89,7 +91,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 媒体锚点
         articleVideo(rootDom) {
-            return rootDom.querySelectorAll("video[poster]");
+            return rootDom.querySelectorAll("div[data-testid=videoPlayer]");
+        },
+        // 媒体内需等待元素锚点
+        articleVideoWait(rootDom) {
+            return rootDom.querySelector("video");
         },
         // 任意推文图片锚点（与articleInImage合用）
         articleImages(rootDom) {
@@ -172,12 +178,41 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             return dom;
         },
         // 需要等待的元素
-        twitterNeedWait() {
-            let dom = document.querySelector("[role=progressbar]");
+        twitterNeedWait(rootDom) {
+            let dom = rootDom.querySelector("[role=progressbar]");
             return dom;
         },
+        // 需要重新解析的情况
     };
 
+    Date.prototype.format = function(format) {
+        /*
+         * eg:format="YYYY-MM-dd hh:mm:ss";
+    
+         */
+        var o = {
+            "M+" :this.getMonth() + 1, // month
+            "d+" :this.getDate(), // day
+            "h+" :this.getHours(), // hour
+            "m+" :this.getMinutes(), // minute
+            "s+" :this.getSeconds(), // second
+            "q+" :Math.floor((this.getMonth() + 3) / 3), // quarter
+            "S" :this.getMilliseconds()
+        // millisecond
+        }
+        if (/(y+)/.test(format)) {
+            format = format.replace(RegExp.$1, (this.getFullYear() + "")
+                    .substr(4 - RegExp.$1.length));
+        }
+        for ( var k in o) {
+            if (new RegExp("(" + k + ")").test(format)) {
+                format = format.replace(RegExp.$1, RegExp.$1.length == 1 ? o[k]
+                        : ("00" + o[k]).substr(("" + o[k]).length));
+            }
+        }
+        return format;
+    }
+    
     // 日志
     const Logger = {};
     (function () {
@@ -201,7 +236,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         Logger.LEVELS = LOG_LEVELS;
         Logger.out = function (msg, level = Logger.LEVELS.NORMAL, ...args) {
             if (level <= Logger.LEVEL) {
-                log(Logger.LEVELSTRS[level], msg, ...args);
+                log(new Date().format("yyyy-MM-dd hh:mm:ss.S"), Logger.LEVELSTRS[level], msg, ...args);
             }
         };
         Logger.normal = function (msg, ...args) {
@@ -391,7 +426,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         TweetHtml.CSSAnchor = CSSAnchor;
         TweetHtml.parseAnchors = null;
         // 译文解析（emoji转img、文本颜色）
-        TweetHtml.textparse = function (text) {
+        TweetHtml.textparse = function (text, simple_deal=false) {
             let options = {
                 whiteList: {
                     a: ["style"],
@@ -427,30 +462,43 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     style: "height: 1em;width: 1em;margin: 0.05em 0.1em;vertical-align: -0.1em;",
                 };
             };
+            
             // XSS过滤
             text = filterXSS(text, options);
+            Logger.debug("XSS过滤完成");
+
             // 文本处理
-            text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
-            text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
-            text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
-            text = text.replace(
-                /(\S*)(#[^\s#\!0-9]{1}\S*)/gi,
-                '$1<a style="color:#1DA1F2;">$2</a>',
-            ); // 话题颜色处理
-            text = text.replace(
-                /([\S]*)(@[A-Za-z0-9_]{4,15})/gi,
-                '$1<a style="color:#1DA1F2;">$2</a>',
-            ); // 提及颜色处理
-            text = text.replace(
-                /((https?|ftp|file):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])/g,
-                '<a style="color:#1DA1F2;">$1</a>',
-            ); // 链接颜色处理
-            text = text.replace(/\n([^\n]+)/gi, "\n<p>$1</p>"); // 行包裹
-            text = text.replace(/([^\n]+)\n/gi, "<p>$1</p>"); // 行包裹
-            text = text.replace(/\n/gi, "<p></p>\n"); // 纯换行处理
-            text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
-            text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
-            text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
+            if(!simple_deal){
+                text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
+                text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
+                text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
+                text = text.replace(
+                    /(\S*)(#[^\s#\!0-9]{1}\S*)/gi,
+                    '$1<a style="color:#1DA1F2;">$2</a>',
+                ); // 话题颜色处理
+                text = text.replace(
+                    /([\S]*)(@[A-Za-z0-9_]{4,15})/gi,
+                    '$1<a style="color:#1DA1F2;">$2</a>',
+                ); // 提及颜色处理
+                text = text.replace(
+                    /((https?|ftp|file):\/\/[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|])/g,
+                    '<a style="color:#1DA1F2;">$1</a>',
+                ); // 链接颜色处理
+                text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
+                text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
+                text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
+                text = text.replace("\r\n", "\n"); // 兼容win
+                text = text.replace("\r", "\n"); // 兼容mac
+            }
+            let texts = text.split("\n");
+            text = ""
+            texts.forEach(function(elem){
+                if(elem == ""){
+                    elem = "\n"
+                }
+                text += "<p>" + elem + "</p>";
+            })
+            Logger.debug("行处理完成");
             return twemoji.parse(text, {
                 attributes: attributesCallback,
                 base: "https://abs-0.twimg.com/emoji/v2/",
@@ -569,6 +617,13 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             text: elemvotes[j].innerText,
                         });
                     }
+
+                    // 处理音视频
+                    let videos = CSSAnchor.articleVideo(elart);
+                    for (let i = 0; i < videos.length; i++) {
+                        let video = CSSAnchor.articleVideoWait(videos[i]);
+                    }
+
                     //检测推文是否结束
                     if (mainTweet) {
                         // 检索翻译推文按钮
@@ -597,6 +652,10 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     if (!mainTweet) {
                         tweetAnchors.push(tweetAnchor);
                         tweetAnchor = [];
+                        if(CONFIG_CORE.ONLY_MAIN){
+                            Logger.debug("注入节点已禁用非核心推文部分");
+                            break;
+                        }
                         continue;
                     }
                 }
@@ -731,23 +790,75 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             };
             let waitNeedWait = function () {
                 return new Promise(function (resolve, reject) {
+                    let rootDom = CSSAnchor.rootElem();
                     let checkloop = function () {
                         waitTimeCount += 100;
                         if (waitTimeCount > timeout) {
                             reject("等待超时！");
                             return;
                         }
-                        if (CSSAnchor.twitterNeedWait()) {
+                        if (CSSAnchor.twitterNeedWait(rootDom)) {
                             setTimeout(checkloop, 100);
                         } else {
-                            resolve();
+                            setTimeout(function(){
+                                resolve();
+                            }, 300);
                             return;
                         }
                     };
                     // 启动检查循环
-                    setTimeout(checkloop, 100);
+                    setTimeout(checkloop, 0);
                 });
             };
+            let waitVideo = function () {
+                return new Promise(function (resolve, reject) {
+                    try{
+                        let rootDom = CSSAnchor.rootElem();
+                        //判断视频封面是否加载成功
+                        let videoImgIsAllLoadComplete = function () {
+                            let videos = CSSAnchor.articleVideo(rootDom);
+                            if(videos.length == 0){
+                                Logger.info("未找到可加载视频");
+                                return true;
+                            }
+                            for (let i = 0; i < videos.length; i++) {
+                                let video = CSSAnchor.articleVideoWait(videos[i]);
+                                // Logger.info("视频元素box:", videos[i].innerHTML);
+                                // Logger.info("视频元素:", video.innerHTML);
+                                try {
+                                    if (!video) {
+                                        return false;
+                                    }
+                                } catch (e) {
+                                    Logger.exception(e);
+                                    return true;
+                                }
+                                if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT){
+                                    // 偷梁换柱
+                                    videos[i].replaceWith(videos[i].cloneNode(true));
+                                }
+                            }
+                            return true;
+                        };
+                        let checkloop = function () {
+                            waitTimeCount += 10;
+                            if (waitTimeCount > timeout) {
+                                reject("等待超时！");
+                                return;
+                            }
+                            if (!videoImgIsAllLoadComplete()) {
+                                setTimeout(checkloop, 10);
+                            } else {
+                                resolve();
+                            }
+                        };
+                        // 启动检查循环
+                        setTimeout(checkloop, 10);
+                    }catch(e){
+                        reject(e);
+                    }
+                });
+            }
             let waitImageComplate = TweetHtml.waitImageComplate;
 
             waitRootDom()
@@ -763,11 +874,28 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     Logger.debug(
                         "隐藏内容已解锁，计时：" + waitTimeCount + "ms",
                     );
+                    return waitImageComplate(
+                        timeout - waitTimeCount,
+                        function (addTime) {
+                            waitTimeCount += addTime;
+                        },
+                    );
+                })
+                .then(function () {
+                    Logger.debug(
+                        "图片初步加载完成，计时：" + waitTimeCount + "ms",
+                    );
+                    return waitVideo();
+                })
+                .then(function () {
+                    Logger.debug(
+                        "视频封面加载完成，计时：" + waitTimeCount + "ms",
+                    );
                     return waitNeedWait();
                 })
                 .then(function () {
                     Logger.debug(
-                        "已等待所有需要等待的内容，计时：" +
+                        "页面需等待的内容已完成，计时：" +
                             waitTimeCount +
                             "ms",
                     );
@@ -779,7 +907,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     );
                 })
                 .then(function () {
-                    Logger.debug("图片加载完成，计时：" + waitTimeCount + "ms");
+                    Logger.debug("图片最终加载完成，计时：" + waitTimeCount + "ms");
                     if (loadComplateFunc) {
                         loadComplateFunc(true);
                     }
@@ -931,18 +1059,21 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     if (parseText) {
                         data = TweetHtml.textparse(data);
                     }
+                    Logger.debug("文本段解析完毕");
                     if (isMain == false && cover_flag == false) {
                         data = "<p>--------</p>" + data;
                     }
                     let tempDom = createInsertDom("tweettext", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
+                    Logger.debug("文本段元素注入完毕");
                     let imgs = tempDom.querySelectorAll("img");
                     imgs.forEach(function(img){
                         if(!img.style.height){
                             img.style.height = "1.2em";
                         }
                     })
+                    Logger.debug("文本段图片默认高度设定完成");
                     // 添加隐藏标识
                     sourcedom.classList.add(MARK_HIDE_CLASS);
                     if (cover_flag) {
@@ -956,7 +1087,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 媒体注入 参数 原始dom，新元素标识，新元素内容数据
                 let insertMediaData = function (sourcedom, data) {
                     if (parseText) {
-                        data = TweetHtml.textparse(data);
+                        data = TweetHtml.textparse(data, true);
                     }
                     let tempDom = createInsertDom("media", data);
                     let imgs = tempDom.querySelectorAll("img");
@@ -972,7 +1103,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 投票注入 参数 原始dom，元素标识，元素内容
                 let insertVoteData = function (sourcedom, data) {
                     if (parseText) {
-                        data = TweetHtml.textparse(data)
+                        data = TweetHtml.textparse(data, true)
                             .replace("\n", "")
                             .replace("<br>", "")
                             .replace("<br/>", "")
@@ -992,18 +1123,21 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 翻译标识注入 参数 原始dom，元素标识，元素内容
                 let insertTransFlag = function (sourcedom, data) {
                     if (parseText) {
-                        data = TweetHtml.textparse(data);
+                        data = TweetHtml.textparse(data, true);
+                        Logger.debug("翻译标识解析完毕");
                     }
                     let tempDom = createInsertDom("transtype", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
                     insertAfter(tempDom, sourcedom);
+                    Logger.debug("翻译标识注入成功");
                     let imgs = tempDom.querySelectorAll("img");
                     imgs.forEach(function(img){
                         if(!img.style.height){
                             img.style.height = "3em";
                         }
                     })
+                    Logger.debug("翻译标识图片样式设定成功");
                     return tempDom;
                 };
                 // 推文计数
@@ -1020,9 +1154,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             trans.levels["last"] || trans.levels["main"];
                     }
                 }
-
+                
+                Logger.debug("INSERT 开始注入 锚点总长 " + tweetAnchors.length);
                 for (let i = 0; i < tweetAnchors.length; i++) {
                     inTweetAnchors = tweetAnchors[i];
+                    Logger.debug("注入节点 " + i + " 长度 " + inTweetAnchors.length);
                     for (let j = 0; j < inTweetAnchors.length; j++) {
                         // 遍历推文注入点
                         // 当 i == 1 时存在特殊注入点last或main，用于主推文置入
@@ -1040,15 +1176,17 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             tweetAnchor.dom.style.display = "";
                         }
                         // 开始注入
-
+                        Logger.debug("INSERT 开始注入 序号 " + i + " 内节点 " + j);
                         // 文本注入
                         if (tweetAnchor.textAnchors[0]) {
                             if (i == 0 && j == inTweetAnchors.length - 1) {
+                                Logger.debug("INSERT 主元素Logo注入");
                                 // 主元素
                                 let dom = insertTransFlag(
                                     tweetAnchor.textAnchors[0].dom,
                                     trans.template || "",
                                 );
+                                Logger.debug("INSERT 主元素内容注入");
                                 // 仅覆盖原文时使用原文坐标，非覆盖情况下使用注入标签后的标签坐标
                                 insertTextData(
                                     coverconfig.main_cover,
@@ -1059,6 +1197,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                     true,
                                 );
                             } else {
+                                Logger.debug("INSERT 回复注入");
                                 insertTextData(
                                     coverconfig.replay_cover,
                                     tweetAnchor.textAnchors[0].dom,
@@ -1068,6 +1207,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                         // 内嵌文本
                         if (tweetAnchor.textAnchors.length > 1) {
+                            Logger.debug("INSERT 引用注入 " + tweetAnchor.textAnchors.length);
                             for (
                                 let k = 1;
                                 k < tweetAnchor.textAnchors.length;
@@ -1087,6 +1227,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
 
                         // 媒体注入（图片）
                         if (tweetAnchor.imgAnchors.length > 0) {
+                            Logger.debug("INSERT 媒体注入 " + tweetAnchor.imgAnchors.length);
                             for (
                                 let k = 0;
                                 k < tweetAnchor.imgAnchors.length;
@@ -1104,6 +1245,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                         // 投票注入
                         if (tweetAnchor.voteAnchors.length > 0) {
+                            Logger.debug("INSERT 投票注入 " + tweetAnchor.voteAnchors.length);
                             for (
                                 let k = 0;
                                 k < tweetAnchor.voteAnchors.length;
@@ -1121,7 +1263,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         }
                     }
                 }
-
+                Logger.debug("INSERT 主要工作完成");
                 // 后处理 给P元素指定通用样式
                 let p_style =
                     "margin-bottom: 0px;margin-left: 0px;margin-right: 0px;margin-top: 0px;padding-bottom: 0px;padding-left: 0px;padding-right: 0px;padding-top: 0px;";
@@ -1290,62 +1432,62 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 config: [
                     {
                         mark: "config",
-                        expre: /^回复覆盖|覆盖回复/,
+                        expre: /^回复覆盖|^覆盖回复/,
                         default: () => true,
                         value: (match) => "replay_cover",
                     },
                     {
                         mark: "config",
-                        expre: /^转评覆盖|覆盖转评|引用覆盖|覆盖引用|内嵌覆盖|覆盖内嵌/,
+                        expre: /^转评覆盖|^覆盖转评|^引用覆盖|^覆盖引用|^内嵌覆盖|^覆盖内嵌/,
                         default: () => true,
                         value: (match) => "quote_cover",
                     },
                     {
                         mark: "config",
-                        expre: /^回复不覆盖|不覆盖回复/,
+                        expre: /^回复不覆盖|^不覆盖回复/,
                         default: () => false,
                         value: (match) => "replay_cover",
                     },
                     {
                         mark: "config",
-                        expre: /^转评不覆盖|不覆盖转评|引用不覆盖|不覆盖引用|内嵌不覆盖|不覆盖内嵌/,
+                        expre: /^转评不覆盖|^不覆盖转评|^引用不覆盖|^不覆盖引用|^内嵌不覆盖|^不覆盖内嵌/,
                         default: () => false,
                         value: (match) => "quote_cover",
                     },
                     {
                         mark: "config",
-                        expre: /^无模版|无模板|无logo/,
+                        expre: /^无模版|^无模板|^无logo/,
                         default: () => true,
                         value: (match) => "template_disable",
                     },
                     // 特殊属性
                     {
                         mark: "config",
-                        expre: /^全覆盖|全部覆盖|覆盖全部|覆盖全/,
+                        expre: /^全覆盖|^全部覆盖|^覆盖全部|^覆盖全/,
                         default: () => "all_cover",
                         value: (match) => true,
                     },
                     {
                         mark: "config",
-                        expre: /^全不覆盖|全部不覆盖|不覆盖全部|不覆盖全/,
+                        expre: /^全不覆盖|^全部不覆盖|^不覆盖全部|^不覆盖全/,
                         default: () => "all_cover",
                         value: (match) => false,
                     },
                     {
                         mark: "config",
-                        expre: /^模版|模板|logo/,
+                        expre: /^模版|^模板|^logo/,
                         default: () => "template",
                         value: (match) => "template",
                     },
                     {
                         mark: "config",
-                        expre: /^烤推模版|烤推模板/,
+                        expre: /^烤推模版|^烤推模板/,
                         default: () => "template",
                         value: (match) => "template",
                     },
                     {
                         mark: "config",
-                        expre: /^默认模版|默认模板/,
+                        expre: /^默认模版|^默认模板/,
                         default: () => "defalutTemplate",
                         value: (match) => "template",
                     },
@@ -1510,6 +1652,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
              *
              * 参数：待解析文本，模版
              */
+            TweetHtml.removeSomeDom();
             TweetHtml.removeAllInsert();
             transSwitch(true);
             return TweetHtml.insertTrans(
@@ -1577,6 +1720,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 }
             });
         }
+        if (CONFIG_CORE.SIMULATION_BOT){
+            Logger.debug(
+                "模拟模式开启"
+            );
+            TweetHtml.staticAnchorSwitch(null, true);
+        }
     }
 
     function UIInit() {
@@ -1605,7 +1754,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         Logger.info("====等待推文加载====");
         TweetHtml.waitLoad(main, CONFIG_CORE.START_WAIT_TIME * 1000);
     }
-    if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
+    if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT || CONFIG_CORE.SIMULATION_BOT) {
         // 注册脚本函数
         GLOBAL_TOOL.TweetHtml = TweetHtml;
         GLOBAL_TOOL.Tool = Tool;
@@ -1620,7 +1769,7 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
         return new Promise((resolve) => {
             return GLOBAL_TOOL.TweetHtml.waitLoad(
                 (isOK, reason) => resolve([isOK, reason]),
-                timeout,
+                timeout
             );
         });
     }
@@ -1633,50 +1782,52 @@ if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
                 return [false, result[1], result];
             }
             // 推文解析
-            GLOBAL_TOOL.TweetHtml.parsing();
+            nowstatus=GLOBAL_TOOL.TweetHtml.parsing();
+            GLOBAL_TOOL.Logger.debug("推文解析 " + nowstatus);
             // 显示静态元素
+            GLOBAL_TOOL.Logger.debug("显示静态元素");
             GLOBAL_TOOL.TweetHtml.staticAnchorSwitch(null, true);
-            // 移除影响元素
-            GLOBAL_TOOL.TweetHtml.removeSomeDom();
-        } catch (e) {
-            return [false, "未知报错", e.toString()];
-        }
-        if(GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR){
-            GLOBAL_TOOL.Logger.info("烤制模式：文本");
-        }else{
-            GLOBAL_TOOL.Logger.info("烤制模式：字典");
-        }
-        try {
+
+            if(GLOBAL_TOOL.SCREENSHOTS){
+                GLOBAL_TOOL.Logger.info("烤制模式：截图");
+                return [true, "成功", null];
+            }
+            if(GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR){
+                GLOBAL_TOOL.Logger.info("烤制模式：文本");
+            }else{
+                GLOBAL_TOOL.Logger.info("烤制模式：字典");
+            }
+
+            let rtnVal;
             if (GLOBAL_TOOL.TRANS_STR || GLOBAL_TOOL.USE_STR) {
-                let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
+                GLOBAL_TOOL.Logger.info("注入推文 烤制模式：文本");
+                let insert_data = GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null);
+                GLOBAL_TOOL.Logger.debug("注入推文 文本解析完成");
+                rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
-                    GLOBAL_TOOL.TweetHtml.parsingArgStr(GLOBAL_TOOL.TRANS_STR, null),
+                    insert_data
                 );
-                GLOBAL_TOOL.Logger.info("进行最终等待");
-                try {
-                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
-                } catch (e) {
-                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
-                }
-                GLOBAL_TOOL.Logger.info("烤推完成");
-                return rtnVal;
             } else {
-                let rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
+                GLOBAL_TOOL.Logger.info("注入推文 烤制模式：字典");
+                rtnVal = GLOBAL_TOOL.TweetHtml.insertTrans(
                     null,
                     GLOBAL_TOOL.TRANS_DICT
                 );
-                GLOBAL_TOOL.Logger.info("进行最终等待");
-                try {
-                    await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
-                } catch (e) {
-                    GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
-                }
-                GLOBAL_TOOL.Logger.info("烤推完成");
-                return rtnVal;
             }
+            // 移除影响元素
+            GLOBAL_TOOL.Logger.debug("移除影响元素");
+            GLOBAL_TOOL.TweetHtml.removeSomeDom();
+            GLOBAL_TOOL.Logger.debug("进行最终等待");
+            try {
+                await GLOBAL_TOOL.TweetHtml.waitImageComplate(15000);
+            } catch (e) {
+                GLOBAL_TOOL.Logger.warning("等待时报错：" + e.toString());
+            }
+            GLOBAL_TOOL.Logger.info("烤推完成");
+            return rtnVal;
         } catch (e) {
             GLOBAL_TOOL.Logger.info("未知报错：" + e.toString());
-            return [false, "未知报错", e.toString()];
+            return [false, "未知报错，请联系维护者", e.toString()];
         }
     }
     return playwright();

@@ -46,7 +46,9 @@ async def _():
 
     @scheduler.scheduled_job('cron', hour='3', minute='30', name="烤推清理")
     async def _():
+        logger.info("开始烤推清理")
         await twitterTransManage.clear_screenshot_file()
+        logger.info("烤推清理完成")
 
 
 @driver.on_shutdown
@@ -309,10 +311,6 @@ async def _(matcher: Matcher,
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
     tweet = await polling.client.model_tweet_get_or_none(tweet_id)
-    trans_model = await TwitterTransModel.filter(
-        tweet_id=tweet_id,
-        group_mark=await
-        adapter.mark_group_without_drive(bot, event)).order_by("-id").first()
 
     has_perm = await (SUPERUSER | GROUP_ADMIN | GROUP_OWNER)(bot, event)
     if not tweet:
@@ -323,6 +321,12 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
+
+    trans_model = await TwitterTransModel.filter(
+        tweet_id=tweet.id,
+        group_mark=await
+        adapter.mark_group_without_drive(bot, event)).order_by("-id").first()
+
     if tweet.possibly_sensitive and not has_perm:
         await matcher.finish("推文被标记可能存在敏感内容，不予显示。")
     if tweet.id in session.failure_list:
@@ -374,10 +378,10 @@ async def _(matcher: Matcher,
             session: TwitterSession = SessionDepend(TwitterSession),
             adapter: Adapter = AdapterDepend()):
     group_mark = await adapter.mark_group_without_drive(bot, event)
-    if arg.user_search in ("def", "默认", "-") and session.default_sub_id:
+    if arg.user_search in ("def", "默认", "-"):
+        if not session.default_sub_id:
+            await matcher.finish("没有配置默认值哦")
         arg.user_search = session.default_sub_id
-    else:
-        await matcher.finish("没有配置默认值哦")
     user = await get_user_from_search(arg.user_search, True)
     if not user:
         finish_msgs = ["找不到用户哦……", "唔……用户不存在……？"]
@@ -591,10 +595,11 @@ tweet_cache_list = on_command("查看缓存推文列表",
 async def _(matcher: Matcher,
             arg: TweetArg = ArgMatchDepend(TweetArg),
             session: TwitterSession = SessionDepend(TwitterSession)):
-    if arg.user_search in ("def", "默认", "-") and session.default_sub_id:
+    if arg.user_search in ("def", "默认", "-"):
+        if not session.default_sub_id:
+            await matcher.finish("没有配置默认值哦")
         arg.user_search = session.default_sub_id
-    else:
-        await matcher.finish("没有配置默认值哦")
+        
     user = await get_user_from_search(arg.user_search)
     if not user:
         finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
@@ -637,10 +642,10 @@ async def _(matcher: Matcher,
             arg: SubscribeArg = ArgMatchDepend(SubscribeArg),
             session: TwitterSession = SessionDepend(TwitterSession)):
     if arg.user_search in ("def", "默认", "-"):
-        if session.default_sub_id:
-            arg.user_search = session.default_sub_id
-        else:
+        if not session.default_sub_id:
             await matcher.finish("没有配置默认值哦")
+        arg.user_search = session.default_sub_id
+
     user = await get_user_from_search(arg.user_search)
     if not user:
         finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
@@ -1173,7 +1178,7 @@ async def _(matcher: Matcher):
         for status in twitterTransManage.queue.queue_status
     ]
     await matcher.finish(
-        f"当前任务数：{twitterTransManage.queue.queue.qsize()}/{twitterTransManage.queue.queue_size}\n"
+        f"待处理任务数：{twitterTransManage.queue.queue.qsize()}/{twitterTransManage.queue.queue_size}\n"
         f"平均处理时间：{twitterTransManage.queue.avg_deal_ms()/1000:.2f}s\n"
         f"并行处理数：{twitterTransManage.queue.concurrent}\n"
         f"并行处理状态：{'、'.join(status_strs)}")

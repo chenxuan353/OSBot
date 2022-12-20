@@ -190,7 +190,7 @@ class FileStore(BaseStore):
             try:
                 os.makedirs(self.base_path)
             except IOError as e:
-                raise StoreException("目录创建失败！", e)
+                raise StoreException(f"目录 {self.base_path} 创建失败！", e)
 
     def backup_file(self, key: str):
         file_path = os.path.join(self.base_path, key)
