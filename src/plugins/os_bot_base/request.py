@@ -128,13 +128,13 @@ async def _(matcher: Matcher,
     page_keys = keys[(arg.page - 1) * size:arg.page * size]
     for key in page_keys:
         friend = session.friends[key]
-        msg += f"{key} | {adapter.get_unit_nick(friend.user_id)}-{friend.comment[:15] + (friend.comment[15:] and '...')}"
+        msg += f"\n{key if not friend.is_oprate else '★'} | {await adapter.get_unit_nick(friend.user_id)}-{friend.comment[:15] + (friend.comment[15:] and '...')}"
     await matcher.finish(msg)
 
 
 group_request_list = on_command(
     "群请求列表",
-    aliases={"群请求", "加群请求", "群邀请列表", "加群请求列表"},
+    aliases={"群请求", "加群请求", "群邀请列表", "加群请求列表", "群邀请"},
     block=True,
     permission=SUPERUSER,
 )
@@ -165,12 +165,13 @@ async def _(matcher: Matcher,
     page_keys = keys[(arg.page - 1) * size:arg.page * size]
     for key in page_keys:
         group = session.groups[key]
-        msg += f"{key} | {adapter.get_group_nick(group.group_id)}-{group.comment[:15] + (group.comment[15:] and '...')}"
+        msg += f"\n{key if not group.is_oprate else '★'} | {await adapter.get_group_nick(group.group_id)}-{group.comment[:15] + (group.comment[15:] and '...')}"
     await matcher.finish(msg)
 
 
 friend_request_apply = on_command(
     "通过好友请求",
+    aliases={"通过好友邀请"},
     block=True,
     permission=SUPERUSER,
 )
@@ -198,7 +199,7 @@ async def _(matcher: Matcher,
 
 group_request_apply = on_command(
     "通过群请求",
-    aliases={"通过拉群请求", "通过加群请求"},
+    aliases={"通过拉群请求", "通过加群请求", "通过群邀请"},
     block=True,
     permission=SUPERUSER,
 )
