@@ -249,7 +249,7 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
         message = v11.Message(parser.message)
         for msgseg in message:
             if msgseg.is_text():
-                rtnmessage += msgseg
+                rtnmessage += v11.MessageSegment.text(msgseg.data.get("text",""))
             elif msgseg.type == "image":
                 url = msgseg.data.get("file", "")
                 if url.find("/bfs/emote") != -1:
@@ -262,7 +262,7 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
                         download_with_resize_to_base64_invaild(url, 25, 25)
                         rtnmessage += v11.MessageSegment.image(url)
                 else:
-                    rtnmessage += msgseg
+                    rtnmessage += v11.MessageSegment.image(url)
         return rtnmessage
 
 
