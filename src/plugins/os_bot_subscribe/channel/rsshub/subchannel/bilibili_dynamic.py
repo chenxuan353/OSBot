@@ -242,7 +242,16 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
         def handle_image(url: str):
             return v11.MessageSegment.image(url)
 
-        parser = GeneralHTMLParser(handle_image=handle_image)
+        def handle_rstrip(msg: v11.Message):
+            msg.reduce()
+            if msg[-1].is_text():
+                msg[-1].data["text"] = msg[-1].data.get("text","")
+            return msg
+        
+        def handle_text(text):
+            return v11.MessageSegment.text(text)
+
+        parser = GeneralHTMLParser(handle_image=handle_image, handle_rstrip=handle_rstrip, handle_text=handle_text)
 
         parser.feed(text)
         rtnmessage = v11.Message()
