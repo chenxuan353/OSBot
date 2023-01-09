@@ -359,7 +359,7 @@ async def _(matcher: Matcher,
                     return
                 msg += f"\n序列 {trans_model.id}"
                 if adapter.type == trans_model.bot_type:
-                    msg += f"\n由 {adapter.get_unit_nick(trans_model.user_id)}({trans_model.user_id}) 烤制"
+                    msg += f"\n由 {await adapter.get_unit_nick(trans_model.user_id)}({trans_model.user_id}) 烤制"
                 msg += v11.MessageSegment.image(
                     f"base64://{str(base64_data, 'utf-8')}")
     await matcher.finish(msg)
