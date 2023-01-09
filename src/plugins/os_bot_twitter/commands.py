@@ -50,6 +50,12 @@ async def _():
         await twitterTransManage.clear_screenshot_file()
         logger.info("烤推清理完成")
 
+    @scheduler.scheduled_job('cron', hour='4', minute='30', name="自动烤推重启")
+    async def _():
+        logger.info("自动烤推引擎重启")
+        await twitterTransManage.restart()
+        logger.info("烤推引擎重启完成")
+
 
 @driver.on_shutdown
 async def _():
@@ -1319,6 +1325,8 @@ tweet_tran_reload = on_command("重启烤推引擎",
 @tweet_tran_reload.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
+    if not twitterTransManage.twitter_trans._enable:
+        await matcher.finish("引擎离线，可能正在重启！")
     if tweet_tran_reload_inreload:
         await matcher.finish("正在重启，请勿重复使用此命令")
     await matcher.pause(f">>警告，导致烤推功能暂不可用，回复`确认`继续<<")
@@ -1332,7 +1340,10 @@ async def _(matcher: Matcher,
             message: v11.Message = EventMessage()):
     msg = str(message).strip()
     if msg == "确认":
-
+        if not twitterTransManage.twitter_trans._enable:
+            global tweet_tran_reload_inreload
+            tweet_tran_reload_inreload = False
+            await matcher.finish("引擎离线，可能正在重启！")
         async def restart():
             global tweet_tran_reload_inreload
             tweet_tran_reload_inreload = True

@@ -60,6 +60,7 @@ class TwitterTrans:
         self.playwright = await async_playwright().start()
         self.browser_type = self.playwright.chromium
         self.context = await self.browser_type.launch_persistent_context(
+            accept_downloads=False,
             headless=not self.debug,
             proxy=proxy,
             user_data_dir=os.path.join(config.os_data_path, "twitter_trans",
@@ -102,6 +103,8 @@ class TwitterTrans:
 
             返回值：截图文件名
         """
+        if not self._enable:
+            raise TransException("烤推引擎已关闭")
         if not self.script_str:
             raise TransException("烤推脚本未加载！")
         if trans is None and trans_str is None:
@@ -200,6 +203,8 @@ class TwitterTransManage:
             返回值 可等待对象，需等待的队伍数量，预计等待时间
             异常 QueueFullException
         """
+        if not self.twitter_trans._enable:
+            raise TransException("烤推引擎离线，可能在重启哦")
         return self.queue.submit(
             self.twitter_trans.trans(tweet_id,
                                      trans=trans,
