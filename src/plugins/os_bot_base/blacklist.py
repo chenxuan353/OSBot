@@ -11,7 +11,7 @@ from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot import v11
-from nonebot.params import CommandArg
+from nonebot.params import EventMessage
 from nonebot.exception import IgnoredException, MockApiException
 from nonebot.message import event_preprocessor
 from .argmatch import ArgMatch, Field
@@ -99,7 +99,7 @@ async def _(matcher: Matcher,
 @ban_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
-            message: v11.Message = CommandArg(),
+            message: v11.Message = EventMessage(),
             session: BlackSession = SessionPluginDepend(BlackSession)):
     msg = str(message).strip()
     if msg == "确认清空":
