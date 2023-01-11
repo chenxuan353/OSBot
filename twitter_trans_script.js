@@ -1000,6 +1000,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 quote_cover: false,  // 转评覆盖
                 template: template,  // 烤推模版(Html)
                 disable_separator: false,  // 禁用分隔符
+                keep_logo: false,  // 保持logo显示 
                 levels: {   // 待注入的数据
                     1:{
                         key: 1,
@@ -1041,6 +1042,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     main_cover: trans.main_cover || false,
                     template_disable: trans.template_disable || false,
                     disable_separator: trans.disable_separator || false,
+                    keep_logo: trans.keep_logo || false,
                 };
                 // 创建DOM的函数 tweettext transtype
                 let createInsertDom = function (type, data) {
@@ -1183,7 +1185,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 };
                 // 翻译标识注入 参数 原始dom，元素标识，元素内容
                 let insertTransFlag = function (sourcedom, data) {
-                    if (parseText) {
+                    if (parseText && data && data != '') {
                         data = TweetHtml.textparse(data, true);
                         Logger.debug("翻译标识解析完毕");
                     }
@@ -1206,6 +1208,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 let inTweetAnchors;
                 let tweetAnchor;
                 let tranlevel;
+                let autoType = false;
 
                 // 注入预处理
                 if (trans.levels["last"] || trans.levels["main"]) {
@@ -1229,6 +1232,14 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         if (!trans.levels[elartCount]) {
                             if (i != 0) {
                                 tweetAnchor.dom.style.display = "none";
+                            }
+                            if (i == 0 && j == inTweetAnchors.length - 1) {
+                                if(trans.keep_logo || autoType){
+                                    insertTransFlag(
+                                        tweetAnchor.textAnchors[0].dom,
+                                        trans.template || "",
+                                    );
+                                }
                             }
                             continue;
                         }
@@ -1262,6 +1273,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                     true,
                                 );
                             } else {
+                                autoType = true;
                                 Logger.debug("INSERT 回复注入");
                                 insertTextData(
                                     coverconfig.replay_cover,
@@ -1299,6 +1311,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 k++
                             ) {
                                 if (tweetAnchor.imgAnchors[k]) {
+                                    autoType = true;
                                     if (tranlevel.img[k + 1]) {
                                         insertMediaData(
                                             tweetAnchor.imgAnchors[k].dom,
@@ -1317,6 +1330,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 k++
                             ) {
                                 if (tweetAnchor.voteAnchors[k]) {
+                                    autoType = true;
                                     if (tranlevel.vote[k + 1]) {
                                         insertVoteData(
                                             tweetAnchor.voteAnchors[k].dom,
@@ -1573,6 +1587,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         expre: /^禁用分隔符?/,
                         default: () => true,
                         value: (match) => "disable_separator",
+                    },
+                    {
+                        mark: "config",
+                        expre: /^保持logo显示/,
+                        default: () => true,
+                        value: (match) => "keep_logo",
                     },
                 ],
             };
