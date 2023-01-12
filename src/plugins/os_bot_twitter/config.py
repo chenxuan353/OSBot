@@ -13,6 +13,20 @@ if TYPE_CHECKING:
 
 
 class Config(BaseSettings):
+    os_twitter_stream_enable: bool = Field(default=True)
+    """
+        是否启用流式监听
+
+        启用流式监听后轮询将被禁用
+    """
+    os_twitter_stream_rule_limit: int = Field(default=5)
+    """
+        推特流式监听规则限制
+
+        一个规则约可监听18个账户，目前推特开发者基础版本是5个规则，提升版本是25个规则。
+        可监听数量大致为90个及450个。
+    """
+
     os_twitter_poll_enable: bool = Field(default=True)
     """是否启用轮询"""
     os_twitter_poll_interval: int = Field(default=15)

@@ -12,7 +12,7 @@ from nonebot_plugin_apscheduler import scheduler
 from tweepy import TweepyException
 from cacheout import Cache
 from cacheout.memoization import memoize
-from .twitter import AsyncTwitterClient, TwitterUpdate, TwitterTweetModel, TwitterUserModel, TwitterSubscribeModel, TweetTypeEnum, TwitterDatabaseException
+from .twitter import AsyncTwitterClient, TwitterUpdate, TwitterTweetModel, TwitterUserModel, TwitterSubscribeModel, TweetTypeEnum, TwitterDatabaseException, AsyncTwitterStream
 from .logger import logger
 from .config import config, TwitterPlugSession, TwitterSession
 from .exception import TwitterPollingSendError
@@ -546,6 +546,7 @@ class PollTwitterUpdate(TwitterUpdate):
 # 进行初始化
 session: TwitterPlugSession = None  # type: ignore
 client: AsyncTwitterClient = None  # type: ignore
+stream: AsyncTwitterStream = None  # type: ignore
 
 
 async def update_all_listener():
@@ -593,43 +594,76 @@ async def user_follow_and_update(id: str) -> bool:
         return False
     listeners = await _model_get_listeners()
     if id not in listeners:
-        try:
-            user = await client.model_user_get_or_none(id)
-            if not user:
-                logger.error(" {} 用户信息不存在，已取消关注操作", id)
+        if config.os_twitter_poll_enable and not config.os_twitter_stream_enable:
+            try:
+                user = await client.model_user_get_or_none(id)
+                if not user:
+                    logger.error(" {} 用户信息不存在，已取消关注操作", id)
+                    return False
+                if user.protected:
+                    logger.error(" {} 的时间线，受保护，已取消关注操作", id)
+                    return False
+                if id not in session.following_list:
+                    # 只关注没有关注的新用户
+                    await client.self_following(id)
+                    session.following_list.append(id)
+                    await session.save()
+                    # 同时更新时间线
+                    await client.get_timeline(id=id)
+                    logger.info("已关注并初始化 {}@{} 的时间线", user.name, user.username)
+                return True
+            except MatcherErrorFinsh as e:
+                raise e
+            except Exception as e:
+                logger.opt(exception=True).error("关注用户时异常")
                 return False
-            if user.protected:
-                logger.error(" {} 的时间线，受保护，已取消关注操作", id)
-                return False
-            if id not in session.following_list:
-                # 只关注没有关注的新用户
-                await client.self_following(id)
-                session.following_list.append(id)
-                await session.save()
-                # 同时更新时间线
-                await client.get_timeline(id=id)
-                logger.info("已关注并初始化 {}@{} 的时间线", user.name, user.username)
-            return True
-        except MatcherErrorFinsh as e:
-            raise e
-        except Exception as e:
-            logger.opt(exception=True).error("关注用户时异常")
-            return False
+        elif config.os_twitter_stream_enable:
+            # 流式推送仅更新时间线
+            await client.get_timeline(id=id)
     return True
 
 
 @driver.on_startup
 async def _():
-    global session, client
-    if not config.os_twitter_poll_enable:
-        logger.warning("推特轮询关闭！已取消轮询初始化。")
-        return
+    global session, client, stream
     logger.info("推特功能初始化")
     # 进行初始化
     session = await get_plugin_session(TwitterPlugSession)  # type: ignore
     session._keep = True
     PollTwitterUpdate.session = session
     client = AsyncTwitterClient(PollTwitterUpdate)
+    stream = AsyncTwitterStream(client)
+
+    if config.os_twitter_stream_enable:
+        logger.info("推特流式功能初始化")
+        async def stream_startup():
+            strat_time = time()
+            listeners = await _model_get_listeners()
+            logger.debug("推特流式监听规则加载")
+            try:
+                await stream.reload_listeners(listeners)
+            except (TweepyException, asyncio.exceptions.TimeoutError,
+                    aiohttp.ClientError) as e:
+                logger.info("加载流式规则失败，将在60秒后重试")
+                await asyncio.sleep(60.1)
+                await stream.reload_listeners(listeners)
+            await asyncio.sleep(15)
+            logger.debug("推特流式监听尝试连接")
+            await stream.connect()
+            logger.info("推特时间线启动检测开始")
+            strat_deal_time = time()
+            await update_all_listener()
+            logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
+            logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
+        # 必须加载完成
+        await stream_startup()
+
+    if config.os_twitter_stream_enable and config.os_twitter_poll_enable:
+        logger.warning("流式监听已启用，轮询任务强制关闭。")
+        return
+    if not config.os_twitter_poll_enable:
+        logger.warning("推特轮询关闭！已取消轮询初始化。")
+        return
 
     async def startup_follow_listener():
         try:

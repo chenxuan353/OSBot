@@ -4,11 +4,12 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 import aiohttp
 from yarl import URL
 from tortoise.exceptions import BaseORMException
-from tweepy.asynchronous import AsyncClient
-from tweepy import User, Tweet, Poll, Media, OAuth1UserHandler, TweepyException
+from tweepy.asynchronous import AsyncClient, AsyncStreamingClient as BaseAsyncStreamingClient
+from tweepy import User, Tweet, Poll, Media, OAuth1UserHandler, TweepyException, StreamRule
 from requests_oauthlib import OAuth1Session
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
+from collections import deque
 
 from .model import TwitterTweetModel, TwitterUserModel, TweetTypeEnum, TwitterSubscribeModel
 from .logger import logger
@@ -28,30 +29,14 @@ class ProxyClientRequest(aiohttp.ClientRequest):
 class TwitterBuckets:
 
     def __init__(self) -> None:
-        self.get_user = AsyncTokenBucket(200,
-                                         15 * 60,
-                                         initval=5)
-        self.get_users = AsyncTokenBucket(200,
-                                          15 * 60,
-                                          initval=5)
-        self.get_tweet = AsyncTokenBucket(200,
-                                          15 * 60,
-                                          initval=5)
-        self.get_timeline = AsyncTokenBucket(500,
-                                             15 * 60,
-                                             initval=5)
-        self.self_timeline = AsyncTokenBucket(150,
-                                              15 * 60,
-                                              initval=5)
-        self.self_following_list = AsyncTokenBucket(10,
-                                                    15 * 60,
-                                                    initval=5)
-        self.self_following = AsyncTokenBucket(30,
-                                               15 * 60,
-                                               initval=1)
-        self.self_unfollowing = AsyncTokenBucket(30,
-                                                 15 * 60,
-                                                 initval=1)
+        self.get_user = AsyncTokenBucket(200, 15 * 60, initval=5)
+        self.get_users = AsyncTokenBucket(200, 15 * 60, initval=5)
+        self.get_tweet = AsyncTokenBucket(200, 15 * 60, initval=5)
+        self.get_timeline = AsyncTokenBucket(500, 15 * 60, initval=5)
+        self.self_timeline = AsyncTokenBucket(150, 15 * 60, initval=5)
+        self.self_following_list = AsyncTokenBucket(10, 15 * 60, initval=5)
+        self.self_following = AsyncTokenBucket(30, 15 * 60, initval=1)
+        self.self_unfollowing = AsyncTokenBucket(30, 15 * 60, initval=1)
 
 
 class TwitterUpdate:
@@ -61,7 +46,7 @@ class TwitterUpdate:
     client: "AsyncTwitterClient"
 
     def __init__(self) -> None:
-        self.ignore_new_time = 4*3600
+        self.ignore_new_time = 4 * 3600
         """
             推文创建多长时间后忽略新增事件，单位秒
         """
@@ -126,19 +111,23 @@ class TwitterUpdate:
 async def model_tweet_get_or_none(tweet_id: str):
     return await TwitterTweetModel.get_or_none(id=tweet_id)
 
+
 def model_tweet_get_or_none_update(tweet_id: str, model: TwitterTweetModel):
     key = model_tweet_get_or_none.cache_key(tweet_id)
     model_tweet_get_or_none.cache.set(key, model, None)
     # logger.debug("model_tweet_get_or_none 更新缓存 {}", tweet_id)
 
+
 @lru_memoize(maxsize=256)
 async def model_user_get_or_none(user_id: str):
     return await TwitterUserModel.get_or_none(id=user_id)
+
 
 def model_user_get_or_none_update(user_id: str, model: TwitterUserModel):
     key = model_user_get_or_none.cache_key(user_id)
     model_user_get_or_none.cache.set(key, model, None)
     # logger.debug("model_user_get_or_none_update 更新缓存 {}", user_id)
+
 
 class AsyncTwitterClient:
     """
@@ -175,7 +164,11 @@ class AsyncTwitterClient:
     async def tweet_get_type(self, tweet: Tweet) -> TweetTypeEnum:
         if tweet.referenced_tweets:
             if len(tweet.referenced_tweets) > 1:
-                if tweet.referenced_tweets[0].type in ["quoted", "replied_to"] and tweet.referenced_tweets[0].type in ["quoted", "replied_to"]:
+                if tweet.referenced_tweets[0].type in [
+                        "quoted", "replied_to"
+                ] and tweet.referenced_tweets[0].type in [
+                        "quoted", "replied_to"
+                ]:
                     return TweetTypeEnum.quote_replay
                 raise TwitterException(f"推文 {tweet.id} 存在两个及以上的 推文类型标识")
             if tweet.referenced_tweets[0].type == "retweeted":
@@ -233,13 +226,15 @@ class AsyncTwitterClient:
     async def model_tweet_get_or_none(self, tweet_id: str):
         return await model_tweet_get_or_none(tweet_id)
 
-    def model_tweet_get_or_none_update(self, tweet_id: str, model: TwitterTweetModel):
+    def model_tweet_get_or_none_update(self, tweet_id: str,
+                                       model: TwitterTweetModel):
         model_tweet_get_or_none_update(tweet_id, model)
 
     async def model_user_get_or_none(self, user_id: str):
         return await model_user_get_or_none(user_id)
 
-    def model_user_get_or_none_update(self, user_id: str, model: TwitterUserModel):
+    def model_user_get_or_none_update(self, user_id: str,
+                                      model: TwitterUserModel):
         model_user_get_or_none_update(user_id, model)
 
     def invalid_cache(self):
@@ -276,12 +271,14 @@ class AsyncTwitterClient:
                 if not tweet_model:
                     tweet_model = TwitterTweetModel(id=f"{tweet.id}")
                     # 更新缓存
-                    self.model_tweet_get_or_none_update(f"{tweet.id}", tweet_model)
+                    self.model_tweet_get_or_none_update(
+                        f"{tweet.id}", tweet_model)
             tweet_model.minor_data = is_minor
             tweet_model.author_id = f"{tweet.author_id}"
             tweet_model.type = await self.tweet_get_type(tweet)
             tweet_model.text = str(tweet.text)
-            tweet_model.text = tweet_model.text.replace('&lt;', '<').replace('&gt;', '>')
+            tweet_model.text = tweet_model.text.replace('&lt;', '<').replace(
+                '&gt;', '>')
             tweet_model.display_text = await self.render_text(
                 tweet.text, tweet.entities,
                 tweet_model.type == TweetTypeEnum.tweet)
@@ -313,12 +310,14 @@ class AsyncTwitterClient:
                     if not tweet_model.minor_data:
                         tweet_model.minor_data = True
                         logger.warning(
-                            f"[tweet conversion] `{tweet.id}`缺失引用推文！可能的原因：原文被删除")
+                            f"[tweet conversion] `{tweet.id}`缺失引用推文！可能的原因：原文被删除"
+                        )
                 if not tweet_model.referenced_tweet_author_name:
                     if not tweet_model.minor_data:
                         tweet_model.minor_data = True
                         logger.warning(
-                            f"[tweet conversion] `{tweet.id}`缺失引用推文的用户数据！可能的原因：用户封禁")
+                            f"[tweet conversion] `{tweet.id}`缺失引用推文的用户数据！可能的原因：用户封禁"
+                        )
 
             # 处理附件(投票、图片、视频等)
             if tweet.attachments:
@@ -365,7 +364,7 @@ class AsyncTwitterClient:
                             mention.get("id"))  # type: ignore
         else:
             old_model = tweet_model.clone(tweet_model.pk)
-        # 数据更新 
+        # 数据更新
         tweet_model.auto = auto
         tweet_model.possibly_sensitive = tweet.possibly_sensitive is True
         if tweet.public_metrics:
@@ -410,8 +409,8 @@ class AsyncTwitterClient:
 
         if user.public_metrics:
             public_metrics: Dict[str, int] = user.public_metrics
-            followers_count = public_metrics.get(
-                "followers_count", user_model.followers_count)
+            followers_count = public_metrics.get("followers_count",
+                                                 user_model.followers_count)
             if followers_count > user_model.followers_count or user_model.followers_count - followers_count > 10000:
                 user_model.followers_count = followers_count
             user_model.following_count = public_metrics.get(
@@ -546,21 +545,24 @@ class AsyncTwitterClient:
             try:
                 await self.conversion_user(user)
             except BaseORMException as e:
-                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-用户 {user.id}",
-                                               cause=e)
+                raise TwitterDatabaseException(
+                    f"数据库异常！位于：timeline处理-用户 {user.id}", cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException(f"意外的错误，可能是转换失败导致。 timeline处理-用户 {user.id}", cause=e)
+                    raise TwitterException(
+                        f"意外的错误，可能是转换失败导致。 timeline处理-用户 {user.id}", cause=e)
 
         for tweet in tweets:
             try:
                 await self.conversion_tweet(tweet, includes, auto=auto)
             except BaseORMException as e:
-                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-次要推文 {tweet.id}",
-                                               cause=e)
+                raise TwitterDatabaseException(
+                    f"数据库异常！位于：timeline处理-次要推文 {tweet.id}", cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException(f"意外的错误，可能是转换失败导致。位于：timeline处理-次要推文 {tweet.id}", cause=e)
+                    raise TwitterException(
+                        f"意外的错误，可能是转换失败导致。位于：timeline处理-次要推文 {tweet.id}",
+                        cause=e)
 
         # 处理主体
         for res_tweet in res_tweets:
@@ -571,11 +573,13 @@ class AsyncTwitterClient:
                                                            is_minor=False,
                                                            auto=auto))
             except BaseORMException as e:
-                raise TwitterDatabaseException(f"数据库异常！位于：timeline处理-主数据 {res_tweet.id}",
-                                               cause=e)
+                raise TwitterDatabaseException(
+                    f"数据库异常！位于：timeline处理-主数据 {res_tweet.id}", cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException(f"意外的错误，可能是转换失败导致。 位于：timeline处理-主数据 {res_tweet.id}", cause=e)
+                    raise TwitterException(
+                        f"意外的错误，可能是转换失败导致。 位于：timeline处理-主数据 {res_tweet.id}",
+                        cause=e)
 
         return return_tweets
 
@@ -658,7 +662,8 @@ class AsyncTwitterClient:
                     f"数据库异常！位于：self_following_list处理 {user.id}", cause=e)
             except Exception as e:
                 if not ignore_exception:
-                    raise TwitterException(f"意外的错误，可能是转换失败导致。 {user.id}", cause=e)
+                    raise TwitterException(f"意外的错误，可能是转换失败导致。 {user.id}",
+                                           cause=e)
 
         tweets: Optional[List[Tweet]] = includes.get("tweets", [])
         if tweets:
@@ -743,3 +748,171 @@ class AsyncTwitterClient:
             return oauth1_user_handler.access_token, oauth1_user_handler.access_token_secret
         except Exception as e:
             raise TweepyException(e)
+
+
+class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
+
+    def __init__(self,
+                 bearer_token,
+                 async_stream: "AsyncTwitterStream",
+                 *,
+                 return_type=...,
+                 wait_on_rate_limit=False,
+                 **kwargs):
+        super().__init__(bearer_token,
+                         return_type=return_type,
+                         wait_on_rate_limit=wait_on_rate_limit,
+                         **kwargs)
+        self.running = False
+        self.async_stream = async_stream
+        self.client = async_stream.client
+        self.error = deque(maxlen=10)  # 记录五次错误
+
+    async def on_connect(self):
+        self.running = True
+        self.connect_error_clear()
+        logger.info("推特过滤流已连接！")
+
+    async def on_tweet(self, tweet: Tweet):
+        await self.client.get_tweet(f"{tweet.id}")
+
+    async def on_includes(self, includes):
+        users: List[User] = includes.get("users", [])
+        for user in users:
+            try:
+                await self.client.conversion_user(user)
+            except Exception as e:
+                logger.opt(exception=True).error("推特流式传输中转换用户对象异常 {}", e)
+
+    async def on_exception(self, exception):
+        self.connect_error(exception)
+        if isinstance(exception, asyncio.TimeoutError):
+            logger.warning("推特过滤流超时，在10秒后重试")
+            await asyncio.sleep(10)
+            await self.connect_retry()
+            return
+        logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
+
+    async def on_errors(self, errors):
+        logger.warning("推特过滤流错误 errors:{}", errors)
+
+    async def on_closed(self, resp):
+        self.running = False
+        logger.error("推特过滤流被推特关闭，在10秒后尝试重连 {}", resp)
+        self.connect_error(resp)
+        await asyncio.sleep(10)
+        await self.connect_retry()
+
+    async def on_disconnect(self):
+        self.running = False
+        logger.info("推特过滤流已断开连接")
+
+    async def on_connection_error(self):
+        logger.warning("推特流式传输连接失败，连接超时！ (或发生 ClientPayloadError)")
+
+    def isrunning(self):
+        return self.running
+
+    def connect_error(self, error: Any):
+        self.error.append((time(), error))
+
+    def connect_error_count(self):
+        """
+            统计五分钟以内发生的错误
+        """
+        count = 0
+        now_time = time()
+        for error in self.error:
+            if now_time - error[0] < 300:
+                count += 1
+        return count
+
+    def connect_error_clear(self):
+        self.error.clear()
+
+    async def connect_retry(self):
+        """
+            连接重试机制
+
+            意外断开时的重试 规则 - 至多尝试五次。
+        """
+        if self.connect_error_count() >= 5:
+            logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
+            return
+        if not self.isrunning():
+            await self.async_stream.connect()
+
+
+class AsyncTwitterStream:
+
+    def __init__(self, client: AsyncTwitterClient) -> None:
+        self.client = client
+        self.stream = AsyncTweetUpdateStreamingClient(
+            config.os_twitter_bearer,
+            self,
+            wait_on_rate_limit=True,
+            max_retries=3,
+            proxy=URL(config.os_twitter_proxy),
+        )
+        self.stream.session = aiohttp.ClientSession(  # type: ignore
+            request_class=ProxyClientRequest)
+
+        self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,referenced_tweets.id.author_id"
+        self.tweet_fields = (
+            "id,text,edit_history_tweet_ids,attachments,author_id,conversation_id,created_at,entities,"
+            "in_reply_to_user_id,lang,possibly_sensitive,public_metrics,referenced_tweets,reply_settings"
+        )
+        self.user_fields = "id,name,username,created_at,description,entities,pinned_tweet_id,profile_image_url,protected,public_metrics,verified"
+        self.media_fields = "media_key,type,url,duration_ms,width,height,preview_image_url,public_metrics,variants"
+        self.poll_fields = "id,options,end_datetime,voting_status"
+
+    async def reload_listeners(self, listeners: List[str]):
+        """
+            重设监听列表
+        """
+        try:
+            ids = [
+                rule.id for rule in (
+                    await self.stream.get_rules()).data  # type: ignore
+            ]
+        except TypeError:
+            ids = []
+        if ids:
+            await self.stream.delete_rules(ids)
+
+        listeners_rules = []
+        listeners_line = ""
+        for listener in listeners:
+            add_one = f"from:{listener} OR "
+            if len(listeners_line) + len(add_one) - 4 >= 512:
+                listeners_rules.append(StreamRule(value=listeners_line[:-4]))
+                listeners_line = ""
+            listeners_line += add_one
+
+        if listeners_line:
+            listeners_rules.append(StreamRule(value=listeners_line[:-4]))
+
+        if len(listeners_rules) > config.os_twitter_stream_rule_limit:
+            logger.error("规则数量超限！将产生截断。当前监听总数：{} 生成规则数：{}", len(listeners),
+                         len(listeners_rules))
+            listeners_rules = listeners_rules[:config.
+                                              os_twitter_stream_rule_limit]
+        else:
+            if len(listeners) > config.os_twitter_stream_rule_limit * 18 - 15:
+                logger.warning("监听数量即将达到当前允许的上限，请注意维护监听列表！ 当前监听总数：{}",
+                               len(listeners))
+
+        await self.stream.add_rules(listeners_rules)
+
+    async def connect(self):
+        self.stream.filter(expansions=self.tweet_expansions,
+                           tweet_fields=self.tweet_fields,
+                           user_fields=self.user_fields,
+                           media_fields=self.media_fields,
+                           poll_fields=self.poll_fields)
+
+    async def reconnect(self):
+        if self.stream.isrunning():
+            self.stream.disconnect()
+            await asyncio.sleep(10)
+        await self.connect()
