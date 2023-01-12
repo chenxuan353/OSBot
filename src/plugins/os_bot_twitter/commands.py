@@ -465,6 +465,7 @@ async def _(matcher: Matcher,
 
 
 subscribe_list_global = on_command("全局推特订阅列表",
+                                   aliases={"全局转推列表"},
                                    permission=SUPERUSER,
                                    block=True)
 
@@ -495,7 +496,7 @@ async def _(matcher: Matcher,
                                                                 flat=True)
 
     users = await TwitterUserModel.filter(Q(id__in=subscribes)).order_by("-id")
-    msg = f"{arg.page}/{maxpage}"
+    msg = f"{arg.page}/{maxpage} ({subscribes_count})"
     for user in users:
         msg += f"\n{user.name}@{user.username}"
     await matcher.finish(msg)
@@ -789,7 +790,11 @@ class TransArg(ArgMatch):
         name = "烤推参数"
         des = "烤推参数"
 
-    tweet_str: str = Field.Regex("推文链接、序号", regex=r"(((http|https):\/{2})?(mobile.)?twitter.com(\/(([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?)|[1-9][0-9]*")
+    tweet_str: str = Field.Regex(
+        "推文链接、序号",
+        regex=
+        r"(((http|https):\/{2})?(mobile.)?twitter.com(\/(([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?)|[1-9][0-9]*"
+    )
 
     def __init__(self) -> None:
         super().__init__([self.tweet_str])
