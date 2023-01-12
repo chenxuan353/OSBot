@@ -342,6 +342,7 @@ async def _(matcher: Matcher,
     finish_msgs = ["看看我发现了什么~\n", "合 成 推 文\n", "找到了\n"]
     msg = (v11.Message(finish_msgs[random.randint(0,
                                                   len(finish_msgs) - 1)]) +
+           f"ID：{tweet.id}" +
            await update.tweet_to_message(tweet, None, adapter.type, False))
     if trans_model:
         # adapter.get_unit_nick()
@@ -608,7 +609,7 @@ async def _(matcher: Matcher,
         if not session.default_sub_id:
             await matcher.finish("没有配置默认值哦")
         arg.user_search = session.default_sub_id
-        
+
     user = await get_user_from_search(arg.user_search)
     if not user:
         finish_msgs = ["找不到用户哦……", "可能还没有订阅过哦！"]
@@ -639,10 +640,11 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-tweet_def_user_set = on_command("默认推特用户",
-                              aliases={"设置默认推特用户", "默认推特用户设置", "配置默认推特用户", "默认推特用户配置"},
-                              permission=SUPERUSER,
-                              block=True)
+tweet_def_user_set = on_command(
+    "默认推特用户",
+    aliases={"设置默认推特用户", "默认推特用户设置", "配置默认推特用户", "默认推特用户配置"},
+    permission=SUPERUSER,
+    block=True)
 
 
 @tweet_def_user_set.handle()
@@ -787,7 +789,7 @@ class TransArg(ArgMatch):
         name = "烤推参数"
         des = "烤推参数"
 
-    tweet_str: str = Field.Str("推文链接、序号")
+    tweet_str: str = Field.Regex("推文链接、序号", regex=r"(((http|https):\/{2})?(mobile.)?twitter.com(\/(([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?)|[1-9][0-9]*")
 
     def __init__(self) -> None:
         super().__init__([self.tweet_str])
@@ -879,7 +881,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         user = await get_user_from_search(tweet_username)
         if user and user.id in session_plug.blacklist_following_list:
             logger.info("用户被禁用，烤推操作取消 QQ {} -> user {}", event.user_id,
-                         user.username)
+                        user.username)
             await matcher.finish()
     tweet_tran_str = arg.tail
     template = ""
@@ -1275,20 +1277,21 @@ tweet_tran_help = on_command("烤推帮助",
 @tweet_tran_help.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
-    await matcher.finish("格式\n"
-                         "##序号/推文链接 ##标记 内容\n"
-                         "正文标记：回复、引用、图片、投票、层x\n"
-                         "选项：覆盖、回复、模版\n"
-                         "标记为空时默认为回复或主推文，序号之后的空格(或者换行)是必要的，标记后可以不包含空格\n"
-                         "默认情况下不覆盖，默认模版为翻译自日语\n"
-                         "例\n"
-                         "烤推 ##序号 内容\n"
-                         "烤转评 ##序号 内容 ##引用 看这里\n"
-                         "烤投票 ##序号 精神状态 ##投票1 摸鱼 ##投票2 开摆desu ##投票3 活着\n"
-                         "烤回复 ##序号 ##阿哲 ##引用 如果有引用推文，可以这样烤 ##这是回复1 ##这是回复2\n"
-                         "注意，回复超过回复链时会自动截断，烤制指定回复可以使用层x标记(x为整数)\n"
-                         ">警告< 译文前两个字与标记重复时将产生识别错误，可通过在译文前添加\\i解决 例如 ##\\i图片 不会被识别为图片标记"
-                         "管理员通过`设置烤推模版 内容`可以设置默认参数")
+    await matcher.finish(
+        "格式\n"
+        "##序号/推文链接 ##标记 内容\n"
+        "正文标记：回复、引用、图片、投票、层x\n"
+        "选项：覆盖、回复、模版\n"
+        "标记为空时默认为回复或主推文，序号之后的空格(或者换行)是必要的，标记后可以不包含空格\n"
+        "默认情况下不覆盖，默认模版为翻译自日语\n"
+        "例\n"
+        "烤推 ##序号 内容\n"
+        "烤转评 ##序号 内容 ##引用 看这里\n"
+        "烤投票 ##序号 精神状态 ##投票1 摸鱼 ##投票2 开摆desu ##投票3 活着\n"
+        "烤回复 ##序号 ##阿哲 ##引用 如果有引用推文，可以这样烤 ##这是回复1 ##这是回复2\n"
+        "注意，回复超过回复链时会自动截断，烤制指定回复可以使用层x标记(x为整数)\n"
+        ">警告< 译文前两个字与标记重复时将产生识别错误，可通过在译文前添加\\i解决 例如 ##\\i图片 不会被识别为图片标记"
+        "管理员通过`设置烤推模版 内容`可以设置默认参数")
 
 
 tweet_help = on_command("转推配置帮助",
@@ -1345,6 +1348,7 @@ async def _(matcher: Matcher,
             global tweet_tran_reload_inreload
             tweet_tran_reload_inreload = False
             await matcher.finish("引擎离线，可能正在重启！")
+
         async def restart():
             global tweet_tran_reload_inreload
             tweet_tran_reload_inreload = True
