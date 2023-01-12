@@ -788,8 +788,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         self.connect_error(exception)
         if isinstance(exception, asyncio.TimeoutError):
             logger.warning("推特过滤流超时，在10秒后重试")
-            await asyncio.sleep(10)
-            await self.connect_retry()
+            await self.connect_retry(delay = 10)
             return
         logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
 
@@ -800,8 +799,8 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         self.running = False
         logger.error("推特过滤流被推特关闭，在10秒后尝试重连 {}", resp)
         self.connect_error(resp)
-        await asyncio.sleep(10)
-        await self.connect_retry()
+        await self.connect_retry(delay = 10)
+            
 
     async def on_disconnect(self):
         self.running = False
@@ -830,17 +829,22 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     def connect_error_clear(self):
         self.error.clear()
 
-    async def connect_retry(self):
+    async def connect_retry(self, delay: int = 5):
         """
-            连接重试机制
+            连接重试机制（异步）
+
+            delay 延迟几秒执行
 
             意外断开时的重试 规则 - 至多尝试五次。
         """
-        if self.connect_error_count() >= 5:
-            logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
-            return
-        if not self.isrunning():
-            await self.async_stream.connect()
+        async def wait():
+            await asyncio.sleep(delay)
+            if self.connect_error_count() >= 5:
+                logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
+                return
+            if not self.isrunning():
+                await self.async_stream.connect()
+        asyncio.gather(wait())
 
 
 class AsyncTwitterStream:
