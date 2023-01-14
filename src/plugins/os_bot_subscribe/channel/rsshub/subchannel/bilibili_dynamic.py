@@ -243,6 +243,8 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
             return v11.MessageSegment.image(url)
 
         def handle_rstrip(msg: v11.Message):
+            if isinstance(msg, str):
+                return msg.strip()
             msg.reduce()
             if msg[-1].is_text():
                 msg[-1].data["text"] = msg[-1].data.get("text","")
