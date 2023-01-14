@@ -890,7 +890,7 @@ class AsyncTwitterStream:
         listeners_rules = []
         listeners_line = ""
         for listener in listeners:
-            add_one = f"from:{listener} OR "
+            add_one = f"from:{listener} -is:nullcast OR "
             if len(listeners_line) + len(add_one) - 4 >= 512:
                 listeners_rules.append(StreamRule(value=listeners_line[:-4]))
                 listeners_line = ""
@@ -905,7 +905,7 @@ class AsyncTwitterStream:
             listeners_rules = listeners_rules[:config.
                                               os_twitter_stream_rule_limit]
         else:
-            if len(listeners) > config.os_twitter_stream_rule_limit * 18 - 15:
+            if len(listeners) > config.os_twitter_stream_rule_limit * 13 - 10:
                 logger.warning("监听数量即将达到当前允许的上限，请注意维护监听列表！ 当前监听总数：{}",
                                len(listeners))
 

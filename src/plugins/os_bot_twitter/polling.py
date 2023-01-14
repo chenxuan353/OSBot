@@ -618,8 +618,10 @@ async def user_follow_and_update(id: str) -> bool:
                 logger.opt(exception=True).error("关注用户时异常")
                 return False
         elif config.os_twitter_stream_enable:
-            # 流式推送仅更新时间线
+            # 流式推送的情况下将更新时间线并更新规则
             await client.get_timeline(id=id)
+            listeners.append(id)
+            await stream.reload_listeners(listeners)
     return True
 
 
