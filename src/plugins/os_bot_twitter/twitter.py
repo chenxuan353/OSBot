@@ -490,8 +490,10 @@ class AsyncTwitterClient:
 
         return return_users
 
-    async def get_tweet(self, id: str) -> Optional[TwitterTweetModel]:
-        if not await self.token_buckets.get_tweet.consume(1):
+    async def get_tweet(self,
+                        id: str,
+                        use_limit: bool = True) -> Optional[TwitterTweetModel]:
+        if not await self.token_buckets.get_tweet.consume(1) and use_limit:
             raise RatelimitException("速率限制")
 
         tweetResponse = await self.client.get_tweet(
@@ -774,7 +776,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         logger.info("推特过滤流已连接！")
 
     async def on_tweet(self, tweet: Tweet):
-        await self.client.get_tweet(f"{tweet.id}")
+        await self.client.get_tweet(f"{tweet.id}", use_limit=False)
 
     async def on_includes(self, includes):
         users: List[User] = includes.get("users", [])
@@ -788,7 +790,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         self.connect_error(exception)
         if isinstance(exception, asyncio.TimeoutError):
             logger.warning("推特过滤流超时，在10秒后重试")
-            await self.connect_retry(delay = 10)
+            await self.connect_retry(delay=10)
             return
         logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
 
@@ -799,8 +801,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         self.running = False
         logger.error("推特过滤流被推特关闭，在10秒后尝试重连 {}", resp)
         self.connect_error(resp)
-        await self.connect_retry(delay = 10)
-            
+        await self.connect_retry(delay=10)
 
     async def on_disconnect(self):
         self.running = False
@@ -837,6 +838,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
             意外断开时的重试 规则 - 至多尝试五次。
         """
+
         async def wait():
             await asyncio.sleep(delay)
             if self.connect_error_count() >= 5:
@@ -844,6 +846,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
                 return
             if not self.isrunning():
                 await self.async_stream.connect()
+
         asyncio.gather(wait())
 
 
