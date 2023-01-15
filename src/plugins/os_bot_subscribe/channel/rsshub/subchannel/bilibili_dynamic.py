@@ -244,10 +244,10 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
 
         def handle_rstrip(msg: v11.Message):
             if isinstance(msg, str):
-                return msg.strip()
+                return msg.rstrip()
             msg.reduce()
             if msg[-1].is_text():
-                msg[-1].data["text"] = msg[-1].data.get("text","")
+                msg[-1].data["text"] = msg[-1].data.get("text","").rstrip()
             return msg
         
         def handle_text(text):
