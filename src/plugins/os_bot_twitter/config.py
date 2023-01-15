@@ -139,7 +139,7 @@ class TwitterSession(Session):
         self.ban_users = []
         self.num = 1
         self.tweet_map = {}
-        self.default_template = "翻译"
+        self.default_template = "##无logo"
         self.template_map = {}
         self.default_sub_id = None
 
