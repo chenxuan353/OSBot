@@ -264,13 +264,13 @@ class RsshubBilibiliDynamicChannel(RsshubChannel):
             elif msgseg.type == "image":
                 url = msgseg.data.get("file", "")
                 if url.find("/bfs/emote") != -1:
-                    imgb64 = await download_with_resize_to_base64(url, 128, 128)
+                    imgb64 = await download_with_resize_to_base64(url, 64, 64)
                     if imgb64:
                         rtnmessage += v11.MessageSegment.image(
                             f"base64://{imgb64}")
                     else:
                         # 无效错误的转换结果
-                        download_with_resize_to_base64_invaild(url, 128, 128)
+                        download_with_resize_to_base64_invaild(url, 64, 64)
                         rtnmessage += v11.MessageSegment.image(url)
                 else:
                     rtnmessage += v11.MessageSegment.image(url)
