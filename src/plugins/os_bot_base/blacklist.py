@@ -395,8 +395,8 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
     ban_result = {
         "status": "500",
         "retcode": 500,
-        "msg": "此群组已禁用（hook）",
-        "wording": "此群组已禁用（hook）",
+        "msg": "此用户或群组已被禁用（hook）",
+        "wording": "此用户或群组已被禁用（hook）",
     }
     if data.get("group_id"):
         session: BlackSession = await get_plugin_session(
