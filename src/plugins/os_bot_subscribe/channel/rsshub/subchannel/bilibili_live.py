@@ -108,7 +108,7 @@ class RsshubBilibiliLiveChannel(RsshubChannel):
                             ('...' if len(item.des_full) > 15 else ''),
                         )
                     else:
-                        msg = "{0}开播啦！{1}".format(
+                        msg = "{0}开播啦！\n{1}".format(
                             up_name,
                             live_name,
                         )
