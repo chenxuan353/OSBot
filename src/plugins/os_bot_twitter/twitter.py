@@ -789,8 +789,12 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     async def on_exception(self, exception):
         self.connect_error(exception)
         if isinstance(exception, asyncio.TimeoutError):
-            logger.warning("推特过滤流超时，在10秒后重试")
-            await self.connect_retry(delay=10)
+            logger.warning("推特过滤流超时，在15秒后重试")
+            await self.connect_retry(delay=15)
+            return
+        if isinstance(exception, aiohttp.ClientConnectorError):
+            logger.warning("推特过滤流连接异常（连接错误），在15秒后重试")
+            await self.connect_retry(delay=15)
             return
         logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
 
@@ -799,9 +803,9 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
     async def on_closed(self, resp):
         self.running = False
-        logger.error("推特过滤流被推特关闭，在10秒后尝试重连 {}", resp)
+        logger.error("推特过滤流被推特关闭，在30秒后尝试重连 {}", resp)
         self.connect_error(resp)
-        await self.connect_retry(delay=10)
+        await self.connect_retry(delay=30)
 
     async def on_disconnect(self):
         self.running = False

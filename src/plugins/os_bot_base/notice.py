@@ -49,7 +49,7 @@ class BotSend:
 
     @classmethod
     async def send_msg(cls, bot_type: str, send_params: Dict[str, Any],
-                       msg: Any) -> bool:
+                       msg: Any, priority_bot_id: Optional[str] = None) -> bool:
         """
             尽力发送消息，失败返回False
 
@@ -58,6 +58,8 @@ class BotSend:
             send_params 发送参数
 
             msg 待发送的数据
+
+            priority_bot_id 优先使用的botid（优先使用什么bot发送，为空时依据优先响应配置）
         """
         if not msg:
             logger.debug("消息通知尝试发送空消息 {} - {}", bot_type, send_params)
@@ -65,10 +67,10 @@ class BotSend:
         if bot_type == V11Adapter.get_type():
             if "user_id" in send_params:
                 return await cls.ob_send_private_msg(send_params["user_id"],
-                                                     msg)
+                                                     msg, priority_bot_id)
             elif "group_id" in send_params:
                 return await cls.ob_send_group_msg(send_params["group_id"],
-                                                       msg)
+                                                       msg, priority_bot_id)
             else:
                 logger.warning("{} 消息通知不支持的参数 {}", bot_type, send_params)
                 return False
@@ -77,24 +79,25 @@ class BotSend:
 
     @staticmethod
     async def ob_send_private_msg(uid: int, msg: Union["v11.Message",
-                                                       str]) -> bool:
+                                                       str], priority_bot_id: Optional[str] = None) -> bool:
         """
             尽力发送一条私聊消息，失败返回False
         """
         uid = int(uid)
         bots = get_bots()
-        for id in bots:
+
+        async def send_use_bot(bot: Bot) -> Optional[bool]:
             bot = bots[id]
             if not isinstance(bot, v11.Bot):
-                continue
+                return
             obcache = OnebotCache.get_instance()
             b_record = obcache.get_bot_record(int(bot.self_id))
             if not b_record:
-                continue
+                return
             # 发送私聊消息
             u_record = b_record.get_friend_record(uid)
             if not u_record:
-                continue
+                return
             try:
                 await bot.send_private_msg(user_id=uid, message=msg)
                 logger.debug(f"已通过`{bot.self_id}-{uid}`成功发送一条私聊通知")
@@ -102,29 +105,39 @@ class BotSend:
             except Exception as e:
                 logger.opt(exception=True).warning(
                     f"尝试通过`{bot.self_id}-{uid}`发送私聊通知时异常 - {e}")
-                continue
+                return
+
+        if priority_bot_id and priority_bot_id in bots:
+            status = await send_use_bot(bots[priority_bot_id])
+            if status is not None:
+                return status
+        for id in bots:
+            status = await send_use_bot(bots[id])
+            if status is not None:
+                return status
         return False
 
     @staticmethod
     async def ob_send_group_msg(gid: int, msg: Union["v11.Message",
-                                                     str]) -> bool:
+                                                     str], priority_bot_id: Optional[str] = None) -> bool:
         """
             尽力发送一条群聊消息，失败返回False
         """
         gid = int(gid)
         bots = get_bots()
-        for id in bots:
+
+        async def send_use_bot(bot: Bot) -> Optional[bool]:
             bot = bots[id]
             if not isinstance(bot, v11.Bot):
-                continue
+                return
             obcache = OnebotCache.get_instance()
             b_record = obcache.get_bot_record(int(bot.self_id))
             if not b_record:
-                continue
+                return
             # 发送私聊消息
             g_record = b_record.get_group_record(gid)
             if not g_record:
-                continue
+                return
             try:
                 await bot.send_group_msg(group_id=gid, message=msg)
                 logger.debug(f"已通过`{bot.self_id}-{gid}`成功发送一条群聊通知")
@@ -132,7 +145,16 @@ class BotSend:
             except Exception as e:
                 logger.opt(exception=True).warning(
                     f"尝试通过`{bot.self_id}-{gid}`发送群聊通知时异常 - {e}")
-                continue
+                return
+    
+        if priority_bot_id and priority_bot_id in bots:
+            status = await send_use_bot(bots[priority_bot_id])
+            if status is not None:
+                return status
+        for id in bots:
+            status = await send_use_bot(bots[id])
+            if status is not None:
+                return status
         return False
 
 

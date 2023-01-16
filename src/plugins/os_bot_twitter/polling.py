@@ -82,7 +82,7 @@ class PollTwitterUpdate(TwitterUpdate):
     async def push_message(self, subscribe: TwitterSubscribeModel,
                            message: Union[str, v11.Message]):
         if await BotSend.send_msg(subscribe.bot_type, subscribe.send_param,
-                                  message):
+                                  message, subscribe.bot_id):
             return
         raise TwitterPollingSendError(f"订阅消息发送失败(相关订阅 {subscribe.id})")
 
@@ -570,7 +570,7 @@ async def update_all_listener():
                 await client.get_timeline(id=listener)
             logger.debug("已更新 {}@{} 的时间线", user.name, user.username)
         except (TweepyException, asyncio.exceptions.TimeoutError,
-                aiohttp.ClientError) as e:
+                aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
             user = None
             try:
                 user = await client.model_user_get_or_none(listener)
@@ -645,8 +645,8 @@ async def _():
             try:
                 await stream.reload_listeners(listeners)
             except (TweepyException, asyncio.exceptions.TimeoutError,
-                    aiohttp.ClientError) as e:
-                logger.info("加载流式规则失败，将在60秒后重试")
+                    aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
+                logger.info("加载流式规则失败，将在60秒后重试（请检查网络）")
                 await asyncio.sleep(60.1)
                 await stream.reload_listeners(listeners)
             await asyncio.sleep(15)
@@ -672,7 +672,7 @@ async def _():
             try:
                 following_users = await client.self_following_list()
             except (TweepyException, asyncio.exceptions.TimeoutError,
-                    aiohttp.ClientError) as e:
+                    aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
                 logger.info("获取当前关注列表失败，将在60秒后自动重试。")
                 await asyncio.sleep(60.1)
                 following_users = await client.self_following_list()
@@ -685,7 +685,7 @@ async def _():
             session.following_list = following_list
             await session.save()
         except (TweepyException, asyncio.exceptions.TimeoutError,
-                aiohttp.ClientError) as e:
+                aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
             logger.warning("初始化关注列表失败！连接不稳定 {} | {}", e.__class__.__name__, e)
         except Exception as e:
             logger.opt(exception=True).error("初始化关注列表失败！")
@@ -733,7 +733,7 @@ async def _():
                 await client.self_timeline(ignore_exception=True, auto=True)
             except TweepyException as e:
                 return True
-            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
+            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError, aiohttp.ClientConnectorError) as e:
                 logger.warning("推特更新轮询连接错误 {} | {}", e.__class__.__name__,
                                str(e))
                 return True
