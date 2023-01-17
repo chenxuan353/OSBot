@@ -342,7 +342,7 @@ async def _(matcher: Matcher,
     finish_msgs = ["看看我发现了什么~\n", "合 成 推 文\n", "找到了\n"]
     msg = (v11.Message(finish_msgs[random.randint(0,
                                                   len(finish_msgs) - 1)]) +
-           f"ID：{tweet.id}" +
+           f"ID：{tweet.id}\n" +
            await update.tweet_to_message(tweet, None, adapter.type, False))
     if trans_model:
         # adapter.get_unit_nick()
