@@ -927,3 +927,6 @@ class AsyncTwitterStream:
             self.stream.disconnect()
             await asyncio.sleep(10)
         await self.connect()
+
+    def is_running(self):
+        return self.stream.isrunning()

@@ -50,11 +50,11 @@ async def _():
         await twitterTransManage.clear_screenshot_file()
         logger.info("烤推清理完成")
 
-    @scheduler.scheduled_job('cron', hour='4', minute='30', name="自动烤推重启")
-    async def _():
-        logger.info("自动烤推引擎重启")
-        await twitterTransManage.restart()
-        logger.info("烤推引擎重启完成")
+    # @scheduler.scheduled_job('cron', hour='4', minute='30', name="自动烤推重启")
+    # async def _():
+    #     logger.info("自动烤推引擎重启")
+    #     await twitterTransManage.restart()
+    #     logger.info("烤推引擎重启完成")
 
 
 @driver.on_shutdown
