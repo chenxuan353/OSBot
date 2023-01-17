@@ -866,6 +866,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         msg = msg[1:]
     if msg.startswith("#"):
         msg = msg[1:]
+    msg = msg.rstrip()
     arg = TransArg()(msg)
     tweet_id = deal_tweet_link(arg.tweet_str, session)
     tweet_username = ""
