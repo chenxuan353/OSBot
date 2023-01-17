@@ -87,7 +87,6 @@ class BotSend:
         bots = get_bots()
 
         async def send_use_bot(bot: Bot) -> Optional[bool]:
-            bot = bots[id]
             if not isinstance(bot, v11.Bot):
                 return
             obcache = OnebotCache.get_instance()
@@ -127,7 +126,6 @@ class BotSend:
         bots = get_bots()
 
         async def send_use_bot(bot: Bot) -> Optional[bool]:
-            bot = bots[id]
             if not isinstance(bot, v11.Bot):
                 return
             obcache = OnebotCache.get_instance()
