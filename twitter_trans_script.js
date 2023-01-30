@@ -62,12 +62,14 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         static_insert_tran_type: "insert_trans_type", // 翻译标识
         static_insert_tran_media: "insert_trans_media", // 媒体
         static_insert_tran_vote: "insert_trans_vote", // 投票
+        static_replace_empty_text: "replace_empty_text", // 仅图片或音视频的节点注入的占位符
         // 样式常量
         tran_main_style:
             'font-family: "Source Han Sans CN", "Segoe UI", Meiryo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;',
+        tran_main_text_style: "font-size: 21px;",
         tran_text_style: "font-size: 0.9em;",
         tran_type_style:
-            "color: #1DA1F2;font-size: 0.8em;font-weight: 500;padding: 0.3em 0 0.3em 5px;",
+            "color: #1DA1F2;font-size: 20px;font-weight: 500;padding: 0.3em 0 0.3em 0;",
         tran_media_style: "",
         tran_vote_style: "",
     };
@@ -110,6 +112,26 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             // DIV.r-bnwqim
             // return rootDom.querySelectorAll("div.r-bnwqim");
             return rootDom.querySelectorAll("div[data-testid=tweetText]");
+        },
+        // 文本备选锚点(纯图片时可用)
+        articleBackupTexts(rootDom) {
+            // 此锚点不稳定
+            let rtnDomBoxs = rootDom.querySelectorAll("div[class='css-1dbjc4n r-1s2bzr4']");
+            if(rtnDomBoxs.length == 0){
+                rtnDomBoxs = rootDom.querySelectorAll("div[class='css-1dbjc4n']:empty");
+            }
+            let rtnDoms = [];
+            rtnDomBoxs.forEach(function(domBox){
+                let divDom = document.createElement("div");
+                divDom.className = "static_replace_empty_text";
+                domBox.append(divDom);
+                rtnDoms.push(divDom);
+            });
+            return rtnDoms;
+        },
+        // emoji
+        articleEmoji(rootDom) {
+            return rootDom.querySelectorAll("img[src*='/emoji/v2/svg/']");
         },
         // 投票锚点
         articleVotes(rootDom) {
@@ -155,7 +177,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         articleTime(rootDom) {
             return rootDom.querySelector("div.r-1r5su4o");
         },
-        // 翻译锚点
+        // 翻译标识锚点
         transNotice(rootDom) {
             return rootDom.querySelector("DIV.r-1w6e6rj");
         },
@@ -470,6 +492,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             // 文本处理
             if(!simple_deal){
                 text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
+                text = text.replace(/(\\i)/gi, "\\&ignore; "); // 转义处理
+                text = text.replace(/(\\s)/gi, "\\&space; "); // 转义处理
                 text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
                 text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
                 text = text.replace(
@@ -487,6 +511,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 text = text.replace(/(\\&jh; )/gi, "#"); // 反转义
                 text = text.replace(/(\\&AT; )/gi, "@"); // 反转义
                 text = text.replace(/(\\&sla; )/gi, "\\"); // 反转义
+                text = text.replace(/(\\&ignore; )/gi, ""); // 转义处理
+                text = text.replace(/(\\&space; )/gi, " "); // 转义处理
                 text = text.replace("\r\n", "\n"); // 兼容win
                 text = text.replace("\r", "\n"); // 兼容mac
             }
@@ -517,6 +543,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 {
                                     dom: elemtexts[j],
                                     text: elemtexts[j].innerText,
+                                    emojis: emojis, // 该文本段解析出的emoji
                                 }
                             ],
                             imgAnchors: [  // 推文的图片节点
@@ -590,14 +617,6 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         voteAnchors: [],
                         endAnchor: null,
                     };
-                    // 搜索可注入的文本锚点
-                    let elemtexts = CSSAnchor.articleTexts(elart);
-                    for (let j = 0; j < elemtexts.length; j++) {
-                        elartItem.textAnchors.push({
-                            dom: elemtexts[j],
-                            text: elemtexts[j].innerText,
-                        });
-                    }
                     // 搜索可注入的图片锚点
                     let elemimgs = CSSAnchor.articleImages(elart);
                     for (let j = 0; j < elemimgs.length; j++) {
@@ -609,6 +628,34 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             imgsrc: imgdom == null ? "" : imgdom.src,
                         });
                     }
+
+                    // 处理音视频
+                    let videos = CSSAnchor.articleVideo(elart);
+                    // for (let i = 0; i < videos.length; i++) {
+                    //     let video = CSSAnchor.articleVideoWait(videos[i]);
+                    // }
+
+                    // 搜索可注入的文本锚点
+                    let elemtexts = CSSAnchor.articleTexts(elart);
+                    if(elemtexts.length == 0 && (elemimgs.length != 0 || videos.length != 0)){
+                        // 存在图片且不含文本时（可能存在问题）
+                        elemtexts = CSSAnchor.articleBackupTexts(elart);
+                    }
+                    for (let j = 0; j < elemtexts.length; j++) {
+                        let emoji_doms = CSSAnchor.articleEmoji(elemtexts[j]);
+                        let emojis = [];
+                        emoji_doms.forEach(function(elem){
+                            if(elem.alt){
+                                emojis.push(elem.alt);
+                            }
+                        })
+                        elartItem.textAnchors.push({
+                            dom: elemtexts[j],
+                            text: elemtexts[j].innerText,
+                            emojis: emojis
+                        });
+                    }
+
                     // 搜索可注入的投票锚点
                     let elemvotes = CSSAnchor.articleVotes(elart);
                     for (let j = 0; j < elemvotes.length; j++) {
@@ -616,12 +663,6 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             dom: elemvotes[j],
                             text: elemvotes[j].innerText,
                         });
-                    }
-
-                    // 处理音视频
-                    let videos = CSSAnchor.articleVideo(elart);
-                    for (let i = 0; i < videos.length; i++) {
-                        let video = CSSAnchor.articleVideoWait(videos[i]);
                     }
 
                     //检测推文是否结束
@@ -958,6 +999,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 replay_cover: false,  // 回复覆盖
                 quote_cover: false,  // 转评覆盖
                 template: template,  // 烤推模版(Html)
+                disable_separator: false,  // 禁用分隔符
+                keep_logo: false,  // 保持logo显示 
                 levels: {   // 待注入的数据
                     1:{
                         key: 1,
@@ -998,6 +1041,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     quote_cover: trans.quote_cover || false,
                     main_cover: trans.main_cover || false,
                     template_disable: trans.template_disable || false,
+                    disable_separator: trans.disable_separator || false,
+                    keep_logo: trans.keep_logo || false,
                 };
                 // 创建DOM的函数 tweettext transtype
                 let createInsertDom = function (type, data) {
@@ -1009,6 +1054,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         indom = document.createElement("div");
                         indom.className = TRANSTEXTCLASS;
                         indom.style = CONST_VAL.tran_text_style;
+                        indom.innerHTML = data;
+                        dom.appendChild(indom);
+                    } else if (type == "tweetmaintext") {
+                        indom = document.createElement("div");
+                        indom.className = TRANSTEXTCLASS;
+                        indom.style = CONST_VAL.tran_main_text_style;
                         indom.innerHTML = data;
                         dom.appendChild(indom);
                     } else if (type == "transtype") {
@@ -1052,18 +1103,30 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 // 文本段注入 参数 覆盖标识，原始dom，新元素标识，新元素内容数据
                 let insertTextData = function (
                     cover_flag,
-                    sourcedom,
+                    source,
                     data,
                     isMain = false,
                 ) {
+                    let sourcedom = source.dom;
                     if (parseText) {
+                        let data_arr = data.split("/e");
+                        data = data_arr[0];
+                        for(let x = 1; x < data_arr.length; x++){
+                            if(x - 1 >= source.emojis.length){
+                                data += data_arr[x];
+                                continue;
+                            }
+                            data += source.emojis[x - 1] + data_arr[x];
+                        }
                         data = TweetHtml.textparse(data);
                     }
                     Logger.debug("文本段解析完毕");
                     if (isMain == false && cover_flag == false) {
-                        data = "<p>--------</p>" + data;
+                        if(!trans.disable_separator){
+                            data = "<p>--------</p>" + data;
+                        }
                     }
-                    let tempDom = createInsertDom("tweettext", data);
+                    let tempDom = createInsertDom(isMain?"tweetmaintext":"tweettext", data);
                     tempDom.className =
                         sourcedom.className + " " + tempDom.className;
                     Logger.debug("文本段元素注入完毕");
@@ -1122,7 +1185,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 };
                 // 翻译标识注入 参数 原始dom，元素标识，元素内容
                 let insertTransFlag = function (sourcedom, data) {
-                    if (parseText) {
+                    if (parseText && data && data != '') {
                         data = TweetHtml.textparse(data, true);
                         Logger.debug("翻译标识解析完毕");
                     }
@@ -1145,6 +1208,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 let inTweetAnchors;
                 let tweetAnchor;
                 let tranlevel;
+                let autoType = false;
 
                 // 注入预处理
                 if (trans.levels["last"] || trans.levels["main"]) {
@@ -1169,6 +1233,14 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             if (i != 0) {
                                 tweetAnchor.dom.style.display = "none";
                             }
+                            if (i == 0 && j == inTweetAnchors.length - 1) {
+                                if(trans.keep_logo || autoType){
+                                    insertTransFlag(
+                                        tweetAnchor.textAnchors[0].dom,
+                                        trans.template || "",
+                                    );
+                                }
+                            }
                             continue;
                         }
                         tranlevel = trans.levels[elartCount];
@@ -1191,16 +1263,21 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 insertTextData(
                                     coverconfig.main_cover,
                                     coverconfig.main_cover
-                                        ? tweetAnchor.textAnchors[0].dom
-                                        : dom,
+                                        ? tweetAnchor.textAnchors[0]
+                                        : {
+                                            dom: dom,
+                                            text: tweetAnchor.textAnchors[0].text,
+                                            emojis: tweetAnchor.textAnchors[0].emojis,
+                                        },
                                     tranlevel.content,
                                     true,
                                 );
                             } else {
+                                autoType = true;
                                 Logger.debug("INSERT 回复注入");
                                 insertTextData(
                                     coverconfig.replay_cover,
-                                    tweetAnchor.textAnchors[0].dom,
+                                    tweetAnchor.textAnchors[0],
                                     tranlevel.content,
                                 );
                             }
@@ -1217,7 +1294,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                     if (tranlevel.inlevel[k]) {
                                         insertTextData(
                                             coverconfig.quote_cover,
-                                            tweetAnchor.textAnchors[k].dom,
+                                            tweetAnchor.textAnchors[k],
                                             tranlevel.inlevel[k].content,
                                         );
                                     }
@@ -1234,6 +1311,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 k++
                             ) {
                                 if (tweetAnchor.imgAnchors[k]) {
+                                    autoType = true;
                                     if (tranlevel.img[k + 1]) {
                                         insertMediaData(
                                             tweetAnchor.imgAnchors[k].dom,
@@ -1252,6 +1330,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                                 k++
                             ) {
                                 if (tweetAnchor.voteAnchors[k]) {
+                                    autoType = true;
                                     if (tranlevel.vote[k + 1]) {
                                         insertVoteData(
                                             tweetAnchor.voteAnchors[k].dom,
@@ -1502,6 +1581,18 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         expre: /^(推文)?不覆盖(推文)?/,
                         default: () => false,
                         value: (match) => "main_cover",
+                    },
+                    {
+                        mark: "config",
+                        expre: /^禁用分隔符?/,
+                        default: () => true,
+                        value: (match) => "disable_separator",
+                    },
+                    {
+                        mark: "config",
+                        expre: /^保持logo显示/,
+                        default: () => true,
+                        value: (match) => "keep_logo",
                     },
                 ],
             };

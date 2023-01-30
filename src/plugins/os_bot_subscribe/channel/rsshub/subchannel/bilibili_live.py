@@ -94,7 +94,7 @@ class RsshubBilibiliLiveChannel(RsshubChannel):
             return
         item = now_data.entries[0]
         up_name = now_data.title_full.replace("直播间开播状态", "").strip()  # up主名称
-        live_name = item.des_source.split("<br>", maxsplit=1)[0].strip()
+        live_name = item.title_full.strip()[:-20]
         if len(last_data.entries) == 0:
             """开播"""
             for subscribe in subscribes:
@@ -108,7 +108,7 @@ class RsshubBilibiliLiveChannel(RsshubChannel):
                             ('...' if len(item.des_full) > 15 else ''),
                         )
                     else:
-                        msg = "{0}开播啦！{1}".format(
+                        msg = "{0}开播啦！\n{1}".format(
                             up_name,
                             live_name,
                         )
@@ -122,8 +122,8 @@ class RsshubBilibiliLiveChannel(RsshubChannel):
                                                      now_data.source_url)
             return
         last_item = now_data.entries[0]
-        last_live_name = last_item.des_source.split("<br>",
-                                                    maxsplit=1)[0].strip()
+        last_live_name = last_item.title_full.strip()[:-20]
+        
         if live_name != last_live_name:
             """直播标题更新"""
             msg = "{0}的直播标题改为{1}".format(

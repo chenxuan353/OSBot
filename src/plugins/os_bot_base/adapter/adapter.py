@@ -139,17 +139,26 @@ class Adapter:
     async def get_group_nick(self,
                              group_id: Union[str, int],
                              bot: Optional[Bot] = None) -> str:
+        """
+            获取群昵称 提供bot参数时视为可通过api获取
+        """
         return f"{group_id}"
 
     async def get_unit_nick(self,
                             user_id: Union[str, int],
                             bot: Optional[Bot] = None) -> str:
+        """
+            获取用户昵称 提供bot参数时视为可通过api获取
+        """
         return f"{user_id}"
 
     async def get_unit_nick_from_event(self,
                                        user_id: Union[str, int],
                                        bot: Optional[Bot],
                                        event: Optional[Event] = None) -> str:
+        """
+            从事件中获取用户昵称
+        """
         return f"{user_id}"
 
     @classmethod

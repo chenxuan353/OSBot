@@ -1,4 +1,7 @@
-from ..os_bot_base.exception import MatcherErrorFinsh
+from ..os_bot_base.exception import MatcherErrorFinsh, BaseException as OSBotBaseException
+
+class BaseException(OSBotBaseException):
+    pass
 
 
 class RatelimitException(MatcherErrorFinsh):
@@ -21,7 +24,7 @@ class EngineError(MatcherErrorFinsh):
         return self._replay
 
 
-class InitError(Exception):
+class InitError(BaseException):
     """
         插件初始化错误
     """

@@ -11,7 +11,7 @@ from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot import v11
-from nonebot.params import CommandArg
+from nonebot.params import EventMessage
 from nonebot.exception import IgnoredException, MockApiException
 from nonebot.message import event_preprocessor
 from .argmatch import ArgMatch, Field
@@ -99,7 +99,7 @@ async def _(matcher: Matcher,
 @ban_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
-            message: v11.Message = CommandArg(),
+            message: v11.Message = EventMessage(),
             session: BlackSession = SessionPluginDepend(BlackSession)):
     msg = str(message).strip()
     if msg == "确认清空":
@@ -395,8 +395,8 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
     ban_result = {
         "status": "500",
         "retcode": 500,
-        "msg": "此群组已禁用（hook）",
-        "wording": "此群组已禁用（hook）",
+        "msg": "此用户或群组已被禁用（hook）",
+        "wording": "此用户或群组已被禁用（hook）",
     }
     if data.get("group_id"):
         session: BlackSession = await get_plugin_session(

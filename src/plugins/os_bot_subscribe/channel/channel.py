@@ -158,4 +158,4 @@ class Channel:
                         subscribe.group_mark, subscribe.id)
             return True
         return await BotSend.send_msg(subscribe.bot_type, subscribe.send_param,
-                                      message)
+                                      message, subscribe.bot_id)
