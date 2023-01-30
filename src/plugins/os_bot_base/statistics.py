@@ -21,6 +21,7 @@ from .consts import STATE_STATISTICE_DEAL
 from .logger import logger
 from .util import seconds_to_dhms, matcher_exception_try, only_command
 from .notice import UrgentNotice
+import tracemalloc
 
 driver = get_driver()
 
@@ -35,6 +36,8 @@ class StatisticsRecord:
     instance: Optional[Self] = None
 
     def __init__(self) -> None:
+        tracemalloc.start()
+        self.trace = None
         self.init_time = time()
         self.startup_time = 0.0
         self.event_count = 0
@@ -187,6 +190,18 @@ def get_statistics_system_info():
     for disk in disks:
         disk_usage = psutil.disk_usage(disk.mountpoint)
         disk_usage_str += f"\n  {disk.mountpoint} {disk_usage.percent:.2f}%"
+    
+    if statistics_record.trace != None:
+        new_record = tracemalloc.take_snapshot()
+        top_stats = new_record.compare_to(statistics_record.trace, 'lineno')
+
+        print("[ Top 10 differences ]")
+        for stat in top_stats[:10]:
+            print(stat)
+        
+        statistics_record.trace = new_record
+    else:
+        statistics_record.trace = tracemalloc.take_snapshot()
 
     return (f"系统运行时间：{seconds_to_dhms(int(time() - psutil.boot_time()))}\n"
             f"CPU利用率：{psutil.cpu_percent(interval=1):.2f}%\n"
