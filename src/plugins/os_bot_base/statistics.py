@@ -215,7 +215,7 @@ async def print_statistics_info():
     """
         每十分钟输出一次统计信息
     """
-    logger.info(f"===[数据分析] 统计信息==="
+    logger.info(f"以下消息来自定时任务~\n===[数据分析] 统计信息==="
                 f"\n{get_statistics_info()}"
                 f"\n{get_statistics_system_info()}")
 
