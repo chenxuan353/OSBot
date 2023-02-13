@@ -168,10 +168,14 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             }
             return pollItemDom;
         },
-        // 转推喜欢检索锚点
+        // 转推喜欢数量检索锚点（需移除）
         articleRetweetLike(rootDom) {
             // r-tzz3ar r-1yzf0co
             return rootDom.querySelector("div.r-tzz3ar");
+        },
+        // 底部转推喜欢分享(需移除)
+        articleRTLKBar(rootDom){
+            return rootDom.querySelector("DIV[role=group].r-a2tzq0");
         },
         // 时间锚点
         articleTime(rootDom) {
@@ -181,11 +185,11 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         transNotice(rootDom) {
             return rootDom.querySelector("DIV.r-1w6e6rj");
         },
-        // 弹框锚点(登录提示框)
+        // 弹框锚点(登录提示框)(需移除)
         twitterDialog() {
             return document.querySelector("div[role=dialog]");
         },
-        // 底部登录栏
+        // 底部登录栏(需移除)
         twitterBottomBar() {
             return document.querySelector("div[data-testid=BottomBar]");
         },
@@ -204,7 +208,6 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             let dom = rootDom.querySelector("[role=progressbar]");
             return dom;
         },
-        // 需要重新解析的情况
     };
 
     Date.prototype.format = function(format) {
@@ -475,6 +478,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     li: ["style"],
                     p: ["style"],
                     pre: [],
+                    b: []
                 },
             };
             const attributesCallback = function (icon, variant) {
@@ -684,7 +688,17 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                             //时间
                             endAnchor = CSSAnchor.articleTime(elart);
                         }
+                        if (!endAnchor) {
+                            //时间
+                            endAnchor = CSSAnchor.articleRTLKBar(elart);
+                        }
                         if (endAnchor) {
+                            // 后处理移除
+                            let dom;
+                            dom = CSSAnchor.articleRTLKBar(elart);
+                            if(dom){
+                                dom.remove();
+                            }
                             mainTweet = false;
                             elartItem.endAnchor = endAnchor;
                         }
@@ -1713,7 +1727,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 移除影响使用体验的元素
         TweetHtml.removeSomeDom = function () {
             let dom;
-            // 移除底栏
+            // 移除底部登录栏
             dom = TweetHtml.CSSAnchor.twitterBottomBar();
             if (dom) {
                 dom.remove();
