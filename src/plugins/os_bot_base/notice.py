@@ -189,33 +189,41 @@ class UrgentNotice:
         return cls.instance
 
     @classmethod
-    async def send(cls, message: str, send_group: bool = False):
+    async def send(cls, message: str, send_group: bool = False, low_sleep = False, fast_send = False):
         """
             广播一条紧急通知
 
             `send_group` 是否发送给群聊（默认否）
+            `low_sleep` 低延迟，默认情况下随机1-10秒，低延迟时保持1秒
+            `fast_send` 快速发送（无等待）
         """
-        if not message:
-            logger.debug(f"尝试广播空消息！")
-            return
-        ins = cls.get_instance()
-        # 发送私聊消息
-        for uid in ins.onebot_notify:
-            success = await BotSend.ob_send_private_msg(uid, message)
-            if not success:
-                logger.warning(f"尝试给`{uid}`(动态)发送私聊通知失败，消息内容：{message}")
-            await asyncio.sleep(1 + random.randint(20, 100) / 100)
+        async def inner_send():
+            if not message:
+                logger.debug(f"尝试广播空消息！")
+                return
+            ins = cls.get_instance()
+            # 发送私聊消息
+            for uid in ins.onebot_notify:
+                success = await BotSend.ob_send_private_msg(uid, message)
+                if not success:
+                    logger.warning(f"尝试给`{uid}`(动态)发送私聊通知失败，消息内容：{message}")
+                await asyncio.sleep(1 if low_sleep else random.randint(1, 10) + random.randint(20, 100) / 100)
 
-        for uid in config.os_ob_notice_user_list:
-            success = await BotSend.ob_send_private_msg(uid, message)
-            if not success:
-                logger.warning(f"尝试给`{uid}`(配置)发送私聊通知失败，消息内容：{message}")
-            await asyncio.sleep(1 + random.randint(20, 100) / 100)
+            for uid in config.os_ob_notice_user_list:
+                success = await BotSend.ob_send_private_msg(uid, message)
+                if not success:
+                    logger.warning(f"尝试给`{uid}`(配置)发送私聊通知失败，消息内容：{message}")
+                await asyncio.sleep(1 if low_sleep else random.randint(1, 10) + random.randint(20, 100) / 100)
 
-        # 发送群聊消息
-        if not send_group:
-            return
-        await cls.send_group(message)
+            # 发送群聊消息
+            if not send_group:
+                return
+            await cls.send_group(message)
+        
+        if fast_send:
+            asyncio.gather(inner_send())
+        else:
+            await inner_send()
 
     @classmethod
     async def send_group(cls, message: str):

@@ -57,6 +57,7 @@ class Config(BaseSettings):
     os_notice_distusage: bool = Field(default=True)
     os_notice_distusage_percent: int = Field(default=90)
     os_notice_distusage_single: bool = Field(default=True)
+    os_notice_distusage_per_igonre: List[str] = Field(default=[])
     os_notice_memoryusage: bool = Field(default=True)
     os_notice_memoryusage_percent: int = Field(default=90)
     os_backup_enable: bool = Field(default=True)

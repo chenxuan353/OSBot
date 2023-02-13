@@ -658,10 +658,13 @@ async def _():
             logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
             logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
 
+            last_check_send = 0
+
             @scheduler.scheduled_job("interval",
                             seconds=30,
                             name="推特流式监听检查")
             async def _():
+                nonlocal last_check_send
                 if stream.is_running():
                     return
                 await asyncio.sleep(30)
@@ -670,7 +673,10 @@ async def _():
                 await asyncio.sleep(30)
                 if stream.is_running():
                     return
-                await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
+                if time() - last_check_send > 7200:
+                    # 两次发送消息间隔至少两小时
+                    await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
+                    last_check_send = time()
 
         # 必须加载完成
         await stream_startup()
