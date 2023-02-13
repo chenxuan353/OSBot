@@ -872,9 +872,16 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
     tweet_username = ""
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
-    tweet = await polling.client.model_tweet_get_or_none(tweet_id)
-    if tweet:
-        tweet_username = tweet.author_username
+    
+    tweet = None
+    if config.os_twitter_trans_api_enable:
+        try:
+            tweet = await polling.client.get_tweet(tweet_id, use_limit=False)
+            if tweet:
+                tweet_username = tweet.author_username
+        except Exception as e:
+            logger.warning("烤推时，通过API获取推文数据失败 {}", e)
+    
     if not tweet_username:
         if arg.tweet_str.startswith(
             ('https://twitter.com/', 'http://twitter.com/', 'twitter.com/',
@@ -883,6 +890,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             result = arg.tweet_str.split('/')
             if len(result) > 3:
                 tweet_username = result[-3]
+
     if tweet_username:
         user = await get_user_from_search(tweet_username)
         if user and user.id in session_plug.blacklist_following_list:

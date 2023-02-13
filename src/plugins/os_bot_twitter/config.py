@@ -26,7 +26,8 @@ class Config(BaseSettings):
         一个规则约可监听13个账户，目前推特开发者基础版本是5个规则，提升版本是25个规则。
         可监听数量大致为65个及325个。
     """
-
+    os_twitter_trans_api_enable: bool = Field(default=True)
+    """通过推特API优化烤推"""
     os_twitter_poll_enable: bool = Field(default=True)
     """是否启用轮询"""
     os_twitter_poll_interval: int = Field(default=15)
