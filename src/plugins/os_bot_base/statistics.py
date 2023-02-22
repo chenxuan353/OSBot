@@ -273,17 +273,19 @@ async def statistics_info_check():
         await asyncio.sleep(10)
 
     if config.os_notice_memoryusage:
-        memory_use = psutil.virtual_memory().percent
-        if config.os_notice_memoryusage_percent < 95 and memory_use > 95:
-            last_check_send[CHECK_SEND_MEMORY] = time()
-            logger.warning("内存用量超过{}%", 95)
-            await UrgentNotice.send(
-                f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
-        elif memory_use > config.os_notice_memoryusage_percent:
-            last_check_send[CHECK_SEND_MEMORY] = time()
-            logger.warning("内存用量超过{}%", config.os_notice_memoryusage_percent)
-            await UrgentNotice.send(
-                f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
+        # 两次提醒至少相隔2小时
+        if time() - last_check_send[CHECK_SEND_MEMORY] > 3600 * 2:
+            memory_use = psutil.virtual_memory().percent
+            if config.os_notice_memoryusage_percent < 95 and memory_use > 95:
+                last_check_send[CHECK_SEND_MEMORY] = time()
+                logger.warning("内存用量超过{}%", 95)
+                await UrgentNotice.send(
+                    f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
+            elif memory_use > config.os_notice_memoryusage_percent:
+                last_check_send[CHECK_SEND_MEMORY] = time()
+                logger.warning("内存用量超过{}%", config.os_notice_memoryusage_percent)
+                await UrgentNotice.send(
+                    f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
 
 
 @driver.on_startup
