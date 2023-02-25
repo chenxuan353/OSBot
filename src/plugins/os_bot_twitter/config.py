@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class Config(BaseSettings):
-    os_twitter_stream_enable: bool = Field(default=True)
+    os_twitter_stream_enable: bool = Field(default=False)
     """
         是否启用流式监听
 
@@ -28,7 +28,7 @@ class Config(BaseSettings):
     """
     os_twitter_trans_api_enable: bool = Field(default=True)
     """通过推特API优化烤推"""
-    os_twitter_poll_enable: bool = Field(default=True)
+    os_twitter_poll_enable: bool = Field(default=False)
     """是否启用轮询"""
     os_twitter_poll_interval: int = Field(default=15)
     """推特轮询间隔"""

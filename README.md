@@ -33,6 +33,10 @@ playwright install-deps
 
 ```shell
 apt-get update
+# 安装软件源（python3.8）
+apt install software-properties-common
+add-apt-repository ppa:deadsnakes/ppa
+# 安装依赖
 apt-get -y install python3.8 python3-pip python3.8-dev build-essential libssl-dev libffi-dev libxml2 libxml2-dev libxslt1-dev zlib1g-dev
 python3.8 -m pip install --upgrade pip
 ```
