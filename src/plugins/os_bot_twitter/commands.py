@@ -31,7 +31,9 @@ from ..os_bot_base.util import matcher_exception_try, only_command
 from ..os_bot_base.depends import SessionPluginDepend, SessionDepend
 from ..os_bot_base.depends import Adapter, AdapterDepend, ArgMatchDepend
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
-from ..os_bot_base.notice import BotSend
+from ..os_bot_base.notice import BotSend, LeaveGroupHook
+from ..os_bot_base.adapter.onebot import V11Adapter
+
 
 driver = get_driver()
 twitterTransManage: TwitterTransManage = None  # type: ignore
@@ -250,6 +252,66 @@ async def _(matcher: Matcher,
         async with session:
             session.default_sub_id = None
     await matcher.finish(f"取消了对{user.name}@{user.username}的订阅")
+
+
+subscribe_clear = on_command("清空推特订阅",
+                             aliases={"清空转推"},
+                             block=True,
+                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                             | PRIVATE_FRIEND)
+
+
+@subscribe_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend()):
+    group_mark = await adapter.mark_group_without_drive(bot, event)
+    if not await TwitterSubscribeModel.filter(group_mark=group_mark).exists():
+        await matcher.finish("订阅列表就是空的哟")
+    await matcher.pause(f">>发送确认清空以继续操作<<")
+
+
+@subscribe_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            message: v11.Message = EventMessage(),
+            session: TwitterSession = SessionDepend(TwitterSession),
+            adapter: Adapter = AdapterDepend()):
+    msg = str(message).strip()
+    if msg == "确认清空":
+        group_mark = await adapter.mark_group_without_drive(bot, event)
+        await TwitterSubscribeModel.filter(group_mark=group_mark).delete()
+        twitter_subscribe_invalid_cache()
+        async with session:
+            session.default_sub_id = None
+
+        finish_msgs = ["已清空！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["确认……失败。", "无法确认"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+async def level_group_hook(group_id: int, bot_id: int) -> None:
+    try:
+        group_mark = f"{V11Adapter.get_type()}-global-group-{group_id}"
+        await TwitterSubscribeModel.filter(group_mark=group_mark).delete()
+        twitter_subscribe_invalid_cache()
+    except Exception as e:
+        logger.opt(exception=True).error("`TwitterSubscribeModel`退群处理时异常")
+
+LeaveGroupHook.get_instance().add_hook(level_group_hook)
+
+
+subscribe_clear_select = on_command("清理指定推特订阅",
+                             aliases={"清理指定转推"},
+                             block=True,
+                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                             | PRIVATE_FRIEND)
 
 
 view_user = on_command("推特用户",
@@ -872,7 +934,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
     tweet_username = ""
     if not tweet_id:
         await matcher.finish("格式可能不正确哦……可以是链接、序号什么的。")
-    
+
     tweet = None
     if config.os_twitter_trans_api_enable:
         try:
@@ -881,7 +943,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                 tweet_username = tweet.author_username
         except Exception as e:
             logger.warning("烤推时，通过API获取推文数据失败 {}", e)
-    
+
     if not tweet_username:
         if arg.tweet_str.startswith(
             ('https://twitter.com/', 'http://twitter.com/', 'twitter.com/',

@@ -1,22 +1,26 @@
 import asyncio
+from collections import deque
+from datetime import datetime
 import json
+import math
 import os
 import random
 from typing_extensions import Self
-from nonebot import get_bots, on_command, get_driver
+from nonebot import get_bots, on_command, get_driver, on_notice
 from nonebot.adapters import Bot, Event
 from nonebot.params import CommandArg, EventMessage
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Coroutine, Deque, Dict, List, Optional, Union
 from .config import config
 from .logger import logger
-from .cache.onebot import OnebotCache
 from .exception import InfoCacheException, MatcherErrorFinsh
 from .cache import OnebotCache
 from .util import matcher_exception_try, only_command
 from .adapter import V11Adapter
+from .depends import ArgMatchDepend
+from .argmatch import ArgMatch, Field, PageArgMatch
 
 driver = get_driver()
 
@@ -48,8 +52,11 @@ class BotSend:
             raise MatcherErrorFinsh("不支持的驱动器")
 
     @classmethod
-    async def send_msg(cls, bot_type: str, send_params: Dict[str, Any],
-                       msg: Any, priority_bot_id: Optional[str] = None) -> bool:
+    async def send_msg(cls,
+                       bot_type: str,
+                       send_params: Dict[str, Any],
+                       msg: Any,
+                       priority_bot_id: Optional[str] = None) -> bool:
         """
             尽力发送消息，失败返回False
 
@@ -70,7 +77,7 @@ class BotSend:
                                                      msg, priority_bot_id)
             elif "group_id" in send_params:
                 return await cls.ob_send_group_msg(send_params["group_id"],
-                                                       msg, priority_bot_id)
+                                                   msg, priority_bot_id)
             else:
                 logger.warning("{} 消息通知不支持的参数 {}", bot_type, send_params)
                 return False
@@ -78,8 +85,10 @@ class BotSend:
         return False
 
     @staticmethod
-    async def ob_send_private_msg(uid: int, msg: Union["v11.Message",
-                                                       str], priority_bot_id: Optional[str] = None) -> bool:
+    async def ob_send_private_msg(
+            uid: int,
+            msg: Union["v11.Message", str],
+            priority_bot_id: Optional[str] = None) -> bool:
         """
             尽力发送一条私聊消息，失败返回False
         """
@@ -117,8 +126,9 @@ class BotSend:
         return False
 
     @staticmethod
-    async def ob_send_group_msg(gid: int, msg: Union["v11.Message",
-                                                     str], priority_bot_id: Optional[str] = None) -> bool:
+    async def ob_send_group_msg(gid: int,
+                                msg: Union["v11.Message", str],
+                                priority_bot_id: Optional[str] = None) -> bool:
         """
             尽力发送一条群聊消息，失败返回False
         """
@@ -144,7 +154,7 @@ class BotSend:
                 logger.opt(exception=True).warning(
                     f"尝试通过`{bot.self_id}-{gid}`发送群聊通知时异常 - {e}")
                 return
-    
+
         if priority_bot_id and priority_bot_id in bots:
             status = await send_use_bot(bots[priority_bot_id])
             if status is not None:
@@ -160,7 +170,7 @@ class UrgentNotice:
     """
         紧急通知
         
-        用于在程序错误时发送提醒
+        用于在程序错误时发送提醒，或是存储一些可能需要的通知。
 
         - 实现了`Onebot`端的群聊与私聊推送
     """
@@ -169,6 +179,7 @@ class UrgentNotice:
     def __init__(self) -> None:
         self.onebot_notify: List[int] = []
         self.onebot_group_notify: List[int] = []
+        self.some_notice_list: Deque[str] = deque(maxlen=512)  # 一些可能有用的数据
 
         self.base_path = os.path.join(config.os_data_path, "cache", "notice")
         self.file_base = os.path.join(self.base_path, "notice")
@@ -189,7 +200,11 @@ class UrgentNotice:
         return cls.instance
 
     @classmethod
-    async def send(cls, message: str, send_group: bool = False, low_sleep = False, fast_send = False):
+    async def send(cls,
+                   message: str,
+                   send_group: bool = False,
+                   low_sleep=False,
+                   fast_send=False):
         """
             广播一条紧急通知
 
@@ -197,6 +212,7 @@ class UrgentNotice:
             `low_sleep` 低延迟，默认情况下随机1-10秒，低延迟时保持1秒
             `fast_send` 快速发送（无等待）
         """
+
         async def inner_send():
             if not message:
                 logger.debug(f"尝试广播空消息！")
@@ -207,19 +223,21 @@ class UrgentNotice:
                 success = await BotSend.ob_send_private_msg(uid, message)
                 if not success:
                     logger.warning(f"尝试给`{uid}`(动态)发送私聊通知失败，消息内容：{message}")
-                await asyncio.sleep(1 if low_sleep else random.randint(1, 10) + random.randint(20, 100) / 100)
+                await asyncio.sleep(1 if low_sleep else random.randint(1, 10) +
+                                    random.randint(20, 100) / 100)
 
             for uid in config.os_ob_notice_user_list:
                 success = await BotSend.ob_send_private_msg(uid, message)
                 if not success:
                     logger.warning(f"尝试给`{uid}`(配置)发送私聊通知失败，消息内容：{message}")
-                await asyncio.sleep(1 if low_sleep else random.randint(1, 10) + random.randint(20, 100) / 100)
+                await asyncio.sleep(1 if low_sleep else random.randint(1, 10) +
+                                    random.randint(20, 100) / 100)
 
             # 发送群聊消息
             if not send_group:
                 return
             await cls.send_group(message)
-        
+
         if fast_send:
             asyncio.gather(inner_send())
         else:
@@ -270,6 +288,16 @@ class UrgentNotice:
         ins.__save("onebot_group", ins.onebot_group_notify)
 
     @classmethod
+    def add_notice(cls, msg: str):
+        """
+            添加一个提醒，应当以简练为主，保持20字以内。
+        """
+        ins = cls.get_instance()
+        ins.some_notice_list.append(
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}> {msg}")
+        ins.__save("notice_list", list(ins.some_notice_list))
+
+    @classmethod
     def del_onebot_notify(cls, pid: int):
         pid = int(pid)
         ins = cls.get_instance()
@@ -289,6 +317,12 @@ class UrgentNotice:
         ins.onebot_group_notify = []
         ins.onebot_notify = []
         ins.save()
+
+    @classmethod
+    def clear_notice(cls):
+        ins = cls.get_instance()
+        ins.some_notice_list = deque(maxlen=512)
+        ins.__save("notice_list", list(ins.some_notice_list))
 
     @classmethod
     def empty(cls) -> bool:
@@ -349,13 +383,57 @@ class UrgentNotice:
     def save(self) -> None:
         self.__save("onebot", self.onebot_notify)
         self.__save("onebot_group", self.onebot_group_notify)
+        self.__save("notice_list", list(self.some_notice_list))
 
     def load(self) -> None:
         self.onebot_notify = self.__read("onebot")
         self.onebot_group_notify = self.__read("onebot_group")
+        self.some_notice_list = deque(self.__read("notice_list"), maxlen=512)
+
+
+class LeaveGroupHook:
+    """
+        退出群聊钩子
+        
+        需要处理的退群相关任务的可以利用此类添加钩子函数进行处理
+        
+        注意，此类任务也被将用于主动指定的失效群聊清理。
+
+        钩子函数示例
+
+        ```python
+            async def _(group_id: int, bot_id: int) -> None:
+                ...
+        ```
+    """
+    instance: Optional[Self] = None
+
+    def __init__(self) -> None:
+        self.hooks: List[Callable[[int, int], Coroutine[Any, Any, None]]] = []
+
+    @classmethod
+    def get_instance(cls):
+        if not cls.instance:
+            cls.instance = cls()
+        return cls.instance
+
+    def add_hook(self, func: Callable[[int, int], Coroutine[Any, Any, None]]):
+        self.hooks.append(func)
+
+    async def run_hooks(self, group_id: int, bot_id: int, wait: bool = True):
+        coros: List[Coroutine[Any, Any, None]] = []
+
+        for hook in self.hooks:
+            coros.append(hook(group_id, bot_id))
+
+        if wait:
+            await asyncio.gather(*coros)
+        else:
+            asyncio.gather(*coros)
 
 
 driver_shutdown = False
+
 
 @driver.on_shutdown
 async def _():
@@ -379,12 +457,118 @@ async def _(bot: v11.Bot):
                 finish_msgs = [
                     f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"
                 ]
-                await UrgentNotice.send(finish_msgs[random.randint(
-                    0,
-                    len(finish_msgs) - 1)])
+                msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+                await UrgentNotice.send(msg)
+                UrgentNotice.add_notice(msg)
 
         asyncio.gather(await_send())
 
+
+leave_group = on_notice()
+
+
+@leave_group.handle()
+async def _(matcher: Matcher, bot: v11.Bot,
+            event: v11.GroupDecreaseNoticeEvent):
+    if event.sub_type not in ["kick_me", "leave"
+                              ] or event.operator_id != event.user_id:
+        return
+    cache = OnebotCache.get_instance()
+    if event.sub_type == "kick_me":
+        msg = (
+            f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 已被移出群聊 "
+            f"{cache.get_group_nick(event.group_id)}({event.group_id})")
+        await UrgentNotice.send(msg)
+        UrgentNotice.add_notice(msg)
+        # 被移出群聊时执行
+        await LeaveGroupHook.get_instance().run_hooks(event.group_id,
+                                                      event.user_id,
+                                                      wait=False)
+    elif event.sub_type == "leave":
+        msg = (f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 退出群聊 "
+               f"{cache.get_group_nick(event.group_id)}({event.group_id})")
+        await UrgentNotice.send(msg)
+        UrgentNotice.add_notice(msg)
+
+
+class ManageArg(ArgMatch):
+
+    class Meta(ArgMatch.Meta):
+        name = "退出hook的参数"
+        des = "触发退出hook的参数"
+
+    unit_id: int = Field.Int("ID", min=9999, max=99999999999)
+
+    def __init__(self) -> None:
+        super().__init__([self.unit_id])
+
+
+group_leave_clear = on_command("触发退群操作", block=True, permission=SUPERUSER)
+
+
+@group_leave_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            arg: ManageArg = ArgMatchDepend(ManageArg)):
+    await LeaveGroupHook.get_instance().run_hooks(arg.unit_id,
+                                                    int(bot.self_id))
+    await matcher.finish(f"已触发{arg.unit_id}的退群操作")
+
+
+notice_view = on_command("通知列表", block=True, permission=SUPERUSER)
+
+
+@notice_view.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            arg: PageArgMatch = ArgMatchDepend(PageArgMatch)):
+    some_notice_list = list(UrgentNotice.get_instance().some_notice_list)
+    some_notice_list.reverse()
+    size = 5
+    count = len(some_notice_list)
+    maxpage = math.ceil(count / size)
+    if count == 0:
+        finish_msgs = ["暂无通知~", "没有通知哦"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    if arg.page > maxpage:
+        await matcher.finish(f"超过最大页数({maxpage})了哦")
+    notice_list_page = some_notice_list[(arg.page - 1) * size:arg.page * size]
+    msg = f"{arg.page}/{maxpage}"
+    for notice in notice_list_page:
+        msg += f"\n{notice}"
+    await matcher.finish(msg)
+
+
+notice_clear = on_command("清空通知",
+                          block=True,
+                          rule=only_command(),
+                          permission=SUPERUSER)
+
+
+@notice_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    if UrgentNotice.empty():
+        await matcher.finish("通知列表就是空的哟")
+    finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
+    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+@notice_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher, message: v11.Message = EventMessage()):
+    msg = str(message).strip()
+    if msg == "确认清空":
+        UrgentNotice.clear_notice()
+        finish_msgs = ["已清空！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["pass！", "要发送确认清空哦"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
 notify_clear = on_command("清空紧急通知列表",
@@ -397,7 +581,7 @@ notify_clear = on_command("清空紧急通知列表",
 @matcher_exception_try()
 async def _(matcher: Matcher):
     if UrgentNotice.empty():
-        await matcher.finish("通知列表就是空的哟")
+        await matcher.finish("紧急通知列表就是空的哟")
     finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
     await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 

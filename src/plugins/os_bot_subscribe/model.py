@@ -11,7 +11,7 @@ class SubscribeModel(Model):
         table = "os_subscribe"
         table_description = "订阅表"
 
-    id = fields.IntField(pk=True)
+    id: int = fields.IntField(pk=True)
     group_mark: str = fields.CharField(index=True,
                                        max_length=255,
                                        description="组掩码标识")

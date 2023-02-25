@@ -92,7 +92,7 @@ async def _(matcher: Matcher,
     if not session.ban_group_list and not session.ban_user_list:
         await matcher.finish("黑名单列表就是空的哟")
     await matcher.pause(
-        f">>警告，会同时清空群列表({len(session.ban_group_list)})与用户列表({len(session.ban_user_list)})<<"
+        f">>警告，发送确认清空已继续操作，会同时清空群列表({len(session.ban_group_list)})与用户列表({len(session.ban_user_list)})<<"
     )
 
 

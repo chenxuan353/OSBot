@@ -4,16 +4,19 @@ from typing import Any, Dict, Optional, Union
 from nonebot import on_command
 from nonebot.adapters import Bot
 from nonebot.matcher import Matcher
+from nonebot.params import EventMessage
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
 from .channel.channel import Channel
 from .channel.factory import ChannelFactory
 from .model import SubscribeModel
+from .logger import logger
 
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
-from ..os_bot_base.util import matcher_exception_try
+from ..os_bot_base.util import matcher_exception_try, only_command
 from ..os_bot_base.depends import ArgMatchDepend, AdapterDepend, Adapter
-from ..os_bot_base.notice import BotSend
+from ..os_bot_base.notice import BotSend, LeaveGroupHook
+from ..os_bot_base.adapter.onebot import V11Adapter
 
 
 class ChannelArg(ArgMatch):
@@ -267,6 +270,57 @@ async def _(matcher: Matcher,
             msg += f"\n{model.id} | - | {channel.options_to_string(model.options, await channel.get_session())}"
 
     await matcher.finish(msg)
+
+
+
+subscribe_clear = on_command(
+    "清空订阅",
+    block=True,
+    rule=only_command(),
+    permission=SUPERUSER,
+)
+
+
+@subscribe_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend()):
+    group_mark = await adapter.mark_group_without_drive(bot, event)
+    if not await SubscribeModel.filter(group_mark=group_mark).exists():
+        await matcher.finish("订阅列表就是空的哟")
+    await matcher.pause(f">>发送确认清空以继续操作<<")
+
+
+@subscribe_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            message: v11.Message = EventMessage(),
+            adapter: Adapter = AdapterDepend()):
+    msg = str(message).strip()
+    if msg == "确认清空":
+        group_mark = await adapter.mark_group_without_drive(bot, event)
+        await SubscribeModel.filter(group_mark=group_mark).delete()
+        # twitter_subscribe_invalid_cache()
+        finish_msgs = ["已清空！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["确认……失败。", "无法确认"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+async def level_group_hook(group_id: int, bot_id: int) -> None:
+    try:
+        group_mark = f"{V11Adapter.get_type()}-global-group-{group_id}"
+        await SubscribeModel.filter(group_mark=group_mark).delete()
+    except Exception as e:
+        logger.opt(exception=True).error("`SubscribeModel`退群处理时异常")
+
+LeaveGroupHook.get_instance().add_hook(level_group_hook)
 
 
 global_subscribe_list = on_command(

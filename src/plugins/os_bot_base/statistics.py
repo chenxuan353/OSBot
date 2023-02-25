@@ -4,10 +4,13 @@
     例如 运行时间、处理时间
 """
 import asyncio
+from dataclasses import dataclass
+import json
 from time import time
 import psutil
-from typing import Any, Deque, Dict, Optional, Union
+from typing import Any, Deque, Dict, List, Optional, Union
 from typing_extensions import Self
+from dataclasses import dataclass, field
 from collections import deque
 from nonebot import get_driver, get_bots, on_command
 from nonebot.message import run_preprocessor, run_postprocessor, event_preprocessor, event_postprocessor
@@ -21,6 +24,8 @@ from .consts import STATE_STATISTICE_DEAL
 from .logger import logger
 from .util import seconds_to_dhms, matcher_exception_try, only_command
 from .notice import UrgentNotice
+from .session import Session, StoreSerializable
+from .depends import get_plugin_session
 
 driver = get_driver()
 
@@ -283,7 +288,8 @@ async def statistics_info_check():
                     f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
             elif memory_use > config.os_notice_memoryusage_percent:
                 last_check_send[CHECK_SEND_MEMORY] = time()
-                logger.warning("内存用量超过{}%", config.os_notice_memoryusage_percent)
+                logger.warning("内存用量超过{}%",
+                               config.os_notice_memoryusage_percent)
                 await UrgentNotice.send(
                     f"内存用量超过{config.os_notice_memoryusage_percent}%了哦")
 
@@ -307,12 +313,91 @@ async def handle_api_call(bot: Bot, api: str, data: Dict[str, Any]):
     statistics_record.add_api_call_count()
 
 
+@dataclass
+class ApiResultUnit(StoreSerializable):
+    """
+        API调用相关数据
+
+        - `api` 调用的API
+        - `result` 请求结果
+        - `data` 请求体
+        - `exception_str` 异常文本（如果有）
+        - `create_time` 创建时间
+    """
+
+    api: str = field(default=None)  # type: ignore
+    data: str = field(default=None)  # type: ignore
+    result: str = field(default=None)  # type: ignore
+    exception_str: str = field(default=None)  # type: ignore
+    create_time: int = field(default_factory=(lambda: int(time())), init=False)
+
+
+class ApiCalledSession(Session):
+    api_failed_results: List[ApiResultUnit]
+
+    def __init__(self, *args, key: str = "default", **kws):
+        super().__init__(*args, key=key, **kws)
+        self.api_failed_results = []
+
+    def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
+        self.__dict__.update(self_dict)
+
+        # 加载 ban_user_list
+        tmp_list: List[Dict[str,
+                            Any]] = self.api_failed_results  # type: ignore
+        self.api_failed_results = []
+        for item in tmp_list:
+            unit = ApiResultUnit._load_from_dict(item)  # type: ignore
+            self.api_failed_results.append(unit)
+
+        return self
+
+    @classmethod
+    def domain(cls) -> Optional[str]:
+        """
+            域
+
+            覆盖此属性用以增强唯一性，默认使用的域为`nonebot`提供的插件标识符
+        """
+        return "ApiCalled"
+
+
+def any_to_str(obj):
+    try:
+        return str(obj)
+    except Exception as _:
+        return f"Type Error:{type(obj)}"
+
+
 @Bot.on_called_api
 async def handle_api_result(bot: Bot, exception: Optional[Exception], api: str,
                             data: Dict[str, Any], result: Any):
     statistics_record.add_api_call_response_time()
     if exception:
         statistics_record.add_api_call_error_count()
+        if api in ["send_msg"]:
+            if isinstance(result, dict):
+                UrgentNotice.add_notice(
+                    f"API`{api}`异常 {result.get('msg', '未知错误')}")
+                session: ApiCalledSession = await get_plugin_session(
+                    ApiCalledSession)  # type: ignore
+                exception_str = str(exception) if exception is not None else ""
+                data_str = json.dumps(data,
+                                      ensure_ascii=False,
+                                      sort_keys=True,
+                                      indent=2,
+                                      default=any_to_str)
+                result_str = json.dumps(result,
+                                        ensure_ascii=False,
+                                        sort_keys=True,
+                                        indent=2,
+                                        default=any_to_str)
+                async with session:
+                    session.api_failed_results.append(
+                        ApiResultUnit(api=api,
+                                      data=data_str,
+                                      result=result_str,
+                                      exception_str=exception_str))
 
 
 @event_preprocessor
