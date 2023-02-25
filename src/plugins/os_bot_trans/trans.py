@@ -324,6 +324,24 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
+trans_engine_list = on_command("翻译引擎列表",
+                               aliases={"机翻引擎列表"},
+                               priority=2,
+                               rule=only_command(),
+                               permission=GROUP_ADMIN | GROUP_OWNER
+                               | SUPERUSER)
+
+
+@trans_engine_list.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    engine_names = []
+    for engine_name in engines:
+        if engines[engine_name].enable:
+            engine_names.append(engine_name)
+    await matcher.finish(f"当前启用：{'、'.join(engine_names)}")
+
+
 stream_list = on_command("查看流式翻译列表",
                          aliases={"打开流式翻译列表", "翻译列表", "流式翻译列表"},
                          priority=2,
