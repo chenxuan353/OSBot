@@ -59,12 +59,10 @@ class TwitterTrans:
             }
         self.playwright = await async_playwright().start()
         self.browser_type = self.playwright.chromium
-        self.context = await self.browser_type.launch_persistent_context(
+        self.browser = await self.browser_type.launch(headless=not self.debug)
+        self.context = await self.browser.new_context(
             accept_downloads=False,
-            headless=not self.debug,
             proxy=proxy,
-            user_data_dir=os.path.join(config.os_data_path, "twitter_trans",
-                                       "user_data"),
             locale='zh-CN',
             timezone_id='Asia/Shanghai',
             viewport={
@@ -73,6 +71,9 @@ class TwitterTrans:
             },
             # user_agent=randUserAgent(),
         )
+        await self.context.set_extra_http_headers({
+            "accept-language": "zh-CN,zh;q=0.9"
+        })
         self._enable = True
 
     async def async_reload(self):
