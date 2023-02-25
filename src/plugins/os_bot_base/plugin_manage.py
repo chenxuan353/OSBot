@@ -5,7 +5,6 @@
 
     当插件存在复杂逻辑时，完整的开关需要配合本插件管理器的`API`使用。
 """
-from json import load
 import math
 import random
 import textwrap

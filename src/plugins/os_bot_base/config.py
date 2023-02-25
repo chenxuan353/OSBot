@@ -61,7 +61,7 @@ class Config(BaseSettings):
     os_notice_memoryusage: bool = Field(default=True)
     os_notice_memoryusage_percent: int = Field(default=90)
     os_backup_enable: bool = Field(default=True)
-    os_backup_day: int = Field(default=7)
+    os_backup_day: int = Field(default=15)
     os_backup_session_enable: bool = Field(default=True)
     os_backup_database_enable: bool = Field(default=True)
 
