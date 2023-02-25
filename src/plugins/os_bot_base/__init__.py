@@ -56,7 +56,9 @@ async def _():
 async def _():
     from . import backup
     await DatabaseManage.get_instance()._close_()
+    logger.logger.info("数据库链接已关闭")
     backup.pool._pool.shutdown(wait=True) # 平滑的关闭进程
+    logger.logger.info("备份进程已停止")
 
 
 from .meta import __plugin_meta__

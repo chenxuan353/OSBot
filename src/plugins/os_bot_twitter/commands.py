@@ -62,6 +62,7 @@ async def _():
 @driver.on_shutdown
 async def _():
     await twitterTransManage.stop()
+    logger.info("烤推引擎`playwright`已停止")
 
 
 async def get_user_from_search(msg: str,

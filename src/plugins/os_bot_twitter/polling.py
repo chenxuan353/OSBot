@@ -677,6 +677,11 @@ async def _():
                     # 两次发送消息间隔至少两小时
                     await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
                     last_check_send = time()
+            
+            @driver.on_shutdown
+            async def _():
+                stream.stream.disconnect()
+                logger.info("推特流已关闭")
 
         # 必须加载完成
         await stream_startup()
