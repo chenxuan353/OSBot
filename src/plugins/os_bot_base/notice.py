@@ -745,10 +745,12 @@ notify_list = on_command("紧急通知列表",
 async def _(matcher: Matcher, event: v11.PrivateMessageEvent):
     notice = UrgentNotice.get_instance()
     cache = OnebotCache.get_instance()
-    if UrgentNotice.empty():
+    if UrgentNotice.empty() and len(config.os_ob_notice_user_list) == 0 and len(config.os_ob_notice_group_list) == 0:
         await matcher.finish("通知列表是空的！")
     msg = f"通知人：{'、'.join({cache.get_unit_nick(uid) for uid in notice.onebot_notify})}"
     msg += f"\n通知组：{'、'.join({cache.get_group_nick(gid) for gid in notice.onebot_group_notify})}"
+    msg += f"\n系统通知人：{'、'.join({cache.get_unit_nick(uid) for uid in config.os_ob_notice_user_list})}"
+    msg += f"\n系统通知组：{'、'.join({cache.get_group_nick(gid) for gid in config.os_ob_notice_group_list})}"
     await matcher.finish(msg)
 
 

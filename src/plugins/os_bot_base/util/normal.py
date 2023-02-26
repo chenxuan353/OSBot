@@ -99,22 +99,49 @@ def message_to_str(message: v11.Message) -> str:
     return msg_str
 
 
-def seconds_to_dhms(seconds: float) -> str:
+def seconds_to_dhms(seconds: float, compact: bool = False) -> str:
     """
         秒 转 天、时、分、秒字符串
     """
 
     def _days(day):
-        return "{} 天 ".format(day)
+        if compact:
+            if not day:
+                return ""
+            return "{}天".format(day)
+        else:
+            return "{} 天 ".format(day)
 
     def _hours(hour):
-        return "{} 时 ".format(hour)
+        if compact:
+            if not hour:
+                return ""
+            return "{}时".format(hour)
+        else:
+            return "{} 时 ".format(hour)
 
     def _minutes(minute):
-        return "{} 分 ".format(minute)
+        if compact:
+            if not minute:
+                return ""
+            return "{}分".format(minute)
+        else:
+            return "{} 分 ".format(minute)
 
     def _seconds(second):
-        return f"{second:.2f} 秒"
+        if compact:
+            if not second:
+                return ""
+            if isinstance(seconds, int):
+                return f"{second}秒"
+            else:
+                return f"{second:.2f}秒"
+        else:
+            if isinstance(seconds, int):
+                return f"{second} 秒"
+            else:
+                return f"{second:.2f} 秒"
+        
 
     days = seconds // (3600 * 24)
     hours = (seconds // 3600) % 24

@@ -1,3 +1,4 @@
+import asyncio
 import random
 from time import time, localtime, strftime
 from typing import Any, Dict, Optional
@@ -19,7 +20,7 @@ from ..os_bot_base.argmatch import ArgMatch, Field
 
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.depends import SessionPluginDepend, ArgMatchDepend, Adapter, AdapterDepend, AdapterFactory
-from ..os_bot_base.util import matcher_exception_try, get_plugin_session
+from ..os_bot_base.util import matcher_exception_try, get_plugin_session, seconds_to_dhms
 
 
 class ShutUpLevel:
@@ -103,7 +104,8 @@ async def _(bot: Bot,
     if plugin.name == "nonebot_plugin_apscheduler":
         return
 
-    session: ShutUpSession = get_plugin_session(ShutUpSession)  # type: ignore
+    session: ShutUpSession = await get_plugin_session(ShutUpSession
+                                                      )  # type: ignore
     mark = await adapter.mark_group_without_drive(bot, event)
 
     if mark not in session.shut_up_list:
@@ -207,7 +209,7 @@ class ShutUpArg(ArgMatch):
                                     default=ShutUpLevel.SHUT_LEVEL_LOW)
 
     def __init__(self) -> None:
-        super().__init__([self.shut_up_time])
+        super().__init__([self.shut_up_time, self.shut_up_level])
 
 
 shut_up_create = on_command(
@@ -237,34 +239,44 @@ async def _(matcher: Matcher,
     shut_up_level = arg.shut_up_level
     shut_up_time = arg.shut_up_time + int(
         time()) if arg.shut_up_time > 0 else 0
-
+    interval = arg.shut_up_time
     if arg.shut_up_time == -1 and command_start in ["安静一会", "睡一会"]:
         shut_up_time = int(time()) + 900
-    
-    if command_start in ("禁言", "禁声") and shut_up_level == ShutUpLevel.SHUT_LEVEL_LOW:
+        interval = 900
+
+    if command_start in ("禁言",
+                         "禁声") and shut_up_level == ShutUpLevel.SHUT_LEVEL_LOW:
         shut_up_level = ShutUpLevel.SHUT_LEVEL_HIGH
 
-    async with session:
-        session.shut_up_list[mark] = ShutUpUnit(
-            shut_mark=mark,
-            shut_time=shut_up_time,
-            shut_level=shut_up_level,
-            oprate_log=
-            f"{await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-    if arg.shut_up_time == -1 and command_start in ["安静一会", "睡一会"]:
-        await matcher.finish("我会安静一会")
-    
-    await matcher.finish(
-        f"好的~我会休眠至{session.shut_up_list[mark].shut_time_str()}哦")
+    async def lay_deal():
+        async with session:
+            session.shut_up_list[mark] = ShutUpUnit(
+                shut_mark=mark,
+                shut_time=shut_up_time,
+                shut_level=shut_up_level,
+                oprate_log=
+                f"{await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+        if arg.shut_up_time == -1 and command_start in ["安静一会", "睡一会"]:
+            await bot.send(event, "我会安静一会")
+        if interval == 0:
+            await bot.send(event, "休眠模式已启用")
+        else:
+            await bot.send(
+                event, f"好的~我会休眠至{seconds_to_dhms(interval, compact=True)}后哦")
+
+    asyncio.gather(lay_deal())
+    await matcher.finish()
 
 
-shut_up_rescind = on_command(
-    "醒醒",
-    aliases={"醒一醒", "别睡了", "起来干活", "好了你可以说了", "你可以说话了", "可以说话了", "起床", "起来嗨", "解除禁言"},
-    block=True,
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-    | PRIVATE_FRIEND)
+shut_up_rescind = on_command("醒醒",
+                             aliases={
+                                 "醒一醒", "别睡了", "起来干活", "好了你可以说了", "你可以说话了",
+                                 "可以说话了", "起床", "起来嗨", "解除禁言"
+                             },
+                             block=True,
+                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                             | PRIVATE_FRIEND)
 
 
 @shut_up_rescind.handle()
@@ -304,10 +316,16 @@ async def _(matcher: Matcher,
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
     mark = await adapter.mark_group_without_drive(bot, event)
 
+    level = {
+        ShutUpLevel.SHUT_LEVEL_LOW: "低",
+        ShutUpLevel.SHUT_LEVEL_MIDDLE: "中",
+        ShutUpLevel.SHUT_LEVEL_HIGH: "高",
+    }
     if (mark in session.shut_up_list
             and session.shut_up_list[mark].is_shut_up()):
-        await matcher.finish(f"休眠至{session.shut_up_list[mark].shut_time_str()}"
-                             )
+        await matcher.finish(
+            f"休眠至{session.shut_up_list[mark].shut_time_str()}，等级 {level[session.shut_up_list[mark].shut_level]}"
+        )
 
     await matcher.finish(f"并没有~")
 

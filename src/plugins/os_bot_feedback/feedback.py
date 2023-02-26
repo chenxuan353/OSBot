@@ -62,7 +62,7 @@ async def _(matcher: Matcher,
             "msg": str(message)
         })
     fb_msg = feedback_format(feedback)
-    asyncio.gather(UrgentNotice.send(f"新的反馈消息：\n{fb_msg}"))
+    asyncio.gather(UrgentNotice.send(f"新的反馈消息({feedback.id})：\n{fb_msg}"))
     finish_msgs = ["收到~", "已转达！"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
@@ -101,7 +101,7 @@ async def _(matcher: Matcher,
             "msg": str(message)
         })
     fb_msg = feedback_format(feedback)
-    asyncio.gather(UrgentNotice.send(f"新的反馈消息：\n{fb_msg}"))
+    asyncio.gather(UrgentNotice.send(f"新的反馈消息({feedback.id})：\n{fb_msg}"))
     finish_msgs = ["收到~", "已转达！"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
@@ -232,11 +232,11 @@ async def _(matcher: Matcher,
     feedback: Feedback = state["feedback"]
 
     success = await BotSend.send_msg(
-        feedback.bot_type, feedback.send_params, msg,
+        feedback.bot_type, feedback.send_params, v11.Message("来自反馈回复：\n") + msg,
         f"{feedback.bot_id}" if feedback.bot_id else None)
     if success:
         finish_msgs = ["成功", "完成啦", "已传达"]
     else:
         finish_msgs = ["阿拉，失败了", "没有成功哦……", "失败"]
 
-    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])

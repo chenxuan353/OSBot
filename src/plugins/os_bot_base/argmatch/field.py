@@ -499,9 +499,9 @@ class Field:
         time_parse_regex_y = re.compile(r'(-?[1-9][0-9]*)(?:y|year|年)')
         time_parse_regex_month = re.compile(r'([1-9][0-9]*)(?:mom|月|个月)')
         time_parse_regex_d = re.compile(r'(-?[1-9][0-9]*)(?:d|day|天)')
-        time_parse_regex_h = re.compile(r'(-?[1-9][0-9]*)(?:h|hour|小时|时)')
-        time_parse_regex_m = re.compile(r'(-?[1-9][0-9]*)(?:m|min|分|分钟)')
-        time_parse_regex_s = re.compile(r'(-?[1-9][0-9]*)(?:s|sec|秒|秒钟)')
+        time_parse_regex_h = re.compile(r'(-?[1-9][0-9]*)(?:h|hour|小时|个小时)')
+        time_parse_regex_m = re.compile(r'(-?[1-9][0-9]*)(?:m|min|分钟)')
+        time_parse_regex_s = re.compile(r'(-?[1-9][0-9]*)(?:s|sec|秒钟|秒)')
         time_parse_regex = re.compile(r'(-?[1-9][0-9]*)')
 
         def convert_cndigit(s: str):
