@@ -67,7 +67,8 @@ class Field:
                  type: str,
                  require: Optional[bool] = None,
                  process: Callable[[str, "Field", "ArgMatch"], Any],
-                 keys: Optional[Union[Dict[str, List[str]], List[str]]] = None,
+                 keys: Optional[Union[Dict[Union[str, int, bool], List[str]],
+                                      List[str]]] = None,
                  keys_generate: Optional[Callable[[], Dict[str, Any]]] = None,
                  help: Optional[str] = None,
                  hook_error: Optional[Callable[[str, Exception], str]] = None,
@@ -169,7 +170,8 @@ class Field:
 
     @staticmethod
     def Keys(name,
-             keys: Optional[Union[Dict[str, List[str]], List[str]]] = None,
+             keys: Optional[Union[Dict[Union[str, int, bool], List[str]],
+                                  List[str]]] = None,
              keys_generate: Optional[Callable[[], Dict[str, Any]]] = None,
              default: Any = None,
              **kws) -> "Field" and Any:
@@ -216,7 +218,9 @@ class Field:
                             or t_msg.startswith(key + am.Meta.separator)):
                         continue
                     ProcessTool.setVal(keys[key], field, am)
-                    if t_msg.startswith(key + am.Meta.separator) or (am.Meta.separator == "" and t_msg.startswith(key + "\n")):
+                    if t_msg.startswith(key + am.Meta.separator) or (
+                            am.Meta.separator == ""
+                            and t_msg.startswith(key + "\n")):
                         return msg[len(key + am.Meta.separator):]
                     return msg[len(key):]
             raise ValidationError(msg="{name} 不在关键词列表中", field=field)
@@ -573,8 +577,7 @@ class Field:
                         unit = CN_UNIT[d]
                     elif unit <= CN_UNIT[d]:
                         if (CN_UNIT[d] < unit_1) and (len(  # type: ignore
-                                result_list)
-                                                      == control):
+                                result_list) == control):
                             result_list.append(result_1)  # type: ignore
                             result = (result -
                                       result_1) * CN_UNIT[d]  # type: ignore

@@ -194,10 +194,10 @@ async def _(matcher: Matcher,
         await matcher.finish(f"要写群号哦！")
     if gid in config.os_ob_black_group_list:
         await matcher.finish(f"此群组已被配置封禁！")
-    if gid in session.ban_group_list and session.ban_group_list[gid].is_ban():
-        await matcher.finish(
-            f"群{cache.get_group_nick(gid)}已在封禁中，直至{session.ban_group_list[gid].ban_time_str()}"
-        )
+    # if gid in session.ban_group_list and session.ban_group_list[gid].is_ban():
+    #     await matcher.finish(
+    #         f"群{cache.get_group_nick(gid)}已在封禁中，直至{session.ban_group_list[gid].ban_time_str()}"
+    #     )
     ban_time = arg.ban_time + int(time()) if arg.ban_time > 0 else 0
     async with session:
         session.ban_group_list[gid] = BanUnit(
