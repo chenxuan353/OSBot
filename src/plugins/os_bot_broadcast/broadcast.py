@@ -150,6 +150,11 @@ async def _(matcher: Matcher,
             0,
             len(finish_msgs) - 1)])
 
+    umark = await adapter.mark_only_unit_without_drive(bot, event)
+
+    async with session:
+        session.history.append(f"{umark} 向频道 {state['channel']} 广播 内容：{state['msg']}")
+
     async def send():
         success_count = 0
         failure_count = 0
