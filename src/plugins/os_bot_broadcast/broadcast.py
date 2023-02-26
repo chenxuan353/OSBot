@@ -158,6 +158,7 @@ async def _(matcher: Matcher,
     async def send():
         success_count = 0
         failure_count = 0
+        msg = v11.Message(f"来自广播的讯息\n") + state["msg"]
         for channelKey in session.channels[state["channel"]]:
             channelUnit = session.channels[state["channel"]][channelKey]
             mark = f"{adapter.get_type()}-global-{channelUnit.group_type}-{channelUnit.unit_id}"
@@ -171,7 +172,7 @@ async def _(matcher: Matcher,
             else:
                 send_params = {"user_id": channelUnit.unit_id}
             success = await BotSend.send_msg(
-                channelUnit.drive_type, send_params, state["msg"],
+                channelUnit.drive_type, send_params, msg,
                 f"{channelUnit.bot_id}" if channelUnit.bot_id else None)
             if not success:
                 failure_count += 1
@@ -220,7 +221,7 @@ async def _(matcher: Matcher,
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
-    finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
+    finish_msgs = ["请发送`确认移除`确认~", "通过`确认移除`继续操作哦"]
     await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
@@ -232,9 +233,44 @@ async def _(matcher: Matcher,
             session: BroadcastSession = SessionDriveDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     msg = str(message).strip()
-    if msg == "确认清空":
+    if msg == "确认移除":
         async with session:
             del session.channels[arg.channel]
+        finish_msgs = ["已移除！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["未确认操作", "pass"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+channel_clear = on_command("清空广播频道", permission=SUPERUSER)
+
+
+@channel_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+    if arg.channel not in session.channels:
+        await matcher.finish("频道不存在！！！")
+    finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
+    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+
+@channel_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            message: v11.Message = EventMessage(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+    msg = str(message).strip()
+    if msg == "确认清空":
+        async with session:
+            session.channels[arg.channel] = {}
         finish_msgs = ["已清空！", ">>操作已执行<<"]
         await matcher.finish(finish_msgs[random.randint(
             0,
