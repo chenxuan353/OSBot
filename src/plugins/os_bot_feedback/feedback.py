@@ -2,16 +2,17 @@ import asyncio
 from functools import partial
 import math
 import random
+from tkinter import E
 from nonebot import on_command
 from nonebot.adapters.onebot import v11
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
-from nonebot.params import CommandArg
+from nonebot.params import CommandArg, T_State, EventMessage
 from .model import Feedback
 from .config import FeedbackSession
 
 from ..os_bot_base.util import matcher_exception_try, message_to_str
-from ..os_bot_base.notice import UrgentNotice
+from ..os_bot_base.notice import UrgentNotice, BotSend
 from ..os_bot_base.adapter import AdapterFactory
 from ..os_bot_base.argmatch import PageArgMatch, IntArgMatch
 from ..os_bot_base.depends import ArgMatchDepend, SessionDepend
@@ -21,9 +22,6 @@ on_command = partial(on_command, block=True)
 
 def feedback_format(feedback: Feedback) -> v11.Message:
     return f"{feedback.source}\n" + v11.Message(feedback.msg)
-
-
-
 
 
 fb = on_command("反馈", aliases={"建议", "BUG", "bug"})
@@ -39,10 +37,14 @@ async def _(matcher: Matcher,
     # 群聊
     if not await session._limit_bucket.consume(1):
         finish_msgs = ["禁止滥用命令", "反馈太快了哦", "休息一会吧！"]
-        await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
     if not await session._limit_bucket_day.consume(1):
         finish_msgs = ["超过每日限额了哦", "反馈太多勒！"]
-        await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
     adapter = AdapterFactory.get_adapter(bot)
     group_nick = await adapter.get_group_nick(event.group_id)
     user_nick = await adapter.get_unit_nick_from_event(event.user_id, bot,
@@ -53,6 +55,10 @@ async def _(matcher: Matcher,
             "source_mark": mark,
             "source":
             f"{group_nick}({event.group_id})-{user_nick}({event.user_id})",
+            "drive_mark": await adapter.mark_drive(bot, event),
+            "bot_type": adapter.get_type(),
+            "bot_id": await adapter.get_bot_id(bot, event),
+            "send_params": await BotSend.pkg_send_params(bot, event),
             "msg": str(message)
         })
     fb_msg = feedback_format(feedback)
@@ -71,10 +77,14 @@ async def _(matcher: Matcher,
     # 私聊
     if not await session._limit_bucket.consume(1):
         finish_msgs = ["禁止滥用命令", "反馈太快了哦", "休息一会吧！"]
-        await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
     if not await session._limit_bucket_day.consume(1):
         finish_msgs = ["超过每日限额了哦", "反馈太多勒！"]
-        await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
 
     adapter = AdapterFactory.get_adapter(bot)
     user_nick = await adapter.get_unit_nick_from_event(event.user_id, bot,
@@ -84,6 +94,10 @@ async def _(matcher: Matcher,
         **{
             "source_mark": mark,
             "source": f"{user_nick}({event.user_id})",
+            "drive_mark": await adapter.mark_drive(bot, event),
+            "bot_type": adapter.get_type(),
+            "bot_id": await adapter.get_bot_id(bot, event),
+            "send_params": await BotSend.pkg_send_params(bot, event),
             "msg": str(message)
         })
     fb_msg = feedback_format(feedback)
@@ -189,3 +203,40 @@ async def _(matcher: Matcher, arg: IntArgMatch = ArgMatchDepend(IntArgMatch)):
     await feedback.save()
     finish_msgs = ["已确认执行", "万事大吉"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+fb_reply = on_command("回复反馈", aliases={"回复反馈"}, permission=SUPERUSER)
+
+
+@fb_reply.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            state: T_State,
+            arg: IntArgMatch = ArgMatchDepend(IntArgMatch)):
+    feedback = await Feedback.get_or_none(**{"id": arg.num})
+    if not feedback:
+        finish_msgs = ["不存在的领域", "空空如也", "什么都没有找到"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    state["feedback"] = feedback
+    await matcher.pause("回复的内容？")
+
+
+@fb_reply.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            event: v11.PrivateMessageEvent,
+            state: T_State,
+            msg: v11.Message = EventMessage()):
+    feedback: Feedback = state["feedback"]
+
+    success = await BotSend.send_msg(
+        feedback.bot_type, feedback.send_params, msg,
+        f"{feedback.bot_id}" if feedback.bot_id else None)
+    if success:
+        finish_msgs = ["成功", "完成啦", "已传达"]
+    else:
+        finish_msgs = ["阿拉，失败了", "没有成功哦……", "失败"]
+
+    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
