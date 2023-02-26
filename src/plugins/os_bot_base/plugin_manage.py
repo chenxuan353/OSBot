@@ -20,7 +20,7 @@ from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
 from .model.plugin_manage import PluginModel, PluginSwitchModel
 from .util import matcher_exception_try, match_suggest, only_command, plug_is_disable
-from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH
+from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH, META_PLUGIN_ALIAS
 from .depends import AdapterDepend, ArgMatchDepend
 from .exception import MatcherErrorFinsh
 from .adapter import AdapterFactory, Adapter
@@ -67,11 +67,23 @@ async def plugin_manage_on_startup():
                 if plugModel.default_switch is None:
                     plugModel.default_switch = meta.extra.get(
                         META_DEFAULT_SWITCH, True)
+                if meta.extra.get(META_PLUGIN_ALIAS):
+                    alias = meta.extra.get(META_PLUGIN_ALIAS)
+                    if isinstance(alias,
+                                  str) and alias not in cache_plugin_key_map:
+                        cache_plugin_key_map[alias] = plugModel.name
+                        cache_plugin_keys.append(alias)
+                    if isinstance(alias, list):
+                        for ali_name in alias:
+                            if ali_name not in cache_plugin_key_map:
+                                cache_plugin_key_map[ali_name] = plugModel.name
+                                cache_plugin_keys.append(ali_name)
             if plugModel.display_name:
                 cache_plugin_key_map[plugModel.display_name] = plugModel.name
                 cache_plugin_keys.append(plugModel.display_name)
             cache_plugin_key_map[plugModel.name] = plugModel.name
             cache_plugin_keys.append(plugModel.name)
+
             await plugModel.save()
     except Exception as e:
         logger.opt(exception=True).debug(f"执行插件管理-插件开关启动初始化时异常")
@@ -140,7 +152,8 @@ async def _(bot: Bot, event: Event, matcher: Matcher):
                 raise IgnoredException(
                     f"插件管理器已限制`{plugin.name}`(组设置)! group={group_mark}")
         if plugModel and not plugModel.default_switch:
-            raise IgnoredException(f"插件管理器已限制`{plugin.name}`(插件默认值)! group={group_mark}")
+            raise IgnoredException(
+                f"插件管理器已限制`{plugin.name}`(插件默认值)! group={group_mark}")
 
         logger.debug(f"插件管理器已放行`{plugin.name}`(插件默认值)! group={group_mark}")
     except IgnoredException as e:
@@ -156,10 +169,11 @@ class ManageArg(ArgMatch):
         name = "插件管理的参数"
         des = "管理插件的开关"
 
-    drive_type: str = Field.Keys(
-        "驱动", {
-            "ob11": ["onebot11", "gocqhttp"],
-        }, default="ob11", require=False)
+    drive_type: str = Field.Keys("驱动", {
+        "ob11": ["onebot11", "gocqhttp"],
+    },
+                                 default="ob11",
+                                 require=False)
 
     group_type: str = Field.Keys(
         "组标识", {
@@ -172,9 +186,10 @@ class ManageArg(ArgMatch):
     switch: bool = Field.Bool("状态", require=False)
 
     def __init__(self) -> None:
-        super().__init__(
-            [self.drive_type, self.group_type, self.group_id, self.plugin_name,
-             self.switch])
+        super().__init__([
+            self.drive_type, self.group_type, self.group_id, self.plugin_name,
+            self.switch
+        ])
 
 
 class PlugArg(ArgMatch):
@@ -232,13 +247,14 @@ async def _(matcher: Matcher,
     if not switchModel:
         switchModel = PluginSwitchModel(**entity)
     elif switchModel.switch == arg.switch:
-        await matcher.finish(f"`{group_nick}`的`{pluginModel.display_name}`的状态没有变化哦"
-                             )
+        await matcher.finish(
+            f"`{group_nick}`的`{pluginModel.display_name}`的状态没有变化哦")
     switchModel.switch = arg.switch
     await switchModel.save()
     plug_model_cache_clear()
     if not switchModel.switch:
-        await matcher.finish(f"已经关掉`{group_nick}`的`{pluginModel.display_name}`了~")
+        await matcher.finish(
+            f"已经关掉`{group_nick}`的`{pluginModel.display_name}`了~")
     else:
         await matcher.finish(f"`{group_nick}`的`{pluginModel.display_name}`开了！")
 
@@ -469,6 +485,7 @@ async def _(matcher: Matcher,
         await matcher.finish(f"{pluginModel.usage or '空空如也'}")
 
     await matcher.finish(f"{status}\n{pluginModel.usage or '空空如也'}")
+
 
 version = "v0.5beta"
 

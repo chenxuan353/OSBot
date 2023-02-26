@@ -34,7 +34,6 @@ from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
 from ..os_bot_base.notice import BotSend, LeaveGroupHook
 from ..os_bot_base.adapter.onebot import V11Adapter
 
-
 driver = get_driver()
 twitterTransManage: TwitterTransManage = None  # type: ignore
 
@@ -297,6 +296,7 @@ async def _(matcher: Matcher,
     finish_msgs = ["确认……失败。", "无法确认"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
+
 async def level_group_hook(group_id: int, bot_id: int) -> None:
     try:
         group_mark = f"{V11Adapter.get_type()}-global-group-{group_id}"
@@ -305,15 +305,15 @@ async def level_group_hook(group_id: int, bot_id: int) -> None:
     except Exception as e:
         logger.opt(exception=True).error("`TwitterSubscribeModel`退群处理时异常")
 
+
 LeaveGroupHook.get_instance().add_hook(level_group_hook)
 
-
 subscribe_clear_select = on_command("清理指定推特订阅",
-                             aliases={"清理指定转推"},
-                             block=True,
-                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-                             | PRIVATE_FRIEND)
-
+                                    aliases={"清理指定转推"},
+                                    block=True,
+                                    permission=SUPERUSER | GROUP_ADMIN
+                                    | GROUP_OWNER
+                                    | PRIVATE_FRIEND)
 
 view_user = on_command("推特用户",
                        aliases={"查找推特用户", "查询推特用户", "检索推特用户"},
@@ -744,6 +744,23 @@ async def _(matcher: Matcher):
     twitter_subscribe_invalid_cache()
     polling.client.invalid_cache()
     await matcher.finish(f"完成啦！")
+
+
+check_and_start = on_command("检查流式监听",
+                             permission=SUPERUSER,
+                             rule=only_command(),
+                             block=True)
+
+
+@check_and_start.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    if not config.os_twitter_stream_enable:
+        await matcher.finish("流式监听未启用")
+    if polling.stream.stream.isrunning():
+        await matcher.finish("流式监听正常")
+    await polling.stream.reconnect()
+    await matcher.finish("流式监听已再次启动")
 
 
 update_all = on_command("更新所有订阅",

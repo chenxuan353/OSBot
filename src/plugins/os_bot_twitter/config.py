@@ -6,7 +6,7 @@ from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 
 from ..os_bot_base import Session
-from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_DEFAULT_SWITCH
+from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_DEFAULT_SWITCH, META_PLUGIN_ALIAS
 
 if TYPE_CHECKING:
     from .model import TwitterSubscribeModel
@@ -165,10 +165,11 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
+        META_PLUGIN_ALIAS: ["转推", "推特订阅", "烤推", "烤推模版"],
         META_ADMIN_USAGE: """
             通过`订阅推特 用户名 [选项]`、`取消推特订阅 用户名`、`推特订阅配置 用户名 [选项]`、`推特订阅列表`、`清空推特订阅`、`全局推特订阅列表`来管理订阅
             其它指令`看推 推文链接/序号`、`设置烤推模版 模版`、`设置用户烤推模版 用户 模版`
-            维护指令`移除/添加转推黑名单`、`转推黑名单列表`、`全局烤推历史`、`清空推特缓存`、`重载烤推脚本`、`重启烤推引擎`、`烤推引擎状态`
+            维护指令`移除/添加转推黑名单`、`转推黑名单列表`、`全局烤推历史`、`清空推特缓存`、`检查流式监听`、`重载烤推脚本`、`重启烤推引擎`、`烤推引擎状态`
             可以通过`转推配置帮助`命令查看配置详细介绍
             隐藏的常规命令`烤架`用于获取烤推状态
         """,  # 管理员可以获取的帮助

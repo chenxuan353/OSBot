@@ -2,7 +2,7 @@ from pydantic import BaseSettings
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 
-from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY
+from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_PLUGIN_ALIAS
 
 
 class Config(BaseSettings):
@@ -22,6 +22,7 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
+        META_PLUGIN_ALIAS: ["rss", "订阅", "RSS订阅", "RSSHUB"],
         META_ADMIN_USAGE: """
             `订阅 [频道] 订阅标识`、`取消订阅 [频道] 订阅标识`、`订阅配置 [频道] 订阅标识 选项`、`订阅列表`
             `全局订阅列表`

@@ -202,7 +202,7 @@ class ShutUpArg(ArgMatch):
     shut_up_level: int = Field.Keys("过滤等级", {
         ShutUpLevel.SHUT_LEVEL_LOW: ["低"],
         ShutUpLevel.SHUT_LEVEL_MIDDLE: ["中", "非常安静", "很安静的那种", "很安静"],
-        ShutUpLevel.SHUT_LEVEL_HIGH: ["高", "完全安静", "完全静默", "完全"],
+        ShutUpLevel.SHUT_LEVEL_HIGH: ["高", "完全安静", "完全静默", "完全", "特别安静"],
     },
                                     default=ShutUpLevel.SHUT_LEVEL_LOW)
 
@@ -212,7 +212,7 @@ class ShutUpArg(ArgMatch):
 
 shut_up_create = on_command(
     "闭嘴",
-    aliases={"安静", "睡一会", "安静一会", "休眠", "别说话", "肃静", "禁声"},
+    aliases={"安静", "睡一会", "安静一会", "休眠", "别说话", "肃静", "禁声", "禁言"},
     block=True,
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
     | PRIVATE_FRIEND)
@@ -240,6 +240,9 @@ async def _(matcher: Matcher,
 
     if arg.shut_up_time == -1 and command_start in ["安静一会", "睡一会"]:
         shut_up_time = int(time()) + 900
+    
+    if command_start in ("禁言", "禁声") and shut_up_level == ShutUpLevel.SHUT_LEVEL_LOW:
+        shut_up_level = ShutUpLevel.SHUT_LEVEL_HIGH
 
     async with session:
         session.shut_up_list[mark] = ShutUpUnit(
@@ -250,14 +253,15 @@ async def _(matcher: Matcher,
             f"{await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
         )
     if arg.shut_up_time == -1 and command_start in ["安静一会", "睡一会"]:
-        await matcher.finish("我会安静一会！")
+        await matcher.finish("我会安静一会")
+    
     await matcher.finish(
         f"好的~我会休眠至{session.shut_up_list[mark].shut_time_str()}哦")
 
 
 shut_up_rescind = on_command(
     "醒醒",
-    aliases={"醒一醒", "别睡了", "起来干活", "好了你可以说了", "你可以说话了", "可以说话了", "起床", "起来嗨"},
+    aliases={"醒一醒", "别睡了", "起来干活", "好了你可以说了", "你可以说话了", "可以说话了", "起床", "起来嗨", "解除禁言"},
     block=True,
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
     | PRIVATE_FRIEND)
@@ -342,7 +346,10 @@ class ShutUpManageArg(ArgMatch):
         ])
 
 
-shut_up_oprate = on_command("禁言", block=True, permission=SUPERUSER)
+shut_up_oprate = on_command("指定禁言",
+                            aliases={"远程禁言"},
+                            block=True,
+                            permission=SUPERUSER)
 
 
 @shut_up_oprate.handle()
@@ -379,7 +386,10 @@ async def _(matcher: Matcher,
     )
 
 
-shut_up_oprate = on_command("解除禁言", block=True, permission=SUPERUSER)
+shut_up_oprate = on_command("指定解除禁言",
+                            aliases={"远程取消禁言", "远程解除禁言"},
+                            block=True,
+                            permission=SUPERUSER)
 
 
 @shut_up_oprate.handle()
