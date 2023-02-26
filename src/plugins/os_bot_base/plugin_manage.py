@@ -173,13 +173,14 @@ class ManageArg(ArgMatch):
         "ob11": ["onebot11", "gocqhttp"],
     },
                                  default="ob11",
-                                 require=False)
+                                 require=False,
+                                 ignoreCase=True)
 
-    group_type: str = Field.Keys(
-        "组标识", {
-            "group": ["g", "group", "组", "群", "群聊"],
-            "private": ["p", "private", "私聊", "好友", "私"],
-        })
+    group_type: str = Field.Keys("组标识", {
+        "group": ["g", "group", "组", "群", "群聊"],
+        "private": ["p", "private", "私聊", "好友", "私"],
+    },
+                                 ignoreCase=True)
     group_id: int = Field.Int("组ID", min=9999, max=99999999999)
     plugin_name: str = Field.Keys("插件名称",
                                   keys_generate=lambda: cache_plugin_key_map)

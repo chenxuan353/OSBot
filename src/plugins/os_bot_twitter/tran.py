@@ -59,10 +59,10 @@ class TwitterTrans:
             }
         self.playwright = await async_playwright().start()
         self.browser_type = self.playwright.chromium
-        self.browser = await self.browser_type.launch(headless=not self.debug)
+        self.browser = await self.browser_type.launch(headless=not self.debug,
+                                                      proxy=proxy)
         self.context = await self.browser.new_context(
             accept_downloads=False,
-            proxy=proxy,
             locale='zh-CN',
             timezone_id='Asia/Shanghai',
             viewport={
@@ -71,9 +71,8 @@ class TwitterTrans:
             },
             # user_agent=randUserAgent(),
         )
-        await self.context.set_extra_http_headers({
-            "accept-language": "zh-CN,zh;q=0.9"
-        })
+        await self.context.set_extra_http_headers(
+            {"accept-language": "zh-CN,zh;q=0.9"})
         self._enable = True
 
     async def async_reload(self):
@@ -118,7 +117,7 @@ class TwitterTrans:
             while os.path.isfile(screenshot_path):
                 screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
                 screenshot_path = os.path.join(self.screenshot_path,
-                                            screenshot_filename)
+                                               screenshot_filename)
             logger.debug("烤推开始 {} 存档文件 {}", tweet_id, screenshot_filename)
             page = await self.context.new_page()
             await page.goto(
@@ -252,8 +251,9 @@ class TwitterTransManage:
                     try:
                         os.remove(file_path)
                     except Exception as e:
-                        logger.error(
-                            "移除超过{}天的烤推文件时异常 {} {} | {}", str(expire_days), e.__class__.__name__, str(e), file_path)
+                        logger.error("移除超过{}天的烤推文件时异常 {} {} | {}",
+                                     str(expire_days), e.__class__.__name__,
+                                     str(e), file_path)
                         continue
                     logger.debug("移除超过{}天的烤推文件 {}", str(expire_days),
                                  file_path)

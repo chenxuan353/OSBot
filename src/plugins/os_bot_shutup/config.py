@@ -12,7 +12,7 @@ class Config(BaseSettings):
         工具插件
     """
     superusers: List[Union[int, str]] = Field(default=[])
-    
+
     class Config:
         extra = "ignore"
 
@@ -24,8 +24,8 @@ class UtilSession(Session):
 
 
 __plugin_meta__ = PluginMetadata(
-    name="shutup",
-    description="OSBot shutup 闭嘴！",
+    name="安静",
+    description="OSBot 闭嘴！",
     usage="""
         支持通过指令来让Bot安静一会
         `禁言`、`安静`、`闭嘴`、`安静一会`等用于使bot安静，这些指令均支持可选参数`[时间] [等级]`。
@@ -37,8 +37,9 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
-        META_PLUGIN_ALIAS: ["shut up", "安静", "休眠", "睡一会", "禁言"],
-        META_ADMIN_USAGE: "可以通过`远程禁言 群/私聊 ID`或者`远程解除禁言 群/私聊 ID`来控制指定对象的安静状态",  # 管理员可以获取的帮助
+        META_PLUGIN_ALIAS: ["shut up", "闭嘴", "休眠", "睡一会", "禁言"],
+        META_ADMIN_USAGE:
+        "可以通过`远程禁言 群/私聊 ID`或者`远程解除禁言 群/私聊 ID`来控制指定对象的安静状态",  # 管理员可以获取的帮助
         META_SESSION_KEY: UtilSession
     },
 )

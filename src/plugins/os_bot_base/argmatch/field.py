@@ -492,7 +492,7 @@ class Field:
             具体可参见`class Field`构造器
         """
         basic_regex = re.compile(
-            u"[0-9〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰]+(y|year|年|mom|月|个月|d|day|天|h|hour|小时|时|m|min|分|分钟|s|sec|秒|秒钟)?"
+            u"[0-9〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰]+(y|year|年|mom|个月|月|d|day|天|h|hour|个小时|小时|时|m|min|分钟|分|s|sec|秒钟|秒)?"
         )
         convert_cndigit_regex = re.compile(
             r'[〇一二三四五六七八九零壹贰叁肆伍陆柒捌玖貮两十拾百佰千仟万萬亿億兆]+')
@@ -500,7 +500,7 @@ class Field:
         time_parse_regex_month = re.compile(r'([1-9][0-9]*)(?:mom|月|个月)')
         time_parse_regex_d = re.compile(r'(-?[1-9][0-9]*)(?:d|day|天)')
         time_parse_regex_h = re.compile(r'(-?[1-9][0-9]*)(?:h|hour|小时|个小时)')
-        time_parse_regex_m = re.compile(r'(-?[1-9][0-9]*)(?:m|min|分钟)')
+        time_parse_regex_m = re.compile(r'(-?[1-9][0-9]*)(?:m|min|分钟|分)')
         time_parse_regex_s = re.compile(r'(-?[1-9][0-9]*)(?:s|sec|秒钟|秒)')
         time_parse_regex = re.compile(r'(-?[1-9][0-9]*)')
 

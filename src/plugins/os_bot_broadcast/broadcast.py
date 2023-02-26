@@ -11,15 +11,16 @@ from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.params import EventMessage
 from nonebot.adapters.onebot import v11
+from nonebot.adapters.onebot.v11.permission import PRIVATE_FRIEND, GROUP_ADMIN, GROUP_OWNER
 from dataclasses import dataclass, field
 
 from .logger import logger
 
 from ..os_bot_base.depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter
 from ..os_bot_base.session import Session, StoreSerializable
-from ..os_bot_base.util import matcher_exception_try, plug_is_disable
+from ..os_bot_base.util import matcher_exception_try, plug_is_disable, only_command
 from ..os_bot_base.argmatch import ArgMatch, Field
-from ..os_bot_base.notice import BotSend, LeaveGroupHook, UrgentNotice
+from ..os_bot_base.notice import BotSend, UrgentNotice
 
 
 @dataclass
@@ -34,14 +35,14 @@ class BroadcastUnit(StoreSerializable):
 
 class BroadcastSession(Session):
     channels: Dict[str, Dict[str, BroadcastUnit]]
-    """频道列表"""
+    """频道列表 含默认频道 公告"""
 
     history: List[str]
     """广播历史 记录指令原文"""
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
-        self.channels = {}
+        self.channels = {"公告": {}}
         self.history = []
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
@@ -61,7 +62,7 @@ class BroadcastChannelArg(ArgMatch):
         des = "管理广播频道"
 
     channel: str = Field.Str("频道")
-    unit_name: str = Field.Str("名称", require=False)
+    unit_name: str = Field.Str("名称", default="", require=False)
 
     def __init__(self) -> None:
         super().__init__([self.channel, self.unit_name])
@@ -77,13 +78,14 @@ class BroadcastArg(ArgMatch):
         "ob11": ["onebot11", "gocqhttp"],
     },
                                  default="ob11",
-                                 require=False)
+                                 require=False,
+                                 ignoreCase=True)
 
-    group_type: str = Field.Keys(
-        "组标识", {
-            "group": ["g", "group", "组", "群", "群聊"],
-            "private": ["p", "private", "私聊", "好友", "私"],
-        })
+    group_type: str = Field.Keys("组标识", {
+        "group": ["g", "group", "组", "群", "群聊"],
+        "private": ["p", "private", "私聊", "好友", "私"],
+    },
+                                 ignoreCase=True)
     unit_id: int = Field.Int("组ID", min=9999, max=99999999999)
 
     channel: str = Field.Str("频道")
@@ -118,7 +120,7 @@ async def _(
         await matcher.finish("频道为空哦...")
 
     state["channel"] = arg.channel
-    await matcher.finish("要广播什么呢？")
+    await matcher.pause("要广播什么呢？")
 
 
 @broadcast.handle()
@@ -155,7 +157,7 @@ async def _(matcher: Matcher,
             channelUnit = session.channels[state["channel"]][channelKey]
             mark = f"{adapter.get_type()}-global-{channelUnit.group_type}-{channelUnit.unit_id}"
             if await plug_is_disable("os_bot_broadcast", mark):
-                logger.info("因组 {} 的广播插件被关闭，广播推送取消。",mark)
+                logger.info("因组 {} 的广播插件被关闭，广播推送取消。", mark)
                 UrgentNotice.add_notice(f"{mark}的广播操作因插件被关闭取消！")
                 continue
 
@@ -175,9 +177,10 @@ async def _(matcher: Matcher,
                 success_count += 1
             if success:
                 await asyncio.sleep(random.randint(1000, 5000) / 1000)
-        await matcher.finish(f"对`{state['channel']}`的广播完成~" +
-                             (f"成功{success_count} 失败{failure_count}" if
-                              failure_count != 0 else f"共发送{success_count}"))
+        await bot.send(
+            event, f"对`{state['channel']}`的广播完成~" +
+            (f"成功{success_count} 失败{failure_count}"
+             if failure_count != 0 else f"共发送{success_count}条讯息"))
 
     asyncio.gather(send())
     await matcher.finish(f"正在向`{state['channel']}`广播讯息~")
@@ -303,7 +306,10 @@ async def _(matcher: Matcher,
     )
 
 
-channel_unit_join = on_command("加入频道", aliases={"进入频道"}, permission=SUPERUSER)
+channel_unit_join = on_command("加入频道",
+                               aliases={"进入频道"},
+                               permission=SUPERUSER | PRIVATE_FRIEND
+                               | GROUP_ADMIN | GROUP_OWNER)
 
 
 @channel_unit_join.handle()
@@ -337,7 +343,9 @@ async def _(matcher: Matcher,
     await matcher.finish(f"已成功加入频道`{arg.channel}`")
 
 
-channel_unit_quit = on_command("退出频道", permission=SUPERUSER)
+channel_unit_quit = on_command("退出频道",
+                               permission=SUPERUSER | PRIVATE_FRIEND
+                               | GROUP_ADMIN | GROUP_OWNER)
 
 
 @channel_unit_quit.handle()
@@ -405,14 +413,14 @@ async def _(matcher: Matcher,
     count = len(keys)
     maxpage = math.ceil(count / size)
     if count == 0:
-        finish_msgs = ["暂无通知~", "没有通知哦"]
+        finish_msgs = ["暂无成员~", "没有成员哦"]
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
     list_page = keys[(arg.page - 1) * size:arg.page * size]
-    msg = f"{arg.page}/{maxpage}" if count >= 50 else ""
+    pages = f"{arg.page}/{maxpage}" if count >= 50 else ""
     names = []
     for item in list_page:
         nick = channel[item].unit_id
@@ -424,6 +432,43 @@ async def _(matcher: Matcher,
             else:
                 nick = await adapter.get_unit_nick(channel[item].unit_id, bot)
         names.append(
-            f"{nick}({'g' if channel[item].group_type == 'group' else 'p'}{channel[item].unit_id})"
+            f"{nick}({'G' if channel[item].group_type == 'group' else 'P'}{channel[item].unit_id})"
         )
-    await matcher.finish(f"`{arg.channel}`的成员：{'、'.join(names)}")
+    await matcher.finish(f"`{arg.channel}`的成员{pages}：{'、'.join(names)}")
+
+
+channel_twitter_sync = on_command("同步推特插件广播频道",
+                                  rule=only_command(),
+                                  permission=SUPERUSER)
+
+
+@channel_twitter_sync.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+    from ..os_bot_base.model.plugin_manage import PluginSwitchModel
+    models = await PluginSwitchModel.filter(name="os_bot_twitter")
+    channel_name = "推特"
+    async with session:
+        session.channels[channel_name] = {}
+        for model in models:
+            if not model.switch:
+                continue
+            if not model.group_mark.startswith(adapter.get_type()):
+                continue
+            mark_splits = model.group_mark.split("-")
+            group_type = mark_splits[-2]
+            unit_id = mark_splits[-1]
+            mark = f"{adapter.get_type()}-{group_type}-{unit_id}"
+            try:
+                unit = BroadcastUnit("", adapter.get_type(), group_type,
+                                     int(unit_id), int(bot.self_id))
+                session.channels[channel_name][mark] = unit
+            except Exception as e:
+                logger.opt(
+                    exception=True).warning("同步推特插件广播列表时，生成`BroadcastUnit`异常")
+
+    await matcher.finish(f"已成功同步`{channel_name}`频道`数据")

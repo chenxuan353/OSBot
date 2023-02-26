@@ -340,13 +340,14 @@ class ShutUpManageArg(ArgMatch):
         "ob11": ["onebot11", "gocqhttp"],
     },
                                  default="ob11",
+                                 ignoreCase=True,
                                  require=False)
 
-    group_type: str = Field.Keys(
-        "组标识", {
-            "group": ["g", "group", "组", "群", "群聊"],
-            "private": ["p", "private", "私聊", "好友", "私"],
-        })
+    group_type: str = Field.Keys("组标识", {
+        "group": ["g", "group", "组", "群", "群聊"],
+        "private": ["p", "private", "私聊", "好友", "私"],
+    },
+                                 ignoreCase=True)
     unit_id: int = Field.Int("组ID", min=9999, max=99999999999)
 
     shut_up_time: int = Field.RelateTime("安静时长", default=-1, require=False)
@@ -360,7 +361,8 @@ class ShutUpManageArg(ArgMatch):
 
     def __init__(self) -> None:
         super().__init__([
-            self.drive_type, self.group_type, self.unit_id, self.shut_up_time
+            self.drive_type, self.group_type, self.unit_id, self.shut_up_time,
+            self.shut_up_level
         ])
 
 
