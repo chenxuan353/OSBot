@@ -1,6 +1,6 @@
 import abc
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from typing_extensions import Self
 from .exception import NoneValidationError, RequireMatchError, MatchError, ValidationError
 from .tool import ProcessTool
@@ -40,7 +40,7 @@ class ArgMatch(abc.ABC):
             分割符转义 $sep$
         """
 
-    def __init__(self, args: List["Field" and Any] = []) -> None:
+    def __init__(self, args: List[Union["Field", Any]] = []) -> None:
         super().__init__()
         self._args = args  # type: ignore
         self._kws = {}

@@ -3,7 +3,7 @@ from asyncio.futures import Future
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import Future as ThreadFuture
-from typing import Awaitable, Callable, Tuple
+from typing import Awaitable, Callable, Tuple, Union
 
 
 class AsyncPool:
@@ -11,8 +11,8 @@ class AsyncPool:
         线程池或进程池的异步封装
     """
 
-    def __init__(self, pool: ProcessPoolExecutor
-                 or ThreadPoolExecutor) -> None:
+    def __init__(self, pool: Union[ProcessPoolExecutor,
+                                   ThreadPoolExecutor]) -> None:
         self._pool = pool
 
     def _pkg_callback(self) -> Tuple[Awaitable, Callable]:
@@ -46,8 +46,8 @@ class AsyncPoolSimple:
         线程池或进程池的简单异步封装
     """
 
-    def __init__(self, pool: ProcessPoolExecutor
-                 or ThreadPoolExecutor) -> None:
+    def __init__(self, pool: Union[ProcessPoolExecutor,
+                                   ThreadPoolExecutor]) -> None:
         self._pool = pool
 
     async def _wait(self, thread_future: ThreadFuture):

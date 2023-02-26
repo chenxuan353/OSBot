@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 from nonebot.adapters.onebot import v11
 from .adapter import Adapter
 from ..exception import AdapterException
@@ -148,7 +148,7 @@ class V11Adapter(Adapter):
 
     async def get_unit_nick_from_event(
             self,
-            user_id: str or int,
+            user_id: Union[str, int],
             bot: Optional[v11.Bot],
             event: Optional[v11.Event] = None) -> str:
         nick = f"{user_id}"

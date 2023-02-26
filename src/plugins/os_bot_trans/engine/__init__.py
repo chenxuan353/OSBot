@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from ..langs import langs
 from ..exception import EngineError
 from ..emoji_filter import EmojiFilter
@@ -47,7 +47,7 @@ class Engine(abc.ABC):
     BASE_LANGUAGE = tool_reverse_dict(BASE_LANGUAGE_LIST)
 
     def __init__(self, name: str, enable: bool,
-                 allow_dict: Dict[str, List[str] or str],
+                 allow_dict: Dict[str, Union[List[str], str]],
                  change_dict: Dict[str, str], alias: List[str]) -> None:
         """
             `name` 引擎名称

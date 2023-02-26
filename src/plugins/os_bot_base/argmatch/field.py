@@ -174,7 +174,7 @@ class Field:
                                   List[str]]] = None,
              keys_generate: Optional[Callable[[], Dict[str, Any]]] = None,
              default: Any = None,
-             **kws) -> "Field" and Any:
+             **kws) -> Any:
         """
             构造一个关键词类型参数匹配器
 
@@ -238,7 +238,7 @@ class Field:
             min: Optional[int] = None,
             max: Optional[int] = None,
             default: Optional[str] = None,
-            **kws) -> "Field" and str:
+            **kws) -> Any:
         """
             构造一个字符串类型参数匹配器
 
@@ -284,7 +284,7 @@ class Field:
                      **kws)  # type: ignore
 
     @staticmethod
-    def Regex(name, regex: str, default: Any = None, **kws) -> "Field" and Any:
+    def Regex(name, regex: str, default: Any = None, **kws) -> Any:
         """
             构造一个正则表达式类型参数匹配器
 
@@ -327,7 +327,7 @@ class Field:
             min: Optional[int] = None,
             max: Optional[int] = None,
             default: Optional[int] = None,
-            **kws) -> "Field" and int:
+            **kws) -> Any:
         """
             构造一个整数型参数匹配器
 
@@ -378,7 +378,7 @@ class Field:
               min: Optional[int] = None,
               max: Optional[int] = None,
               default: Optional[float] = None,
-              **kws) -> "Field" and float:
+              **kws) -> Any:
         """
             构造一个数值型参数匹配器
 
@@ -425,9 +425,9 @@ class Field:
 
     @staticmethod
     def Bool(name,
-             keys: Optional[Dict[Any, List[str]] or List[str]] = None,
+             keys: Optional[Union[Dict[Any, List[str]], List[str]]] = None,
              default: Optional[bool] = None,
-             **kws) -> "Field" and bool:
+             **kws) -> Any:
         """
             构造一个布尔型参数匹配器
 
@@ -480,7 +480,7 @@ class Field:
                    min: Optional[int] = 0,
                    max: Optional[int] = None,
                    default: Optional[int] = None,
-                   **kws) -> "Field" and int:
+                   **kws) -> Any:
         """
             相对时间解析器，返回单位为秒
 
@@ -688,7 +688,7 @@ class Field:
     def Custom(name,
                process: Callable[[str, "Field", "ArgMatch"], Awaitable[Any]],
                default: Any = None,
-               **kws) -> "Field" and Any:
+               **kws) -> Any:
         """
             构造一个自定义参数匹配器
 
