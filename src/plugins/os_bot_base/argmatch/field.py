@@ -170,8 +170,7 @@ class Field:
 
     @staticmethod
     def Keys(name,
-             keys: Optional[Union[Dict[Union[str, int, bool], List[str]],
-                                  List[str]]] = None,
+             keys: Any = None,
              keys_generate: Optional[Callable[[], Dict[str, Any]]] = None,
              default: Any = None,
              **kws) -> Any:

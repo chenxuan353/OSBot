@@ -4,7 +4,10 @@
     各个引擎的语言支持列表均需要参考此处
 """
 
-langs = {
+from typing import Dict, List
+
+
+langs: Dict[str, List[str]] = {
     "auto": ["自动", "智能", "自"],
     "zh-yue": ["粤语"],
     "zh-wyw": ["文言文"],

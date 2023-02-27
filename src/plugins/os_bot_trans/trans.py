@@ -2,7 +2,7 @@ from functools import partial
 import random
 import re
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from nonebot import on_command, on_startswith, on_message
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
@@ -31,7 +31,7 @@ _engines: List["Engine"] = [
 ]
 
 engines: Dict[str, "Engine"] = {}
-engines_limit: Dict[str, List] = {}
+engines_limit: Dict[str, List[Any]] = {}
 
 for e in _engines:
     engines[e.name] = e
