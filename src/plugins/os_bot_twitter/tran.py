@@ -91,6 +91,20 @@ class TwitterTrans:
         await self.playwright.stop()  # type: ignore
         self._enable = False
 
+    @staticmethod
+    async def print_args(msg):
+        logstr = ""
+        values = []
+        for arg in msg.args:
+            result = await arg.json_value()
+            if isinstance(result, str):
+                logstr += " " + result
+            else:
+                logstr += " {}"
+                values.append(result)
+        if logstr:
+            logger.debug(f"烤推脚本输出 - {logstr}", *values)
+
     async def trans(self,
                     tweet_id: str,
                     trans: Optional[Dict[str, Any]] = None,
@@ -123,20 +137,7 @@ class TwitterTrans:
             await page.goto(
                 f"https://twitter.com/{tweet_username}/status/{tweet_id}")
 
-            async def print_args(msg):
-                logstr = ""
-                values = []
-                for arg in msg.args:
-                    result = await arg.json_value()
-                    if isinstance(result, str):
-                        logstr += " " + result
-                    else:
-                        logstr += " {}"
-                        values.append(result)
-                if logstr:
-                    logger.debug(f"烤推脚本输出 - {logstr}", *values)
-
-            page.on("console", print_args)
+            page.on("console", self.print_args)
 
             playwright_config = {
                 "ENABLE_PLAYWRIGHT": True,
