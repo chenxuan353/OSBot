@@ -2,7 +2,6 @@ import asyncio
 from functools import partial
 import math
 import random
-from tkinter import E
 from nonebot import on_command
 from nonebot.adapters.onebot import v11
 from nonebot.matcher import Matcher
