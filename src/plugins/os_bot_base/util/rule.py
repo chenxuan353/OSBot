@@ -1,4 +1,5 @@
 from nonebot.adapters import Message
+from nonebot.rule import Rule
 from nonebot.params import CommandArg
 
 
@@ -10,4 +11,4 @@ def only_command():
     async def checker(msg: Message = CommandArg()) -> bool:
         return not msg
 
-    return checker
+    return Rule(checker)

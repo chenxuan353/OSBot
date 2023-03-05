@@ -17,6 +17,7 @@ from .engine.caiyun_engine import CaiyunEngine
 from .engine.google_engine import GoogleEngine
 from .engine.tencent_engine import TencentEngine
 from .engine.baidu_engine import BaiduEngine
+
 from ..os_bot_base.depends import SessionDepend, ArgMatchDepend
 from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend
 from ..os_bot_base import only_command
@@ -266,13 +267,7 @@ async def _(matcher: Matcher,
             session: TransSession = SessionDepend(),
             adapter: Adapter = AdapterDepend()):
     arg: StreamArgs = StreamArgs()
-    text = ""
-    for msgseg in message:
-        if msgseg.is_text():
-            text += str(msgseg)
-            continue
-        if msgseg.type == "at":
-            text += f" {msgseg.data.get('qq', '')} "
+    text = ArgMatch.message_to_str(message)
     arg = arg(text)
 
     streamlist = session.stream_list
@@ -407,7 +402,7 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    finish_msgs = ["确认……失败。", "手滑了吗……"]
+    finish_msgs = ["未确认操作", "操作已取消"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 

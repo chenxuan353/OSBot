@@ -3,15 +3,17 @@
 
     缓存必要数据
 """
+import asyncio
 import json
 import os
+import random
 from time import time
 from dataclasses import dataclass, field
 from nonebot import get_driver, on_metaevent, require, on_message
 from nonebot.adapters import Bot as BaseBot
 from nonebot.adapters.onebot.v11 import Bot, GroupMessageEvent, PrivateMessageEvent
 from nonebot.message import event_preprocessor
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, Optional, Set, Type, TypeVar
 from typing_extensions import Self
 from ..config import config
 from ..logger import logger
@@ -92,7 +94,9 @@ class UnitRecord(BaseRecord):
     age: Optional[str] = field(default=None, init=False)
 
     def get_nick(self) -> str:
-        return self.remark or self.name or f"{self.id}"
+        if self.remark and self.remark.strip() != f"{self.id}":
+            return self.remark
+        return self.name or f"{self.id}"
 
 
 @dataclass
@@ -434,9 +438,11 @@ def __merge_unit_info_to_global(unit: UnitRecord):
     """
         合并单元信息至全局
     """
-    record = OnebotCache.get_instance().get_or_create_unit_record(unit.id)
-    if record.update_time > unit.update_time:
+    record = OnebotCache.get_instance().get_unit_record(unit.id)
+    if record and record.update_time > unit.update_time:
         return
+    if not record:
+        record = OnebotCache.get_instance().get_or_create_unit_record(unit.id)
     record.update_time = _now_int()
     if unit.name and unit.name != f"{unit.id}":
         record.name = unit.name
@@ -444,15 +450,20 @@ def __merge_unit_info_to_global(unit: UnitRecord):
         record.sex = unit.sex
     if unit.age:
         record.age = unit.age
+    if unit.remark and unit.remark != f"{unit.id}":
+        record.remark = unit.remark
 
 
 def __merge_group_info_to_global(group: GroupRecord):
     """
         合并组信息至全局缓存
     """
-    record = OnebotCache.get_instance().get_or_create_group_record(group.id)
-    if record.update_time > group.update_time:
+    record = OnebotCache.get_instance().get_group_record(group.id)
+    if record and record.update_time > group.update_time:
         return
+    if not record:
+        record = OnebotCache.get_instance().get_or_create_group_record(
+            group.id)
     record.update_time = _now_int()
     if group.name and group.name != f"{group.id}":
         record.name = group.name
@@ -794,3 +805,24 @@ async def _():
             await bot.get_friend_list()
         except Exception as e:
             logger.opt(exception=True).debug(f"获取OB11-{bot.self_id}好友列表信息时异常")
+
+
+# @scheduler.scheduled_job('cron', hour='1', minute='30', name="OB缓存_群成员列表信息更新")
+# async def _():
+#     group_cache_info: Set[int] = set()
+#     for key in driver.bots:
+#         bot = driver.bots[key]
+#         if not isinstance(bot, Bot):
+#             continue
+#         try:
+#             group_list = await bot.get_group_list()
+#             for group in group_list:
+#                 if "group_id" in group:
+#                     group_id = group["group_id"]
+#                     if group_id in group_cache_info:
+#                         continue
+#                     await bot.get_group_member_list(group_id=group_id)
+#                     group_cache_info.add(int(group_id))
+#                     await asyncio.sleep(random.randint(60, 120))
+#         except Exception as e:
+#             logger.opt(exception=True).debug(f"获取OB11-{bot.self_id}群成员列表信息更新")

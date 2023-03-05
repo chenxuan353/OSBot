@@ -24,6 +24,7 @@ from . import failover
 from . import apscheduler
 from . import backup
 from . import request
+from . import permission
 
 from .exception import BaseException, StoreException
 

@@ -110,7 +110,7 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    finish_msgs = ["确认……失败。", "无法确认"]
+    finish_msgs = ["未确认操作", "操作已取消"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
@@ -399,8 +399,8 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
         "wording": "此用户或群组已被禁用（hook）",
     }
     if data.get("group_id"):
-        session: BlackSession = await get_plugin_session(
-            BlackSession)  # type: ignore
+        session: BlackSession = await get_plugin_session(BlackSession
+                                                         )  # type: ignore
         if data.get("group_id") in config.os_ob_black_group_list:
             logger.info("尝试发起对被封禁群聊的操作（配置） {} -> {} | {}",
                         data.get("group_id"), api, data)
@@ -414,8 +414,8 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
                         data.get("group_id"), api, data)
             raise MockApiException(ban_result)
     if data.get("user_id"):
-        session: BlackSession = await get_plugin_session(
-            BlackSession)  # type: ignore
+        session: BlackSession = await get_plugin_session(BlackSession
+                                                         )  # type: ignore
         if data.get("user_id") in config.os_ob_black_user_list:
             logger.info("尝试发起对被封禁用户的操作（配置） {} -> {} | {}",
                         data.get("group_id"), api, data)

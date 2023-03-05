@@ -31,7 +31,7 @@ class Option:
     def new(cls,
             default: bool,
             names: Union[str, List[str], Tuple[str]],
-            des: Optional[str] = None) -> Union[Self, bool]:
+            des: Optional[str] = None) -> Any:
         """
             default 默认值
 

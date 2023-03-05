@@ -209,7 +209,29 @@ class FileStore(BaseStore):
     async def read(self,
                    key: str,
                    SessionType: Type[Session] = Session) -> Session:
-        file_path = os.path.join(self.base_path, key + ".json")
+        old_file_path = os.path.join(self.base_path, key + ".json")
+        # 进行兼容性变换
+        deal_key = key
+        if deal_key.startswith("src.plugins."):
+            deal_key = deal_key[len("src.plugins."):]
+        key_splits = deal_key.split(".")
+        deal_key = key_splits.pop()
+        save_addpath = os.path.join(self.base_path, *key_splits)
+        file_path = os.path.join(save_addpath, deal_key + ".json")
+
+        if not os.path.isdir(save_addpath):
+            try:
+                os.makedirs(save_addpath)
+            except IOError as e:
+                raise StoreException(f"目录 {save_addpath} 创建失败！", e)
+
+        if os.path.isfile(old_file_path):
+            try:
+                os.rename(old_file_path, file_path)
+            except IOError as e:
+                raise StoreException(
+                    f"session兼容性更新失败 从`{old_file_path}`移动至`{file_path}`", e)
+
         if not os.path.isfile(file_path):
             return SessionType(key=key)
         try:
@@ -228,7 +250,15 @@ class FileStore(BaseStore):
             raise StoreException(f"数据文件`{file_path}`读取异常。", cause=now_e)
 
     async def save(self, session: Session):
-        file_path = os.path.join(self.base_path, session.key + ".json")
+        # 进行兼容性变换
+        deal_key = session.key
+        if deal_key.startswith("src.plugins."):
+            deal_key = deal_key[len("src.plugins."):]
+        key_splits = deal_key.split(".")
+        deal_key = key_splits.pop()
+        save_addpath = os.path.join(*key_splits)
+        file_path = os.path.join(self.base_path, save_addpath,
+                                 deal_key + ".json")
         try:
             with open(file_path, mode='w', encoding=self.encoding) as fw:
                 fw.write(self.to_json(session))
@@ -360,9 +390,9 @@ class SessionManage:
         """
             从持久化存储中获取`session`
         """
-        return self.sessions.get(
-            f"{plug_scope}_{key}_{SessionType.__name__}") or await self.generate_session(
-                key, plug_scope, SessionType)
+        return self.sessions.get(f"{plug_scope}_{key}_{SessionType.__name__}"
+                                 ) or await self.generate_session(
+                                     key, plug_scope, SessionType)
 
     async def save(self, session: Session) -> None:
         """

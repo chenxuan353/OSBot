@@ -1,5 +1,7 @@
 import abc
 import traceback
+from nonebot.adapters.onebot import v11
+from nonebot.adapters import Message
 from typing import Any, Dict, List, Optional, Union
 from typing_extensions import Self
 from .exception import NoneValidationError, RequireMatchError, MatchError, ValidationError
@@ -54,6 +56,26 @@ class ArgMatch(abc.ABC):
             self.__dict__[key] = None
         self._kws["tail"] = Field.Str("剩余字符串")  # type: ignore
         self._kws["tail"]._key = "_tail"  # type: ignore
+
+    @staticmethod
+    def v11_message_to_str(message: v11.Message) -> str:
+        msg_str = ""
+        for msgseg in message:
+            if msgseg.is_text():
+                msg_str += msgseg.data.get("text")  # type: ignore
+            elif msgseg.type == "at":
+                msg_str += f" {msgseg.data.get('qq')} "  # type: ignore
+            elif msgseg.type == "image":
+                msg_str += f"[图片]"
+            else:
+                msg_str += f"[{msgseg.type}]"
+        return msg_str
+
+    @classmethod
+    def message_to_str(cls, message: Message) -> str:
+        if isinstance(message, v11.Message):
+            return cls.v11_message_to_str(message)
+        raise MatchError("参数处理器不支持的消息类型")
 
     @property
     def am_args(self) -> List["Field"]:

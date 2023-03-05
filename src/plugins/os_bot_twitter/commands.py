@@ -33,9 +33,11 @@ from ..os_bot_base.depends import Adapter, AdapterDepend, ArgMatchDepend
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
 from ..os_bot_base.notice import BotSend, LeaveGroupHook
 from ..os_bot_base.adapter.onebot import V11Adapter
+from ..os_bot_base.permission import PermManage, perm_check_rule
 
 driver = get_driver()
 twitterTransManage: TwitterTransManage = None  # type: ignore
+PermManage.register("烤推", "烤推权限", True, only_super_oprate=False)
 
 
 @driver.on_startup
@@ -293,7 +295,7 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    finish_msgs = ["确认……失败。", "无法确认"]
+    finish_msgs = ["未确认操作", "操作已取消"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
@@ -307,13 +309,6 @@ async def level_group_hook(group_id: int, bot_id: int) -> None:
 
 
 LeaveGroupHook.get_instance().add_hook(level_group_hook)
-
-subscribe_clear_select = on_command("清理指定推特订阅",
-                                    aliases={"清理指定转推"},
-                                    block=True,
-                                    permission=SUPERUSER | GROUP_ADMIN
-                                    | GROUP_OWNER
-                                    | PRIVATE_FRIEND)
 
 view_user = on_command("推特用户",
                        aliases={"查找推特用户", "查询推特用户", "检索推特用户"},
@@ -365,6 +360,7 @@ def deal_tweet_link(msg: str, session: TwitterSession) -> str:
 
 view_tweet = on_command("查看推文",
                         aliases={"检索推文", "看推", "推文", "看看推"},
+                        rule=perm_check_rule("烤推"),
                         block=True)
 
 
@@ -565,7 +561,10 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-tweet_list = on_command("推文列表", aliases={"仓库", "打开仓库", "看看仓库"}, block=True)
+tweet_list = on_command("推文列表",
+                        aliases={"仓库", "打开仓库", "看看仓库"},
+                        rule=perm_check_rule("烤推"),
+                        block=True)
 
 
 @tweet_list.handle()
@@ -917,8 +916,13 @@ async def download_to_base64(url: str,
     return urlbase64
 
 
-tweet_tran = on_command("烤推", aliases={"烤", "烤制"}, block=True)
-tweet_tran_startswith = on_startswith("##", priority=4)
+tweet_tran = on_command("烤推",
+                        aliases={"烤", "烤制"},
+                        block=True,
+                        rule=perm_check_rule("烤推"))
+tweet_tran_startswith = on_startswith("##",
+                                      priority=4,
+                                      rule=perm_check_rule("烤推"))
 
 
 async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
@@ -1321,6 +1325,7 @@ class TransIdArg(ArgMatch):
 
 tweet_tran_history_view = on_command("烤推结果",
                                      aliases={"查看烤推结果", "查看烤推", "查看烤推历史"},
+                                     rule=perm_check_rule("烤推"),
                                      block=True)
 
 
@@ -1364,7 +1369,7 @@ async def _(matcher: Matcher,
 
 tweet_tran_help = on_command("烤推帮助",
                              aliases={"烤推机帮助", "烤推姬帮助"},
-                             rule=only_command(),
+                             rule=only_command() & perm_check_rule("烤推"),
                              block=True)
 
 
@@ -1390,7 +1395,7 @@ async def _(matcher: Matcher):
 
 tweet_help = on_command("转推配置帮助",
                         aliases={"转推帮助"},
-                        rule=only_command(),
+                        rule=only_command() & perm_check_rule("烤推"),
                         block=True)
 
 

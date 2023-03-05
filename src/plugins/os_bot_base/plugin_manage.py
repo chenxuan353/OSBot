@@ -11,11 +11,13 @@ import textwrap
 from typing import Dict, List
 from functools import partial
 from nonebot.exception import IgnoredException
-from nonebot.adapters import Bot, Event
+from nonebot.adapters import Bot, Event, Message
 from nonebot.message import run_preprocessor
 from nonebot.matcher import Matcher
+from nonebot.adapters.onebot import v11
 from nonebot.permission import SUPERUSER
 from nonebot import get_driver, get_loaded_plugins, on_command
+from nonebot.params import CommandArg
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
 from .model.plugin_manage import PluginModel, PluginSwitchModel
@@ -453,7 +455,22 @@ async def _(matcher: Matcher,
     await matcher.finish(f"{status}\n{pluginModel.admin_usage or '空空如也'}")
 
 
-plug_help = on_command("插件帮助", aliases={"plughelp", "功能帮助"})
+version = "v0.5beta"
+
+help_msg = f"""
+OSBot {version}
+包含多引擎翻译、烤推、转推、转动态等功能~
+维护者：晨轩(3309003591)
+仓库：https://github.com/chenxuan353/OSBot
+
+使用`功能列表 页码(可略)`及`功能帮助 插件名`来查看帮助信息
+使用指令时使用空格分隔参数执行更准确哦。
+遇到问题可以使用`反馈 内容`，会尽快处理。
+
+>>非必要请勿禁言，可使用`闭嘴xx分钟`等指令来实现相同效果<<
+""".strip()
+
+plug_help = on_command("插件帮助", aliases={"plughelp", "功能帮助", "帮助", "help"})
 
 
 @plug_help.handle()
@@ -461,7 +478,11 @@ plug_help = on_command("插件帮助", aliases={"plughelp", "功能帮助"})
 async def _(matcher: Matcher,
             bot: Bot,
             event: Event,
-            arg: PlugArg = ArgMatchDepend(PlugArg)):
+            msg: Message = CommandArg()):
+    msg_str = ArgMatch.message_to_str(msg).strip()
+    if not msg_str:
+        await matcher.finish(help_msg)
+    arg = PlugArg()(msg_str)
     pluginModel = await get_plugin(arg.plugin_name)
     try:
         adapter = AdapterFactory.get_adapter(bot)
@@ -488,32 +509,6 @@ async def _(matcher: Matcher,
     await matcher.finish(f"{status}\n{pluginModel.usage or '空空如也'}")
 
 
-version = "v0.5beta"
-
-help_msg = f"""
-OSBot {version}
-包含多引擎翻译、烤推、转推、转动态等功能~
-维护者：晨轩(3309003591)
-仓库：https://github.com/chenxuan353/OSBot
-
-使用`功能列表 页码(可略)`及`功能帮助 插件名`来查看帮助信息
-使用指令时使用空格分隔参数执行更准确哦。
-遇到问题可以使用`反馈 内容`，会尽快处理。
-
->>非必要请勿禁言，可使用`闭嘴xx分钟`等指令来实现相同效果<<
-""".strip()
-
-help = on_command("帮助", aliases={
-    "help",
-}, rule=only_command())
-
-
-@help.handle()
-@matcher_exception_try()
-async def _(matcher: Matcher):
-    await matcher.finish(help_msg)
-
-
 admin_help_msg = f"""
 OSBot {version}
 
@@ -522,6 +517,7 @@ OSBot {version}
 需要远程控制插件状态可以通过`插件管理 群/私聊 ID 插件名称 状态`来远程设置
 通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
 通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
+通过`权限操作 组标识 组ID 对象ID 是否授权 权限名 [授权时间]`、`权限授予 [成员ID/@某人] 权限名 [授权时间]`、`权限禁用 权限名 [授权时间]`、`权限列表`等指令管理权限
 通过`还得是你/优先响应`切换优先响应
 通过`触发退群操作 群号`来触发相关插件的退群清理
 其它命令 `运行数据统计`、`系统状态`

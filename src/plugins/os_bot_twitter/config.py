@@ -65,7 +65,8 @@ class Config(BaseSettings):
     """烤推使用的代理"""
     os_twitter_trans_timeout: int = Field(default=15)
     """烤推超时时间，单位秒"""
-    os_twitter_trans_script: str = Field(default=os.path.join(".", "twitter_trans_script.js"))
+    os_twitter_trans_script: str = Field(
+        default=os.path.join(".", "twitter_trans_script.js"))
     """烤推使用的脚本路径"""
     os_twitter_trans_debug: bool = Field(default=False)
     """烤推的调试，开启后可以看到实时烤推界面（需要服务器图形化支持）"""
@@ -153,6 +154,7 @@ class TwitterSession(Session):
     def domain(cls):
         return "os_bot_twitter"
 
+
 __plugin_meta__ = PluginMetadata(
     name="推特",
     description="OSBot推特功能支持，转推、烤推等",
@@ -171,7 +173,7 @@ __plugin_meta__ = PluginMetadata(
             其它指令`看推 推文链接/序号`、`设置烤推模版 模版`、`设置用户烤推模版 用户 模版`
             维护指令`移除/添加转推黑名单`、`转推黑名单列表`、`全局烤推历史`、`清空推特缓存`、`检查流式监听`、`重载烤推脚本`、`重启烤推引擎`、`烤推引擎状态`
             可以通过`转推配置帮助`命令查看配置详细介绍
-            隐藏的常规命令`烤架`用于获取烤推状态
+            隐藏的常规命令`烤架`用于获取烤推状态，烤推绑定了默认授权的权限`烤推`，可以通过`权限禁用 烤推`来禁用烤推。
         """,  # 管理员可以获取的帮助
         META_SESSION_KEY: TwitterSession,
         META_DEFAULT_SWITCH: False

@@ -28,7 +28,7 @@ from .argmatch import ArgMatch, Field
 from .logger import logger
 from .depends import SessionPluginDepend, AdapterDepend, Adapter
 from .session import Session, StoreSerializable
-from .adapter import V11Adapter
+from .adapter import AdapterFactory, V11Adapter
 from .util import matcher_exception_try, only_command
 
 
@@ -71,55 +71,73 @@ class LoadBalancingSession(Session):
         self.__dict__.update(self_dict)
         return self
 
-
-@event_preprocessor
-async def _(
-    bot: Bot,
-    event: v11.GroupMessageEvent,
-    state: T_State,
-    adapter: Adapter = AdapterDepend(),
-    session: LoadBalancingSession = SessionPluginDepend(LoadBalancingSession)):
-    try:
-        group_mask = await adapter.mark_group_without_drive(bot, event)
+    async def is_priority(self, bot: Bot,
+                          event: v11.Event) -> bool:
+        """
+            判断指定`bot`及`event`所对应的群聊是否是属于优先响应对象
+        """
+        session: LoadBalancingSession = self
+        adapter = AdapterFactory.get_adapter(bot)
         drive_mask = await adapter.mark_drive(bot, event)
         bot_type = adapter.get_type()
         bot_id = await adapter.get_bot_id(bot, event)
+        group_mask = await adapter.mark_group_without_drive(bot, event)
         priority = session.priority_map.get(group_mask)
-        if await to_me()(bot, event, state):
+        if await to_me()(bot, event, {}):
             """
                 指定对象的事件不处理
             """
-            return
+            return True
         if priority:
             if priority.drive_mask == drive_mask:
-                return
+                return True
             if bot_type == V11Adapter.get_type() and bot_id != priority.bot_id:
                 """
                     事件来自非优先连接
                 """
                 bots = get_bots()
                 if bots.get(priority.bot_id):
-                    raise IgnoredException(
-                        f"因故障转移的优先设置 {drive_mask}-{group_mask} 的响应被禁止了")
+                    return False
 
         priority = session._auto_priority_map.get(group_mask)
         if priority:
             if priority.drive_mask == drive_mask:
-                return
+                return True
             if bot_type == V11Adapter.get_type() and bot_id != priority.bot_id:
                 """
                     事件来自非优先连接
                 """
                 bots = get_bots()
                 if bots.get(priority.bot_id):
-                    raise IgnoredException(
-                        f"因故障转移自动设置 {drive_mask}-{group_mask} 的响应被禁止了")
+                    return False
+
         # 放行后注册优先连接
         session._auto_priority_map[group_mask] = PriorityUnit(
             drive_mask=drive_mask,
             bot_type=bot_type,
             bot_id=bot_id,
             oprate_log="auto")
+
+        return True
+
+
+@event_preprocessor
+async def _(
+    bot: Bot,
+    event: v11.Event,
+    state: T_State,
+    adapter: Adapter = AdapterDepend(),
+    session: LoadBalancingSession = SessionPluginDepend(LoadBalancingSession)):
+    if not isinstance(event, v11.GroupMessageEvent) and not isinstance(event, v11.NoticeEvent):
+        """仅处理通知及群消息事件的优先响应"""
+        return
+    try:
+        adapter = AdapterFactory.get_adapter(bot)
+        drive_mask = await adapter.mark_drive(bot, event)
+        group_mask = await adapter.mark_group_without_drive(bot, event)
+        if not session.is_priority(bot, event):
+            raise IgnoredException(
+                f"因故障转移自动设置 {drive_mask}-{group_mask} 的响应被禁止了")
     except IgnoredException as e:
         logger.debug(e.reason)
         raise e

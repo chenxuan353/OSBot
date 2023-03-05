@@ -55,3 +55,9 @@ class QueueFullException(BaseException):
     """
         队列满了
     """
+
+
+class PermissionError(MatcherErrorFinsh):
+    """
+        权限错误
+    """

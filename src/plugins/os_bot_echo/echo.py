@@ -1,11 +1,11 @@
 from functools import partial
 import random
 from time import time
-from nonebot import on_command
+from nonebot import on_command as base_on_command
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot.v11 import MessageEvent
 
-on_command = partial(on_command, block=True)
+on_command = partial(base_on_command, block=True)
 
 pa = on_command("爪巴", aliases={"爬"})
 

@@ -3,7 +3,7 @@
 """
 from typing import Any, Optional, Type
 from nonebot.matcher import Matcher
-from nonebot.adapters import Bot, Event
+from nonebot.adapters import Bot, Event, Message
 from nonebot.params import Depends, CommandArg
 from nonebot.plugin import Plugin, PluginMetadata
 from nonebot.adapters.onebot import v11
@@ -106,7 +106,7 @@ def SessionDriveDepend(SessionType: Type[Session]) -> Any:
     return Depends(_depend)
 
 
-async def get_plugin_session(SessionType: Type[Session]):
+async def get_plugin_session(SessionType: Type[Session]) -> Any:
     sm = SessionManage.get_instance()
     domain = SessionType.domain() or SessionType.__module__
     return await sm.get(SESSION_SCOPE_PLUGIN, domain, SessionType)
@@ -255,9 +255,8 @@ def ArgMatchDepend(ArgMatchChild: Type[ArgMatch]) -> Any:
     async def _depend(
         matcher: Matcher,
         bot: Bot,
-        event: v11.MessageEvent,
-        message: "v11.Message" = CommandArg()
-    ) -> ArgMatchChild:
+        event: Event,
+        message: Message = CommandArg()) -> ArgMatchChild:
         if not issubclass(ArgMatchChild, ArgMatch):
             raise MatchError(
                 f"解析参数时发现问题，解析器`{ArgMatchChild.__name__}`未继承`ArgMatch`类")
@@ -269,26 +268,17 @@ def ArgMatchDepend(ArgMatchChild: Type[ArgMatch]) -> Any:
             )
             raise e
         # 进行消息转换
-        msg_str = ""
-        for msgseg in message:
-            if msgseg.is_text():
-                msg_str += msgseg.data.get("text")  # type: ignore
-            elif msgseg.type == "at":
-                msg_str += f"{OnebotCache.get_instance().get_unit_nick(msgseg.data.get('qq'))}"  # type: ignore
-            elif msgseg.type == "image":
-                msg_str += f"[图片]"
-            else:
-                msg_str += f"[{msgseg.type}]"
+        msg_str = ArgMatch.message_to_str(message)
         try:
             argmatch_ins(msg_str)
         except FieldMatchError as e:
             logger.debug(
-                f"解析参数不成功，{e.msg} 源 [{bot.self_id}-{event.user_id}-{event.message_id}] - {event.get_plaintext()}"
+                f"解析参数不成功，{e.msg} 源 [{bot.self_id}-{event.get_session_id()}] - {event.get_plaintext()}"
             )
             await matcher.finish(f"{e.msg}")
         except Exception as e:
             logger.warning(
-                f"解析参数时异常，参数解析器解析错误 [{bot.self_id}-{event.user_id}-{event.message_id}] - {event.get_plaintext()}"
+                f"解析参数时异常，参数解析器解析错误 [{bot.self_id}-{event.get_session_id()}] - {event.get_plaintext()}"
             )
             raise e
         return argmatch_ins  # type: ignore

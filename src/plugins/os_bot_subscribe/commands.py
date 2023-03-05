@@ -272,7 +272,6 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-
 subscribe_clear = on_command(
     "清空订阅",
     block=True,
@@ -309,7 +308,7 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    finish_msgs = ["确认……失败。", "无法确认"]
+    finish_msgs = ["未确认操作", "操作已取消"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
@@ -320,8 +319,8 @@ async def level_group_hook(group_id: int, bot_id: int) -> None:
     except Exception as e:
         logger.opt(exception=True).error("`SubscribeModel`退群处理时异常")
 
-LeaveGroupHook.get_instance().add_hook(level_group_hook)
 
+LeaveGroupHook.get_instance().add_hook(level_group_hook)
 
 global_subscribe_list = on_command(
     "全局订阅列表",

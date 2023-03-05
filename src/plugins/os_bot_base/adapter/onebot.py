@@ -112,7 +112,7 @@ class V11Adapter(Adapter):
                              bot: Optional[v11.Bot] = None) -> str:
         group_id = int(group_id)
         nick = OnebotCache.get_instance().get_group_nick(group_id)
-        if nick:
+        if nick and nick != f"{group_id}":
             return nick
         if bot:
             try:
@@ -127,17 +127,21 @@ class V11Adapter(Adapter):
 
     async def get_unit_nick(self,
                             user_id: int,
-                            bot: Optional[v11.Bot] = None) -> str:
+                            bot: Optional[v11.Bot] = None,
+                            group_id: Optional[int] = None) -> str:
         """
             获取昵称，或群内昵称。
         """
         user_id = int(user_id)
         nick = OnebotCache.get_instance().get_unit_nick(user_id)
-        if nick:
+        if nick and nick != f"{user_id}":
             return nick
         if bot:
             try:
-                result = await bot.get_stranger_info(user_id=user_id)
+                if group_id:
+                    result = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+                else:
+                    result = await bot.get_stranger_info(user_id=user_id)
                 if "nickname" in result and result["nickname"]:
                     nick = result["nickname"]
             except Exception:
@@ -160,3 +164,31 @@ class V11Adapter(Adapter):
             if event.sender.card:
                 nick = event.sender.card
         return nick
+
+    async def msg_is_multi_group(self, bot: v11.Bot, event: v11.Event) -> bool:
+        """
+            消息是否来自多人群组
+        """
+        return not isinstance(event, v11.PrivateMessageEvent)
+
+    async def msg_is_private(self, bot: v11.Bot, event: v11.Event) -> bool:
+        """
+            消息是否来自私聊
+        """
+        return isinstance(event, v11.PrivateMessageEvent)
+
+    async def get_unit_id_from_event(self, bot: v11.Bot,
+                                     event: v11.Event) -> Union[str, int]:
+        if isinstance(event, v11.MessageEvent):
+            return event.user_id
+        return event.get_user_id()
+
+    async def get_group_id_from_event(self, bot: v11.Bot,
+                                      event: v11.Event) -> Union[str, int]:
+        if isinstance(event, v11.GroupMessageEvent):
+            return event.group_id
+        if isinstance(event, v11.MessageEvent):
+            return event.user_id
+        raise AdapterException(
+            f"onebot-v11`get_group_id_from_event`不支持的事件类型`{bot.self_id}-{event.get_type()}-{event.get_event_name()}-{event.get_user_id()}`"
+        )

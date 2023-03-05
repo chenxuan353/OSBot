@@ -111,7 +111,7 @@ async def _(
         state: T_State,
         adapter: Adapter = AdapterDepend(),
         session: BroadcastSession = SessionDriveDepend(BroadcastSession),
-        arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg),
+        arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)
 ):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在哦")
@@ -512,4 +512,4 @@ async def _(matcher: Matcher,
                 logger.opt(
                     exception=True).warning("同步推特插件广播列表时，生成`BroadcastUnit`异常")
 
-    await matcher.finish(f"已成功同步`{channel_name}`频道`数据")
+    await matcher.finish(f"已成功同步`{channel_name}`频道数据")

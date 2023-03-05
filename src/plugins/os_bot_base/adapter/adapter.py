@@ -161,6 +161,26 @@ class Adapter:
         """
         return f"{user_id}"
 
+    async def msg_is_multi_group(self, bot: Bot, event: Event) -> bool:
+        """
+            消息是否来自多人群组
+        """
+        raise NotImplementedError("need implemented function!")
+
+    async def msg_is_private(self, bot: Bot, event: Event) -> bool:
+        """
+            消息是否来自私聊
+        """
+        raise NotImplementedError("need implemented function!")
+
+    async def get_unit_id_from_event(self, bot: Bot,
+                                     event: Event) -> Union[str, int]:
+        return event.get_user_id()
+
+    async def get_group_id_from_event(self, bot: Bot,
+                                      event: Event) -> Union[str, int]:
+        raise NotImplementedError("need implemented function!")
+
     @classmethod
     def get_instance(cls):
         if not cls.instance:

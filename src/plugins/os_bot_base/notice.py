@@ -471,7 +471,7 @@ leave_group = on_notice()
 async def _(matcher: Matcher, bot: v11.Bot,
             event: v11.GroupDecreaseNoticeEvent):
     if event.sub_type not in ["kick_me", "leave"
-                              ] or event.operator_id != event.user_id:
+                              ] or event.user_id != int(bot.self_id):
         return
     cache = OnebotCache.get_instance()
     if event.sub_type == "kick_me":
@@ -512,7 +512,7 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             arg: ManageArg = ArgMatchDepend(ManageArg)):
     await LeaveGroupHook.get_instance().run_hooks(arg.unit_id,
-                                                    int(bot.self_id))
+                                                  int(bot.self_id))
     await matcher.finish(f"已触发{arg.unit_id}的退群操作")
 
 
@@ -596,7 +596,7 @@ async def _(matcher: Matcher, message: v11.Message = EventMessage()):
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    finish_msgs = ["确认……失败。", "无法确认"]
+    finish_msgs = ["未确认操作", "操作已取消"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
@@ -745,7 +745,9 @@ notify_list = on_command("紧急通知列表",
 async def _(matcher: Matcher, event: v11.PrivateMessageEvent):
     notice = UrgentNotice.get_instance()
     cache = OnebotCache.get_instance()
-    if UrgentNotice.empty() and len(config.os_ob_notice_user_list) == 0 and len(config.os_ob_notice_group_list) == 0:
+    if UrgentNotice.empty() and len(
+            config.os_ob_notice_user_list) == 0 and len(
+                config.os_ob_notice_group_list) == 0:
         await matcher.finish("通知列表是空的！")
     msg = f"通知人：{'、'.join({cache.get_unit_nick(uid) for uid in notice.onebot_notify})}"
     msg += f"\n通知组：{'、'.join({cache.get_group_nick(gid) for gid in notice.onebot_group_notify})}"
