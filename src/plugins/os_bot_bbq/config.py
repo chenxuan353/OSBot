@@ -33,7 +33,7 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
-        META_PLUGIN_ALIAS: ["来点x", "来点x!", "来点x！", "x呢!!!", "x呢！！！"],
+        META_PLUGIN_ALIAS: ["有没有X！", "有没有X!", "有没有x！", "有没有x!"],
         META_ADMIN_USAGE: "什么都没有~",  # 管理员可以获取的帮助
         META_SESSION_KEY: BBQSession,
         META_DEFAULT_SWITCH: False

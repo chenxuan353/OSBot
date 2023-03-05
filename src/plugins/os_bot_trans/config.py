@@ -70,7 +70,7 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
-        META_PLUGIN_ALIAS: ["机翻", "翻译翻译", "多引擎翻译", "多引擎机翻", "机器翻译"],
+        META_PLUGIN_ALIAS: ["机翻", "翻译翻译", "多引擎翻译", "多引擎机翻", "机器翻译", "流式翻译", "跟随翻译"],
         META_ADMIN_USAGE: "什么都没有~",  # 管理员可以获取的帮助
         META_SESSION_KEY: TransSession
     },
