@@ -65,7 +65,7 @@ class WhoAtMeSession(Session):
 
 
 __plugin_meta__ = PluginMetadata(
-    name="谁AT我",
+    name="谁在AT我",
     description="OSBot 谁在AT我！",
     usage="""
         支持在群聊中使用`谁在艾特我`、`谁at我`、`艾特我什么事`等指令使用

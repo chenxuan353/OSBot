@@ -25,7 +25,10 @@ __plugin_meta__ = PluginMetadata(
     name="搬运组",
     description="OSBot 烤肉组专长",
     usage="""
-        
+        指令：有没有x！
+        无需前缀，管理员可用，其它群员可以由管理员通过`授权 召唤术 @群友`来特殊授权。
+        需要禁用权限可以使用`禁用权限 召唤术 @群友` 
+        注意，该AT仅对修改了群名片的群员生效。
     """,
     config=Config,
     extra={

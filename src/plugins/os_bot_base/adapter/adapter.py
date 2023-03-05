@@ -146,7 +146,8 @@ class Adapter:
 
     async def get_unit_nick(self,
                             user_id: Union[str, int],
-                            bot: Optional[Bot] = None) -> str:
+                            bot: Optional[Bot] = None,
+                            group_id: Optional[int] = None) -> str:
         """
             获取用户昵称 提供bot参数时视为可通过api获取
         """

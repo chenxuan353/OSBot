@@ -7,7 +7,7 @@ from nonebot.adapters.onebot.v11 import MessageEvent
 
 on_command = partial(base_on_command, block=True)
 
-pa = on_command("爪巴", aliases={"爬"})
+pa = on_command("爪巴", aliases={"爬"}, block=True)
 
 
 @pa.handle()
@@ -17,7 +17,7 @@ async def _(matcher: Matcher):
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-zaima = on_command("在吗", aliases={"zaima", "在", "zai"})
+zaima = on_command("在吗", block=True, aliases={"zaima", "在", "zai"})
 
 
 @zaima.handle()
@@ -26,7 +26,7 @@ async def _(matcher: Matcher):
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-ping = on_command("ping")
+ping = on_command("ping", block=True)
 
 
 @ping.handle()

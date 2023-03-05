@@ -1,8 +1,9 @@
 from asyncio.log import logger
+from collections import deque
 import json
 import os
 from time import time
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 from typing_extensions import Self
 from tortoise.exceptions import DoesNotExist
 from nonebot_plugin_apscheduler import scheduler
@@ -34,10 +35,13 @@ class StoreSerializable:
                     or isinstance(val, int) or isinstance(val, str)
                     or isinstance(val, dict) or isinstance(val, float)
                     or isinstance(val, list) or isinstance(val, tuple)
-                    or isinstance(val, bool)):
-                # 如果不是基本类型或者实现了StoreSerializable则会被忽略
+                    or isinstance(val, bool) or isinstance(val, deque)):
+                # 如果不是基本类型或者实现了StoreSerializable则会被忽略，并发出警告
+                logger.warning(f"{type(self)}的 {key} 中存在无法序列化的对象 {type(val)}")
                 continue
-            if isinstance(val, StoreSerializable):
+            if isinstance(val, deque):
+                val = list(val)
+            elif isinstance(val, StoreSerializable):
                 val = val._serializable()
             rtn[key] = val
         return rtn
@@ -193,7 +197,9 @@ class FileStore(BaseStore):
                 raise StoreException(f"目录 {self.base_path} 创建失败！", e)
 
     def backup_file(self, key: str):
-        file_path = os.path.join(self.base_path, key)
+        save_addpath, save_filename = self.deal_key_to_savepath_and_filename(
+            key)
+        file_path = os.path.join(save_addpath, save_filename)
         if not os.path.isfile(file_path + ".json"):
             return
         i = 0
@@ -206,18 +212,43 @@ class FileStore(BaseStore):
             raise StoreException(f"文件`{file_path}.json`备份失败，可能导致数据异常或丢失！",
                                  cause=e)
 
+    def deal_key_to_savepath_and_filename(self, key: str) -> Tuple[str, str]:
+        deal_key = key
+        if deal_key.startswith("src.plugins."):
+            deal_key = deal_key[len("src.plugins."):]
+
+        save_addpaths = []
+        save_filename = deal_key
+        tail_save_path = ""
+
+        deal_key_rsplit = deal_key.rsplit("_", maxsplit=1)
+        save_filename = deal_key_rsplit.pop()
+        if deal_key_rsplit:
+            deal_key = deal_key_rsplit.pop()
+        sri = deal_key.find("_ob11")
+        if sri != -1:
+            tail_save_path = deal_key[sri + 1:]
+            deal_key = deal_key[:sri]
+
+        key_splits = deal_key.split(".")
+        if not key_splits:
+            key_splits.append("global")
+        for key_split in key_splits:
+            save_addpaths.append(key_split)
+        if tail_save_path:
+            save_addpaths.append(tail_save_path)
+        save_addpath = os.path.join(self.base_path,
+                                    os.path.join(*save_addpaths))
+        return save_addpath, save_filename
+
     async def read(self,
                    key: str,
                    SessionType: Type[Session] = Session) -> Session:
         old_file_path = os.path.join(self.base_path, key + ".json")
         # 进行兼容性变换
-        deal_key = key
-        if deal_key.startswith("src.plugins."):
-            deal_key = deal_key[len("src.plugins."):]
-        key_splits = deal_key.split(".")
-        deal_key = key_splits.pop()
-        save_addpath = os.path.join(self.base_path, *key_splits)
-        file_path = os.path.join(save_addpath, deal_key + ".json")
+        save_addpath, save_filename = self.deal_key_to_savepath_and_filename(
+            key)
+        file_path = os.path.join(save_addpath, save_filename + ".json")
 
         if not os.path.isdir(save_addpath):
             try:
@@ -250,15 +281,16 @@ class FileStore(BaseStore):
             raise StoreException(f"数据文件`{file_path}`读取异常。", cause=now_e)
 
     async def save(self, session: Session):
-        # 进行兼容性变换
-        deal_key = session.key
-        if deal_key.startswith("src.plugins."):
-            deal_key = deal_key[len("src.plugins."):]
-        key_splits = deal_key.split(".")
-        deal_key = key_splits.pop()
-        save_addpath = os.path.join(*key_splits)
-        file_path = os.path.join(self.base_path, save_addpath,
-                                 deal_key + ".json")
+        save_addpath, save_filename = self.deal_key_to_savepath_and_filename(
+            session.key)
+        file_path = os.path.join(save_addpath, save_filename + ".json")
+
+        if not os.path.isdir(save_addpath):
+            try:
+                os.makedirs(save_addpath)
+            except IOError as e:
+                raise StoreException(f"目录 {save_addpath} 创建失败！", e)
+
         try:
             with open(file_path, mode='w', encoding=self.encoding) as fw:
                 fw.write(self.to_json(session))

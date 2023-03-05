@@ -43,7 +43,7 @@ class QAUnit(StoreSerializable):
         - `create_time` 创建时间
     """
     queston: str = field(default=None)  # type: ignore
-    answers: List[str] = field(default=[])  # type: ignore
+    answers: List[str] = field(default_factory=list)  # type: ignore
     mode: int = field(default=None)  # type: ignore
     hit_probability: int = field(default=None)  # type: ignore
     oprate_log: str = field(default=None)  # type: ignore

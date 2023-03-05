@@ -33,6 +33,8 @@ class ProcessTool:
                     sep=am.Meta.separator if am.Meta.separator != " " else "\\s"
                 ))
         res = cls._basic_regex_str_cache.split(msg, maxsplit=1)
+        if len(res) < 3:
+            return [msg, ""]
         return [res[1], res[3]]
 
     @staticmethod

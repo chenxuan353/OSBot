@@ -1,14 +1,13 @@
 import math
 import random
 from time import strftime
-from typing import Any, Dict
 from nonebot import on_command, on_message
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
-from nonebot.params import CommandArg, EventMessage, CommandStart
+from nonebot.params import CommandArg, EventMessage, RawCommand
 from .logger import logger
 from .config import QAMode, QASession, QAUnit
 
@@ -29,6 +28,7 @@ def qa_message_precheck(msg: v11.Message) -> bool:
 
 qa_add = on_command("添加问答",
                     aliases={"我教你", "创建问答"},
+                    block=True,
                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                     | PRIVATE_FRIEND
                     | perm_check_permission("问答库"))
@@ -46,21 +46,45 @@ async def _(
 ):
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
-    msg_str = str(msg).strip()
+
+    msg_recombination = v11.Message()
+    for msgseg in msg:
+        if msgseg.is_text():
+            msg_recombination += v11.MessageSegment.text(
+                msgseg.data.get("text", ""))
+        elif msgseg.type == "at":
+            msg_recombination += msgseg
+        elif msgseg.type == "image":
+            url = msgseg.data.get("url", "")
+            msg_recombination += v11.MessageSegment.image(url)
+        elif msgseg.type == "face":
+            msg_recombination += msgseg
+        else:
+            await matcher.finish("消息中包含无法设为问答的元素！")
+
+    msg_str = str(msg_recombination).strip()
     if not msg_str:
         await matcher.finish("问答不能为空哦~")
     if ">" not in msg_str:
-        await matcher.finish("QA格式：问题>回答1>回答2>回答3，至少包含一个回答")
+        await matcher.finish("QA格式：问题>回复1>...>回复n，至少包含一个回复")
     msg_splits = msg_str.split(">")
     queston = msg_splits.pop(0)
     answers = msg_splits
     if ">" in queston:
         await matcher.finish("问题不能包含`>`号哦！")
+    queston_msg = v11.Message(queston)
     if len(queston) <= 1:
         await matcher.finish("问题至少两个字符哦！")
+    if len(queston_msg.extract_plain_text()) > 50:
+        await matcher.finish("问题的字数上限为50")
+    if len(queston_msg["image"]) > 0:
+        await matcher.finish("问题无法携带图片！")
     for answer in answers:
-        if len(answer) > 100:
+        answer_msg = v11.Message(answer)
+        if len(answer_msg.extract_plain_text()) > 100:
             await matcher.finish("单条回答字数上限为：100字")
+        if len(answer_msg['image']) > 9:
+            await matcher.finish("单条回答至多9张图哦")
     if queston not in session.QAList:
         async with session:
             session.QAList[queston] = QAUnit(
@@ -82,13 +106,17 @@ async def _(
 
     async with session:
         unit.oprate_log += f"\n{await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
-        unit.answers.append(*answers)
+        for answer in answers:
+            unit.answers.append(answer)
         unit.update_by = int(await adapter.get_unit_id_from_event(bot, event))
-    await matcher.finish(f"可用知识增加了({len(unit.answers)}->{len(answers)})")
+    await matcher.finish(
+        f"可用知识增加了({len(unit.answers) - len(answers)}->{len(unit.answers)})")
 
 
 qa_del = on_command("删除问答",
                     aliases={"忘记问题", "移除问答"},
+                    block=True,
+                    priority=2,
                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                     | PRIVATE_FRIEND
                     | perm_check_permission("问答库"))
@@ -125,6 +153,7 @@ async def _(
 
 qa_setting_mode = on_command(
     "重置问题匹配模式",
+    block=True,
     aliases={
         "设置问题完全匹配", "设置问题关键词匹配", "设置问题模糊匹配", "设置问答完全匹配", "设置问答关键词匹配",
         "设置问答模糊匹配", "重置匹配模式", "重置问题匹配"
@@ -141,7 +170,7 @@ async def _(
         event: v11.MessageEvent,
         adapter: Adapter = AdapterDepend(),
         session: QASession = SessionDepend(),
-        start: str = CommandStart(),
+        start: str = RawCommand(),
         msg: v11.Message = CommandArg(),
 ):
     if not qa_message_precheck(msg):
@@ -175,6 +204,7 @@ async def _(
 
 qa_setting_hit_probability = on_command(
     "设置问题回复率",
+    block=True,
     aliases={"设置问答回复率", "重置问答回复率", "重置问题回复率", "设置问题回复概率", "设置问答回复概率"},
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND
     | perm_check_permission("问答库"))
@@ -188,7 +218,6 @@ async def _(
         event: v11.MessageEvent,
         adapter: Adapter = AdapterDepend(),
         session: QASession = SessionDepend(),
-        start: str = CommandStart(),
         msg: v11.Message = CommandArg(),
 ):
     if not qa_message_precheck(msg):
@@ -197,7 +226,7 @@ async def _(
     if not msg_str:
         await matcher.finish("问题不能为空哦~")
     if ">" in msg_str:
-        msg_str_split = msg_str.split()
+        msg_str_split = msg_str.split(">", maxsplit=1)
         try:
             hit_probability = int(msg_str_split[1])
         except:
@@ -262,6 +291,7 @@ async def _(matcher: Matcher,
 
 qa_list = on_command("问答列表",
                      aliases={"问答库列表", "问题列表"},
+                     block=True,
                      permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                      | PRIVATE_FRIEND
                      | perm_check_permission("问答库"))
@@ -292,12 +322,17 @@ async def _(matcher: Matcher,
     queston_part = questons[(arg.page - 1) * size:arg.page * size]
     msg = f"{arg.page}/{maxpage}"
     for queston in queston_part:
-        msg += f"\n{queston} > {len(session.QAList[queston].answers)}回复({mode_map[session.QAList[queston].mode]})"
+        msg += v11.MessageSegment.text("\n")
+        msg += v11.Message(queston)
+        msg += v11.MessageSegment.text(
+            f" > {len(session.QAList[queston].answers)}条回复({mode_map[session.QAList[queston].mode]})"
+        )
     await matcher.finish(msg)
 
 
 qa_view = on_command("检视问题",
-                     aliases={"查看问答"},
+                     aliases={"查看问答", "查看问题", "检视问答"},
+                     block=True,
                      permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                      | PRIVATE_FRIEND
                      | perm_check_permission("问答库"))
@@ -319,7 +354,7 @@ async def _(
     if not msg_str:
         await matcher.finish("问题不能为空哦~")
     if ">" in msg_str:
-        msg_str_split = msg_str.split()
+        msg_str_split = msg_str.split(">", maxsplit=1)
         try:
             page = int(msg_str_split[1])
         except:
@@ -360,24 +395,30 @@ async def _(
     if page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
 
+    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
+
     if page == 1:
-        finish_msg = f"{queston}共有{len(unit.answers)}个回答({mode_map[unit.mode]})"
+        finish_msg = f"共有{len(unit.answers)}个回答({mode_map[unit.mode]})"
         finish_msg += f"\n回复率：{unit.hit_probability}%"
-        finish_msg += f"\n更新：{await adapter.get_unit_nick(unit.update_by)}({unit.update_by})"
-        finish_msg += f"\n创建：{await adapter.get_unit_nick(unit.create_by)}({unit.create_by})"
+        finish_msg += f"\n更新：{await adapter.get_unit_nick(unit.update_by, group_id=group_id)}({unit.update_by})"
+        finish_msg += f"\n创建：{await adapter.get_unit_nick(unit.create_by, group_id=group_id)}({unit.create_by})"
         finish_msg += "\n通过`删除回复 问题>回答编号`来移除指定回复"
     else:
-        finish_msg = f"{queston}的回答~"
+        finish_msg = f"的回答~"
     if maxpage > 1:
         finish_msg += f"\n{page}/{maxpage}"
+    finish_msg = v11.Message(queston) + v11.MessageSegment.text(finish_msg)
     items_part = items[(page - 1) * size:page * size]
     for i in range(len(items_part)):
-        finish_msg += f"\n{i + (page - 1) * size + 1} | {items_part[i]}"
+        finish_msg += v11.MessageSegment.text(
+            f"\n{i + (page - 1) * size + 1} | ")
+        finish_msg += v11.Message(items_part[i])
     await matcher.finish(finish_msg)
 
 
 qa_reply_del = on_command("删除回复",
                           aliases={"删除回答", "删除问答回复", "删除问题回复"},
+                          block=True,
                           permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                           | PRIVATE_FRIEND
                           | perm_check_permission("问答库"))
@@ -400,7 +441,7 @@ async def _(
         await matcher.finish("问题不能为空哦~")
     if ">" not in msg_str:
         await matcher.finish("删除回复时必须提供问题与序号哦！")
-    msg_str_split = msg_str.split()
+    msg_str_split = msg_str.split(">", maxsplit=1)
     try:
         reply_id = int(msg_str_split[1])
     except:
@@ -417,15 +458,14 @@ async def _(
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    reply_id -= 1
     unit = session.QAList[queston]
-    if reply_id > len(unit.answers) - 1:
+    if reply_id > len(unit.answers):
         finish_msgs = ["啊咧，回复不存在哦！", "并没有找到对应回复"]
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
     async with session:
-        unit.answers.pop(reply_id)
+        unit.answers.pop(reply_id - 1)
         unit.update_by = int(await adapter.get_unit_id_from_event(bot, event))
         unit.oprate_log += f"\n删除回复 {await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
     await matcher.finish(f"删除了该问题的一个回复(序列 {reply_id})")
@@ -471,4 +511,4 @@ async def _(matcher: Matcher,
         if len(qa_unit.answers) == 1:
             await matcher.finish(qa_unit.answers[0])
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
-        await matcher.finish(qa_unit.answers[rand_i])
+        await matcher.finish(v11.Message(qa_unit.answers[rand_i]))

@@ -135,7 +135,7 @@ async def _(
         adapter = AdapterFactory.get_adapter(bot)
         drive_mask = await adapter.mark_drive(bot, event)
         group_mask = await adapter.mark_group_without_drive(bot, event)
-        if not session.is_priority(bot, event):
+        if not await session.is_priority(bot, event):
             raise IgnoredException(
                 f"因故障转移自动设置 {drive_mask}-{group_mask} 的响应被禁止了")
     except IgnoredException as e:

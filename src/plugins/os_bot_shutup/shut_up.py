@@ -1,7 +1,7 @@
 import asyncio
 import random
 from time import time, localtime, strftime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from typing_extensions import Self
 from dataclasses import dataclass, field
 from nonebot import on_command
@@ -10,7 +10,7 @@ from nonebot.permission import SUPERUSER
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
-from nonebot.params import CommandStart
+from nonebot.params import RawCommand
 from nonebot.exception import IgnoredException, MockApiException
 from nonebot.message import run_preprocessor
 from .config import config
@@ -226,7 +226,7 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.MessageEvent,
             arg: ShutUpArg = ArgMatchDepend(ShutUpArg),
-            command_start: str = CommandStart(),
+            command_start: str = RawCommand(),
             adapter: Adapter = AdapterDepend(),
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
 

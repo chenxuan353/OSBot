@@ -133,7 +133,7 @@ class V11Adapter(Adapter):
             获取昵称，或群内昵称。
         """
         user_id = int(user_id)
-        nick = OnebotCache.get_instance().get_unit_nick(user_id)
+        nick = OnebotCache.get_instance().get_unit_nick(user_id, group_id)
         if nick and nick != f"{user_id}":
             return nick
         if bot:

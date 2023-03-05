@@ -420,41 +420,6 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-admin_plug_help = on_command(
-    "管理员插件帮助",
-    aliases={"超管功能", "超级管理员功能", "管理员功能帮助", "adminplughelp"},
-    priority=3,
-    permission=SUPERUSER)
-
-
-@admin_plug_help.handle()
-@matcher_exception_try()
-async def _(matcher: Matcher,
-            bot: Bot,
-            event: Event,
-            arg: PlugArg = ArgMatchDepend(PlugArg)):
-    pluginModel = await get_plugin(arg.plugin_name)
-    try:
-        adapter = AdapterFactory.get_adapter(bot)
-        group_mark = await adapter.mark_group_without_drive(bot, event)
-        plugSwitchModel = await PluginSwitchModel.get_or_none(
-            **{
-                "name": pluginModel.name,
-                "group_mark": group_mark
-            })
-        status = "绝赞运转中>>"
-        if plugSwitchModel:
-            if plugSwitchModel.switch is False:
-                status = "关掉了呢，关掉了。"
-        if pluginModel.switch is False:
-            status = "啊……完全关掉了。"
-    except Exception as e:
-        logger.opt(exception=True).debug(f"{bot.self_id}执行指令时异常")
-        await matcher.finish(f"{pluginModel.usage or '空空如也'}")
-
-    await matcher.finish(f"{status}\n{pluginModel.admin_usage or '空空如也'}")
-
-
 version = "v0.5beta"
 
 help_msg = f"""
@@ -470,10 +435,10 @@ OSBot {version}
 >>非必要请勿禁言，可使用`闭嘴xx分钟`等指令来实现相同效果<<
 """.strip()
 
-plug_help = on_command("插件帮助", aliases={"plughelp", "功能帮助", "帮助", "help"})
+help = on_command("插件帮助", aliases={"plughelp", "功能帮助", "帮助", "help"})
 
 
-@plug_help.handle()
+@help.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: Bot,
@@ -523,14 +488,41 @@ OSBot {version}
 其它命令 `运行数据统计`、`系统状态`
 """.strip()
 
-admin_help = on_command("管理员帮助",
-                        aliases={"超管帮助", "超级管理员帮助", "adminhelp", "管理帮助"},
-                        priority=2,
-                        rule=only_command(),
+admin_help = on_command("管理员插件帮助",
+                        aliases={
+                            "超管功能", "超级管理员功能", "管理员功能帮助", "adminplughelp",
+                            "超管帮助", "超级管理员帮助", "adminhelp", "管理帮助", "管理员帮助"
+                        },
                         permission=SUPERUSER)
 
 
 @admin_help.handle()
 @matcher_exception_try()
-async def _(matcher: Matcher):
-    await matcher.finish(admin_help_msg)
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            msg: Message = CommandArg()):
+    msg_str = ArgMatch.message_to_str(msg).strip()
+    if not msg_str:
+        await matcher.finish(admin_help_msg)
+    arg = PlugArg()(msg_str)
+    pluginModel = await get_plugin(arg.plugin_name)
+    try:
+        adapter = AdapterFactory.get_adapter(bot)
+        group_mark = await adapter.mark_group_without_drive(bot, event)
+        plugSwitchModel = await PluginSwitchModel.get_or_none(
+            **{
+                "name": pluginModel.name,
+                "group_mark": group_mark
+            })
+        status = "绝赞运转中>>"
+        if plugSwitchModel:
+            if plugSwitchModel.switch is False:
+                status = "关掉了呢，关掉了。"
+        if pluginModel.switch is False:
+            status = "啊……完全关掉了。"
+    except Exception as e:
+        logger.opt(exception=True).debug(f"{bot.self_id}执行指令时异常")
+        await matcher.finish(f"{pluginModel.usage or '空空如也'}")
+
+    await matcher.finish(f"{status}\n{pluginModel.admin_usage or '空空如也'}")

@@ -45,7 +45,8 @@ async def _(matcher: Matcher,
     if at_unit.view:
         return
 
-    nick = await adapter.get_unit_nick(at_unit.origin_id)
+    nick = await adapter.get_unit_nick(at_unit.origin_id,
+                                       group_id=event.group_id)
 
     finish_msgs = (f"@{nick} 艾特了你", f"或许是 @{nick}")
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
@@ -85,7 +86,8 @@ async def _(matcher: Matcher,
     async with session:
         at_unit.view = True
 
-    nick = await adapter.get_unit_nick(at_unit.origin_id)
+    nick = await adapter.get_unit_nick(at_unit.origin_id,
+                                       group_id=event.group_id)
 
     finish_msgs = (f"来自 {nick}：\n", f"最近一次来自 @{nick}：\n")
     finish_msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
@@ -96,6 +98,7 @@ async def _(matcher: Matcher,
 
 at_me_list = on_command("at列表",
                         aliases={"艾特列表"},
+                        block=True,
                         permission=GROUP_ADMIN | GROUP_OWNER | GROUP_MEMBER)
 
 
@@ -122,7 +125,7 @@ async def _(matcher: Matcher,
     msg = v11.Message() + v11.MessageSegment.text(f"{arg.page}/{maxpage}")
     for at_unit in at_list_part:
         msg += v11.MessageSegment.text(
-            f"\n{await adapter.get_unit_nick(at_unit.origin_id)}({at_unit.origin_id}) > "
+            f"\n{await adapter.get_unit_nick(at_unit.origin_id, group_id=event.group_id)}({at_unit.origin_id}) > "
         )
         msg += v11.Message(at_unit.deal_msg)
     await matcher.finish(msg)
@@ -130,6 +133,7 @@ async def _(matcher: Matcher,
 
 at_me_group_list = on_command("群at列表",
                               aliases={"群艾特列表", "群聊艾特列表", "群聊at列表"},
+                              block=True,
                               permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
 
 
@@ -154,13 +158,13 @@ async def _(matcher: Matcher,
     msg = v11.Message() + v11.MessageSegment.text(f"{arg.page}/{maxpage}")
     for at_unit in at_list_part:
         msg += v11.MessageSegment.text(
-            f"\n{await adapter.get_unit_nick(at_unit.origin_id)}({at_unit.origin_id})"
+            f"\n{await adapter.get_unit_nick(at_unit.origin_id, group_id=event.group_id)}({at_unit.origin_id})"
         )
         if at_unit.target_id == 0:
             msg += v11.MessageSegment.text(f"艾特了全体成员 > ")
         else:
             msg += v11.MessageSegment.text(
-                f"艾特了{await adapter.get_unit_nick(at_unit.target_id)}({at_unit.target_id}) > "
+                f"艾特了{await adapter.get_unit_nick(at_unit.target_id, group_id=event.group_id)}({at_unit.target_id}) > "
             )
         msg += v11.Message(at_unit.deal_msg)
     await matcher.finish(msg)
@@ -191,15 +195,15 @@ async def _(matcher: Matcher,
                 deal_msg += v11.MessageSegment.text("@全体成员 ")
             else:
                 deal_msg += v11.MessageSegment.text(
-                    f"@{await adapter.get_unit_nick(msgseg.data.get('qq', ''))} "
+                    f"@{await adapter.get_unit_nick(msgseg.data.get('qq', ''), group_id=event.group_id)} "
                 )
         elif msgseg.type == "image":
-            url = msgseg.data.get("file", "")
+            url = msgseg.data.get("url", "")
             deal_msg += v11.MessageSegment.image(url)
         elif msgseg.type == "face":
             deal_msg += msgseg
 
-    if len(deal_msg) > 100:
+    if len(deal_msg.extract_plain_text()) > 100:
         return
 
     async with session:
@@ -207,6 +211,9 @@ async def _(matcher: Matcher,
             if "qq" not in at_seg.data and at_seg.data.get("qq", None):
                 continue
             qq = at_seg.data.get("qq", "")
+            if f"{qq}" == f"{event.user_id}":
+                # 排除自我感动
+                continue
             if qq == 'all':
                 qq = 0
             qq = int(qq)

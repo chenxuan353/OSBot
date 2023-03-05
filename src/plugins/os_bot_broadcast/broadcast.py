@@ -99,20 +99,21 @@ class BroadcastArg(ArgMatch):
         ])
 
 
-broadcast = on_command("广播", aliases={"发送广播"}, permission=SUPERUSER)
+broadcast = on_command("广播",
+                       aliases={"发送广播"},
+                       block=True,
+                       permission=SUPERUSER)
 
 
 @broadcast.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        bot: Bot,
-        event: v11.PrivateMessageEvent,
-        state: T_State,
-        adapter: Adapter = AdapterDepend(),
-        session: BroadcastSession = SessionDriveDepend(BroadcastSession),
-        arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.PrivateMessageEvent,
+            state: T_State,
+            adapter: Adapter = AdapterDepend(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在哦")
 
@@ -153,7 +154,8 @@ async def _(matcher: Matcher,
     umark = await adapter.mark_only_unit_without_drive(bot, event)
 
     async with session:
-        session.history.append(f"{umark} 向频道 {state['channel']} 广播 内容：{state['msg']}")
+        session.history.append(
+            f"{umark} 向频道 {state['channel']} 广播 内容：{state['msg']}")
 
     async def send():
         success_count = 0
@@ -192,7 +194,7 @@ async def _(matcher: Matcher,
     await matcher.finish(f"正在向`{state['channel']}`广播讯息~")
 
 
-channel_create = on_command("创建广播频道", permission=SUPERUSER)
+channel_create = on_command("创建广播频道", block=True, permission=SUPERUSER)
 
 
 @channel_create.handle()
@@ -210,7 +212,7 @@ async def _(matcher: Matcher,
     await matcher.finish(f"频道 {arg.channel} 创建成功")
 
 
-channel_remove = on_command("移除广播频道", permission=SUPERUSER)
+channel_remove = on_command("移除广播频道", block=True, permission=SUPERUSER)
 
 
 @channel_remove.handle()
@@ -244,7 +246,7 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-channel_clear = on_command("清空广播频道", permission=SUPERUSER)
+channel_clear = on_command("清空广播频道", block=True, permission=SUPERUSER)
 
 
 @channel_clear.handle()
@@ -257,7 +259,6 @@ async def _(matcher: Matcher,
         await matcher.finish("频道不存在！！！")
     finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
     await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
-
 
 
 @channel_clear.handle()
@@ -280,6 +281,7 @@ async def _(matcher: Matcher,
 
 
 channel_unit_add = on_command("添加广播对象",
+                              block=True,
                               aliases={"增加广播对象", "新增广播对象"},
                               permission=SUPERUSER)
 
@@ -314,6 +316,7 @@ async def _(matcher: Matcher,
 
 
 channel_unit_del = on_command("删除广播对象",
+                              block=True,
                               aliases={"移除广播对象", "减少广播对象"},
                               permission=SUPERUSER)
 
@@ -349,6 +352,7 @@ async def _(matcher: Matcher,
 
 channel_unit_join = on_command("加入频道",
                                aliases={"进入频道"},
+                               block=True,
                                permission=SUPERUSER | PRIVATE_FRIEND
                                | GROUP_ADMIN | GROUP_OWNER)
 
@@ -385,6 +389,7 @@ async def _(matcher: Matcher,
 
 
 channel_unit_quit = on_command("退出频道",
+                               block=True,
                                permission=SUPERUSER | PRIVATE_FRIEND
                                | GROUP_ADMIN | GROUP_OWNER)
 
@@ -428,6 +433,7 @@ class BroadcastChannelFilterArg(ArgMatch):
 
 
 channel_list = on_command("频道列表",
+                          block=True,
                           aliases={"查看频道列表", "打开频道列表"},
                           permission=SUPERUSER)
 
@@ -479,6 +485,7 @@ async def _(matcher: Matcher,
 
 
 channel_twitter_sync = on_command("同步推特插件广播频道",
+                                  block=True,
                                   rule=only_command(),
                                   permission=SUPERUSER)
 

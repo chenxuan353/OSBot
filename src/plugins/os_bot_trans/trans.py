@@ -276,7 +276,10 @@ async def _(matcher: Matcher,
         unit_uuit = event.user_id
     if arg.switch is None:
         arg.switch = not (unit_uuit in streamlist)
-    unit_nick = await adapter.get_unit_nick(unit_uuit)
+    
+    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
+    
+    unit_nick = await adapter.get_unit_nick(unit_uuit, group_id=group_id)
     if not arg.switch:
         if unit_uuit not in streamlist:
             await stream.finish("不在翻译中的样子，再检查一下……？")
@@ -348,6 +351,7 @@ stream_list = on_command("查看流式翻译列表",
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: v11.Bot,
+            event: v11.MessageEvent,
             session: TransSession = SessionDepend(),
             adapter: Adapter = AdapterDepend()):
     streamlist = session.stream_list
@@ -356,14 +360,16 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
+    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
+    
     if len(streamlist) == 1:
         for uid in streamlist:
             await matcher.finish(
-                f"只有{await adapter.get_unit_nick(uid, bot)}在列表中~")
-
+                f"只有{await adapter.get_unit_nick(uid, bot, group_id=group_id)}在列表中~")
+    
     nicks = []
     for uid in streamlist:
-        nicks.append(f"{await adapter.get_unit_nick(uid, bot)}")
+        nicks.append(f"{await adapter.get_unit_nick(uid, bot, group_id=group_id)}")
     await matcher.finish(f"列表！\n{'、'.join(nicks)}")
 
 

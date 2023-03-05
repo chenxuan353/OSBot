@@ -21,7 +21,7 @@ from nonebot.permission import SUPERUSER, Permission
 from nonebot.rule import Rule
 from nonebot.adapters import Bot, Event
 from nonebot.adapters.onebot import v11
-from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
+from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND, GROUP_MEMBER
 from .argmatch import ArgMatch, Field, PageArgMatch
 from .config import config
 from .session import Session, StoreSerializable
@@ -148,7 +148,7 @@ class PermManage:
 
         注意，在使用权限管理前需要注册权限，该过程建议在启动完成前完成。
     """
-    PERMISSIONS: Dict[str, PermMeta]
+    PERMISSIONS: Dict[str, PermMeta] = {}
 
     @classmethod
     def register(cls,
@@ -257,8 +257,8 @@ class PermManage:
                 session.premissions_group_member[mark_group][mark_unit][
                     name] = unit
             else:
-                if mark_group not in session.premissions_group_member:
-                    session.premissions_group_member[mark_group] = {}
+                if mark_group not in session.premissions:
+                    session.premissions[mark_group] = {}
                 session.premissions[mark_group][name] = unit
 
         return unit
@@ -316,19 +316,19 @@ class PermissionOprateArg(ArgMatch):
 
     unit_id: int = Field.Int("成员ID", min=9999, max=99999999999)
 
-    auth: bool = Field.Bool("是否授权")
-
     name: str = Field.Keys("权限名",
                            keys_generate=lambda:
-                           {item: [item]
+                           {item: item
                             for item in PermManage.PERMISSIONS})
+
+    auth: bool = Field.Bool("是否授权")
 
     auth_time: int = Field.RelateTime("授权时间", default=0)
 
     def __init__(self) -> None:
         super().__init__([
             self.drive_type, self.is_group, self.group_id, self.unit_id,
-            self.auth, self.name
+            self.name, self.auth, self.auth_time
         ])
 
 
@@ -389,7 +389,7 @@ class PermissionGroupArg(ArgMatch):
 
     name: str = Field.Keys("权限名",
                            keys_generate=lambda:
-                           {item: [item]
+                           {item: item
                             for item in PermManage.PERMISSIONS})
 
     unit_id: int = Field.Int("成员ID", min=9999, max=99999999999, require=False)
@@ -408,7 +408,7 @@ class PermissionPrivateArg(ArgMatch):
 
     name: str = Field.Keys("权限名",
                            keys_generate=lambda:
-                           {item: [item]
+                           {item: item
                             for item in PermManage.PERMISSIONS})
 
     auth_time: int = Field.RelateTime("授权时间", default=0)
@@ -419,7 +419,7 @@ class PermissionPrivateArg(ArgMatch):
 
 perm_auth = on_command(
     "权限授予",
-    aliases={"权限发放", "授权"},
+    aliases={"权限发放", "授权", "启用权限"},
     block=True,
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND,
 )
@@ -489,10 +489,10 @@ async def _(matcher: Matcher,
     if meta.for_group_member:
         if arg.auth_time == 0:
             await matcher.finish(
-                f"`{arg.name}`已永久授权 {await adapter.get_unit_nick(arg.unit_id)}({arg.unit_id})"
+                f"`{arg.name}`已永久授权 {await adapter.get_unit_nick(arg.unit_id, group_id=event.group_id)}({arg.unit_id})"
             )
         await matcher.finish(
-            f"`{arg.name}`已授权 {await adapter.get_unit_nick(arg.unit_id)}({arg.unit_id}) 有效期{seconds_to_dhms(arg.auth_time, compact=True)}"
+            f"`{arg.name}`已授权 {await adapter.get_unit_nick(arg.unit_id, group_id=event.group_id)}({arg.unit_id}) 有效期{seconds_to_dhms(arg.auth_time, compact=True)}"
         )
 
     if arg.auth_time == 0:
@@ -551,7 +551,7 @@ async def _(matcher: Matcher,
     meta = await PermManage.get_register(arg.name)
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
-    if meta.auth and await PermManage.check_permission(arg.name, bot, event):
+    if not meta.auth and not await PermManage.check_permission(arg.name, bot, event):
         await matcher.finish(f"权限`{arg.name}`已默认禁用")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -574,10 +574,10 @@ async def _(matcher: Matcher,
     if meta.for_group_member:
         if arg.auth_time == 0:
             await matcher.finish(
-                f"`{arg.name}`已永久禁用 {await adapter.get_unit_nick(arg.unit_id)}({arg.unit_id})"
+                f"`{arg.name}`已永久禁用 {await adapter.get_unit_nick(arg.unit_id, group_id=event.group_id)}({arg.unit_id})"
             )
         await matcher.finish(
-            f"`{arg.name}`已对 {await adapter.get_unit_nick(arg.unit_id)}({arg.unit_id}) 禁用 {seconds_to_dhms(arg.auth_time, compact=True)}"
+            f"`{arg.name}`已对 {await adapter.get_unit_nick(arg.unit_id, group_id=event.group_id)}({arg.unit_id}) 禁用 {seconds_to_dhms(arg.auth_time, compact=True)}"
         )
 
     if arg.auth_time == 0:
@@ -589,7 +589,7 @@ async def _(matcher: Matcher,
 perm_list = on_command(
     "权限列表",
     block=True,
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND,
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND | GROUP_MEMBER,
 )
 
 
@@ -597,7 +597,7 @@ perm_list = on_command(
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: v11.Bot,
-            event: v11.PrivateMessageEvent,
+            event: v11.MessageEvent,
             adapter: Adapter = AdapterDepend(),
             arg: PageArgMatch = ArgMatchDepend(PageArgMatch)):
     size = 10
@@ -613,5 +613,5 @@ async def _(matcher: Matcher,
     msg = f"{arg.page}/{maxpage}"
     for item in perms:
         auth = await PermManage.check_permission(item.name, bot, event)
-        msg += f"\n{item.name}[{'X' if auth else '√'}] - {item.des or '没有描述'}"
+        msg += f"\n{item.name}[{'√' if auth else 'X'}] - {item.des or '没有描述'}"
     await matcher.finish(msg)

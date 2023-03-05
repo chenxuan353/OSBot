@@ -428,7 +428,15 @@ class OnebotCache:
             return f"{id}"
         return self.cache_groups[id].get_nick()
 
-    def get_unit_nick(self, id: int) -> str:
+    def get_unit_nick(self, id: int, group_id: Optional[int] = None) -> str:
+        if group_id:
+            group_record = self.get_group_record(group_id)
+            if group_record:
+                record = group_record.get_user_record(id)
+                if record:
+                    nick = record.get_nick()
+                    if nick != f"{id}":
+                        return nick
         if id not in self.cache_units:
             return f"{id}"
         return self.cache_units[id].get_nick()
@@ -450,8 +458,8 @@ def __merge_unit_info_to_global(unit: UnitRecord):
         record.sex = unit.sex
     if unit.age:
         record.age = unit.age
-    if unit.remark and unit.remark != f"{unit.id}":
-        record.remark = unit.remark
+    # if unit.remark and unit.remark != f"{unit.id}":
+    #     record.remark = unit.remark
 
 
 def __merge_group_info_to_global(group: GroupRecord):
@@ -486,6 +494,10 @@ def _conversion_to_card_info(user_card: GroupInfoCard, data: Dict[str, Any]):
     """
         合并字典的值到群成员数据中（包含时间戳更新）
     """
+    if not data:
+        return
+    if not isinstance(data, dict):
+        data = dict(data)
     if "nickname" in data:
         user_card.name = data["nickname"]
     if "card" in data:
@@ -748,10 +760,10 @@ async def _(bot: BaseBot, exception: Optional[Exception], api: str,
 
         if api == "get_group_member_list":
             bot_group = bot_record.get_or_create_group_record(
-                int(result["group_id"]))
-            for data in result:
+                int(data["group_id"]))
+            for res_data in result:
                 user_record = bot_group._get_or_create_user_record(
-                    int(data["user_id"]))
+                    int(res_data["user_id"]))
                 _conversion_to_card_info(user_record, data)
             __merge_group_info_to_global(bot_group)
 
@@ -762,8 +774,8 @@ async def _(bot: BaseBot, exception: Optional[Exception], api: str,
 
     except Exception as e:
         logger.opt(exception=True).warning(f"缓存数据时异常！`{bot.self_id}`调用`{api}`")
-        logger.debug("缓存数据时异常！`{bot.self_id}`调用`{api}` \n\n 请求体 {} \n\n 响应 {}",
-                     data, result)
+        logger.debug("缓存数据时异常！`{}`调用`{}` \n\n 请求体 {} \n\n 响应 {}", bot.self_id,
+                     api, data, result)
 
 
 @scheduler.scheduled_job("interval", minutes=10, name="OB缓存_持久化")
