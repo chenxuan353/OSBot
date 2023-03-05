@@ -12,7 +12,12 @@ from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
 from ..os_bot_base.util import matcher_exception_try
 from ..os_bot_base.permission import PermManage, perm_check_permission
 
-PermManage.register("召唤术", "批量at的权限", False, for_group_member=True, only_super_oprate=False)
+PermManage.register("召唤术",
+                    "批量at的权限",
+                    False,
+                    for_group_member=True,
+                    only_super_oprate=False)
+
 
 def list_split(listTemp, n):
     """
@@ -23,7 +28,8 @@ def list_split(listTemp, n):
 
 
 at_someone = on_regex(r"^有没有(?P<tag>[^\s!！]{1,5})[!！]{1}$",
-                      permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | perm_check_permission("召唤术"))
+                      permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                      | perm_check_permission("召唤术"))
 
 
 @at_someone.handle()
@@ -58,6 +64,13 @@ async def _(matcher: Matcher,
                 card = card[:card.index("}")]
             if regex_group['tag'] in card:
                 at_list.append(member["user_id"])
+
+    if not at_list:
+        finish_msgs = ('没有哦', '没有能够召唤的对象x')
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+
     if len(at_list) > 45:
         await matcher.finish("at列表过长！")
 
