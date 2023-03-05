@@ -9,7 +9,7 @@ from nonebot.typing import T_State
 from nonebot.adapters import Bot
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
-from nonebot.params import EventMessage
+from nonebot.params import EventMessage, RawCommand
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import PRIVATE_FRIEND, GROUP_ADMIN, GROUP_OWNER
 from dataclasses import dataclass, field
@@ -100,7 +100,7 @@ class BroadcastArg(ArgMatch):
 
 
 broadcast = on_command("广播",
-                       aliases={"发送广播"},
+                       aliases={"发送广播", "无感广播"},
                        block=True,
                        permission=SUPERUSER)
 
@@ -112,6 +112,7 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             adapter: Adapter = AdapterDepend(),
+            start: str = RawCommand(),
             session: BroadcastSession = SessionDriveDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
@@ -121,6 +122,7 @@ async def _(matcher: Matcher,
         await matcher.finish("频道为空哦...")
 
     state["channel"] = arg.channel
+    state["is_short"] = "无感" in start
     await matcher.pause("要广播什么呢？")
 
 
@@ -160,7 +162,8 @@ async def _(matcher: Matcher,
     async def send():
         success_count = 0
         failure_count = 0
-        msg = v11.Message(f"来自广播的讯息 | 频道 {state['channel']}\n") + state["msg"]
+        msg = v11.Message(f"来自广播的讯息 | 频道 {state['channel']}\n"
+                          if state["is_short"] else "") + state["msg"]
         for channelKey in session.channels[state["channel"]]:
             channelUnit = session.channels[state["channel"]][channelKey]
             mark = f"{adapter.get_type()}-global-{channelUnit.group_type}-{channelUnit.unit_id}"
