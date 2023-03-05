@@ -69,6 +69,14 @@ class LoadBalancingSession(Session):
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
+
+        # 加载 priority_map
+        tmp_list: Dict[str, Any] = self.priority_map
+        self.priority_map = {}
+        for key in tmp_list:
+            unit = PriorityUnit._load_from_dict(tmp_list[key])
+            self.priority_map[key] = unit
+
         return self
 
     async def is_priority(self, bot: Bot,
