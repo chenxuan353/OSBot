@@ -638,6 +638,7 @@ async def _():
 
     if config.os_twitter_stream_enable:
         logger.info("推特流式功能初始化")
+
         async def stream_startup():
             strat_time = time()
             listeners = await _model_get_listeners()
@@ -652,17 +653,20 @@ async def _():
             await asyncio.sleep(15)
             logger.debug("推特流式监听尝试连接")
             await stream.connect()
-            logger.info("推特时间线启动检测开始")
-            strat_deal_time = time()
-            await update_all_listener()
-            logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
-            logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
+            logger.info(f"推特功能基准初始化结束 总耗时 {time() - strat_time:.2f}s")
+
+            async def inner_update():
+                logger.info("推特时间线启动检测开始")
+                strat_deal_time = time()
+                await update_all_listener()
+                logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
+                logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
+
+            asyncio.gather(inner_update())
 
             last_check_send = 0
 
-            @scheduler.scheduled_job("interval",
-                            seconds=30,
-                            name="推特流式监听检查")
+            @scheduler.scheduled_job("interval", seconds=30, name="推特流式监听检查")
             async def _():
                 nonlocal last_check_send
                 if stream.is_running():
@@ -677,7 +681,7 @@ async def _():
                     # 两次发送消息间隔至少两小时
                     await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
                     last_check_send = time()
-            
+
             @driver.on_shutdown
             async def _():
                 stream.stream.disconnect()
@@ -759,7 +763,8 @@ async def _():
                 await client.self_timeline(ignore_exception=True, auto=True)
             except TweepyException as e:
                 return True
-            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError, aiohttp.ClientConnectorError) as e:
+            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError,
+                    aiohttp.ClientConnectorError) as e:
                 logger.warning("推特更新轮询连接错误 {} | {}", e.__class__.__name__,
                                str(e))
                 return True
