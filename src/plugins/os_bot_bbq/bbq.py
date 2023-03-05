@@ -12,7 +12,7 @@ from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
 from ..os_bot_base.util import matcher_exception_try
 from ..os_bot_base.permission import PermManage, perm_check_permission
 
-PermManage.register("召唤术", "批量at的权限", False, for_group_member=True)
+PermManage.register("召唤术", "批量at的权限", False, for_group_member=True, only_super_oprate=False)
 
 def list_split(listTemp, n):
     """

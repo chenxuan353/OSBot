@@ -16,7 +16,7 @@ from ..os_bot_base.argmatch import PageArgMatch
 from ..os_bot_base.util import matcher_exception_try, only_command
 from ..os_bot_base.permission import PermManage, perm_check_permission
 
-PermManage.register("问答库", "问答库管理权限", False, for_group_member=True)
+PermManage.register("问答库", "问答库管理权限", False, for_group_member=True, only_super_oprate=False)
 
 
 def qa_message_precheck(msg: v11.Message) -> bool:
