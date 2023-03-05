@@ -520,3 +520,52 @@ async def _(matcher: Matcher,
                     exception=True).warning("同步推特插件广播列表时，生成`BroadcastUnit`异常")
 
     await matcher.finish(f"已成功同步`{channel_name}`频道数据")
+
+
+class BroadcastChannelMergeArg(ArgMatch):
+
+    class Meta(ArgMatch.Meta):
+        name = "广播频道参数"
+        des = "合并频道"
+
+    origin_channel: str = Field.Str("源频道", require=False)
+    target_channel: str = Field.Str("目标频道", require=False)
+
+    def __init__(self) -> None:
+        super().__init__([self.origin_channel, self.target_channel])
+
+
+channel_merge = on_command("频道合并",
+                           block=True,
+                           aliases={"合并频道"},
+                           permission=SUPERUSER)
+
+
+@channel_merge.handle()
+@matcher_exception_try()
+async def _(
+    matcher: Matcher,
+    bot: Bot,
+    event: v11.PrivateMessageEvent,
+    adapter: Adapter = AdapterDepend(),
+    session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+    arg: BroadcastChannelMergeArg = ArgMatchDepend(BroadcastChannelMergeArg)):
+    if arg.origin_channel and arg.origin_channel not in session.channels:
+        await matcher.finish("源频道不存在哦~")
+    if arg.target_channel and arg.target_channel not in session.channels:
+        await matcher.finish("目标频道不存在哦~")
+
+    async with session:
+        origin_channel = session.channels[arg.origin_channel]
+        target_channel = session.channels[arg.target_channel]
+
+        for channel_key in origin_channel:
+            channel_unit = origin_channel[channel_key]
+            if channel_key not in target_channel:
+                unit = BroadcastUnit(channel_unit.nick,
+                                     channel_unit.drive_type,
+                                     channel_unit.group_type,
+                                     channel_unit.unit_id, channel_unit.bot_id)
+                target_channel[channel_key] = unit
+
+    await matcher.finish("合并成功")
