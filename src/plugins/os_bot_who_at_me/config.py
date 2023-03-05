@@ -73,7 +73,7 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
-        META_PLUGIN_ALIAS: ["谁在AT我", "谁在艾特我", "艾特我什么事", "at我什么事"],
+        META_PLUGIN_ALIAS: ["谁在AT我", "谁在艾特我", "艾特我什么事", "at我什么事", "谁艾特我"],
         META_ADMIN_USAGE: "可以通过`群at列表`查看所有at~",  # 管理员可以获取的帮助
         META_SESSION_KEY: WhoAtMeSession
     },
