@@ -5,6 +5,7 @@ import json
 import math
 import os
 import random
+from time import time
 from typing_extensions import Self
 from nonebot import get_bots, on_command, get_driver, on_notice
 from nonebot.adapters import Bot, Event
@@ -325,6 +326,11 @@ class UrgentNotice:
         ins.__save("notice_list", list(ins.some_notice_list))
 
     @classmethod
+    def empty_notice(cls) -> bool:
+        ins = cls.get_instance()
+        return not ins.some_notice_list
+
+    @classmethod
     def empty(cls) -> bool:
         ins = cls.get_instance()
         return not ins.onebot_group_notify and not ins.onebot_notify
@@ -432,6 +438,26 @@ class LeaveGroupHook:
             asyncio.gather(*coros)
 
 
+start_time = time()
+
+
+@driver.on_bot_connect
+async def _(bot: Bot):
+    if not isinstance(bot, Bot):
+        return
+
+    if time() - start_time < 600:
+        return
+
+    nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
+    name = f"{nick}({bot.self_id})"
+
+    finish_msgs = [f"{name}已上线！", f"{name}已重新连接", f"好耶，{name}回来了~"]
+    msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+    await UrgentNotice.send(msg)
+    UrgentNotice.add_notice(msg)
+
+
 driver_shutdown = False
 
 
@@ -449,7 +475,7 @@ async def _(bot: v11.Bot):
         name = f"{nick}({bot.self_id})"
 
         async def await_send():
-            await asyncio.sleep(10)
+            await asyncio.sleep(30)
             if driver_shutdown:
                 return
             bots = get_bots()
@@ -543,6 +569,7 @@ async def _(matcher: Matcher,
 
 
 notice_clear = on_command("清空通知",
+                          aliases={"清空通知列表"},
                           block=True,
                           rule=only_command(),
                           permission=SUPERUSER)
@@ -551,7 +578,7 @@ notice_clear = on_command("清空通知",
 @notice_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
-    if UrgentNotice.empty():
+    if UrgentNotice.empty_notice():
         await matcher.finish("通知列表就是空的哟")
     finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
     await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])

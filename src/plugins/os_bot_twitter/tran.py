@@ -71,8 +71,12 @@ class TwitterTrans:
             },
             # user_agent=randUserAgent(),
         )
-        await self.context.set_extra_http_headers(
-            {"accept-language": "zh-CN,zh;q=0.9"})
+        await self.context.set_extra_http_headers({
+            "accept-language":
+            "zh-CN,zh;q=0.9",
+            "x-twitter-client-language":
+            "zh-cn"
+        })
         self._enable = True
 
     async def async_reload(self):
@@ -81,15 +85,20 @@ class TwitterTrans:
 
             关闭并等待3秒后重新启动
         """
-        await self.context.close()
         await self.async_stop()
-        self._enable = False
-        await asyncio.sleep(3)
+        await asyncio.sleep(5)
         await self.async_startup()
 
     async def async_stop(self):
+        if self.context:
+            await self.context.close()
+        if self.browser:
+            await self.browser.close()
         await self.playwright.stop()  # type: ignore
         self._enable = False
+        self.context = None
+        self.browser = None
+        self.playwright = None
 
     @staticmethod
     async def print_args(msg):
@@ -133,6 +142,7 @@ class TwitterTrans:
                 screenshot_path = os.path.join(self.screenshot_path,
                                                screenshot_filename)
             logger.debug("烤推开始 {} 存档文件 {}", tweet_id, screenshot_filename)
+            assert self.context
             page = await self.context.new_page()
             await page.goto(
                 f"https://twitter.com/{tweet_username}/status/{tweet_id}")

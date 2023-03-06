@@ -20,6 +20,11 @@ class V11Adapter(Adapter):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}-subtype-{event.meta_event_type}"
         if isinstance(event, v11.RequestEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}-subtype-{event.request_type}"
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return f"{self.type}-{bot.self_id}-group-{event.group_id}-{event.sub_type}-{event.user_id}"  # type: ignore
         if isinstance(event, v11.NoticeEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}-subtype-{event.notice_type}"
         if isinstance(event, v11.MessageEvent):
@@ -37,6 +42,11 @@ class V11Adapter(Adapter):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}"
         if isinstance(event, v11.RequestEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}"
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return f"{self.type}-{bot.self_id}-group-{event.group_id}"  # type: ignore
         if isinstance(event, v11.NoticeEvent):
             return f"{self.type}-{bot.self_id}-event-{event.post_type}"
         if isinstance(event, v11.MessageEvent):
@@ -50,6 +60,11 @@ class V11Adapter(Adapter):
         )
 
     async def mark_only_unit(self, bot: v11.Bot, event: v11.Event) -> str:
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return f"{self.type}-{bot.self_id}-global-unit-user-{event.user_id}"  # type: ignore
         if isinstance(event, v11.MessageEvent):
             if isinstance(event, v11.PrivateMessageEvent):
                 return f"{self.type}-{bot.self_id}-global-unit-user-{event.user_id}"
@@ -62,6 +77,11 @@ class V11Adapter(Adapter):
 
     async def mark_only_unit_without_drive(self, bot: v11.Bot,
                                            event: v11.Event) -> str:
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return f"{self.type}-global-global-unit-user-{event.user_id}"  # type: ignore
         if isinstance(event, v11.MessageEvent):
             if isinstance(event, v11.PrivateMessageEvent):
                 return f"{self.type}-global-global-unit-user-{event.user_id}"
@@ -77,6 +97,11 @@ class V11Adapter(Adapter):
             return f"{self.type}-global-event-{event.post_type}-subtype-{event.meta_event_type}"
         if isinstance(event, v11.RequestEvent):
             return f"{self.type}-global-event-{event.post_type}-subtype-{event.request_type}"
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return f"{self.type}-global-group-{event.group_id}-{event.sub_type}-{event.user_id}"  # type: ignore
         if isinstance(event, v11.NoticeEvent):
             return f"{self.type}-global-event-{event.post_type}-subtype-{event.notice_type}"
         if isinstance(event, v11.MessageEvent):
@@ -95,6 +120,11 @@ class V11Adapter(Adapter):
             return f"{self.type}-global-event-{event.post_type}"
         if isinstance(event, v11.RequestEvent):
             return f"{self.type}-global-event-{event.post_type}"
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return f"{self.type}-global-group-{event.group_id}"  # type: ignore
         if isinstance(event, v11.NoticeEvent):
             return f"{self.type}-global-event-{event.post_type}"
         if isinstance(event, v11.MessageEvent):
@@ -139,7 +169,8 @@ class V11Adapter(Adapter):
         if bot:
             try:
                 if group_id:
-                    result = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+                    result = await bot.get_group_member_info(group_id=group_id,
+                                                             user_id=user_id)
                 else:
                     result = await bot.get_stranger_info(user_id=user_id)
                 if "nickname" in result and result["nickname"]:
@@ -179,12 +210,22 @@ class V11Adapter(Adapter):
 
     async def get_unit_id_from_event(self, bot: v11.Bot,
                                      event: v11.Event) -> Union[str, int]:
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return event.user_id  # type: ignore
         if isinstance(event, v11.MessageEvent):
             return event.user_id
         return event.get_user_id()
 
     async def get_group_id_from_event(self, bot: v11.Bot,
                                       event: v11.Event) -> Union[str, int]:
+        if type(event) in (v11.GroupAdminNoticeEvent, v11.GroupBanNoticeEvent,
+                           v11.GroupDecreaseNoticeEvent,
+                           v11.GroupIncreaseNoticeEvent,
+                           v11.GroupUploadNoticeEvent, v11.GroupRequestEvent):
+            return event.group_id  # type: ignore
         if isinstance(event, v11.GroupMessageEvent):
             return event.group_id
         if isinstance(event, v11.MessageEvent):
