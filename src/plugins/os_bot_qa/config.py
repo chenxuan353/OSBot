@@ -95,7 +95,6 @@ __plugin_meta__ = PluginMetadata(
             授权指令参考 `权限授予 @某人 问答库 [时限]`
         """,  # 管理员可以获取的帮助
         META_SESSION_KEY: QASession,
-        META_DEFAULT_SWITCH: False
     },
 )
 

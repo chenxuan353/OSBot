@@ -517,6 +517,41 @@ async def _(matcher: Matcher, bot: v11.Bot,
         UrgentNotice.add_notice(msg)
 
 
+banned = on_notice()
+
+
+@banned.handle()
+async def _(matcher: Matcher, bot: v11.Bot,
+            event: v11.GroupBanNoticeEvent):
+    if event.user_id != int(bot.self_id) and event.user_id != 0:
+        return
+    cache = OnebotCache.get_instance()
+    if event.sub_type == "ban":
+        if event.user_id != 0:
+            msg = (f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 在群聊 "
+                    f"{cache.get_group_nick(event.group_id)}({event.group_id}) 中被"
+                    f"{cache.get_group_nick(event.operator_id)}({event.operator_id}) 禁言")
+
+            await UrgentNotice.send(msg)
+            UrgentNotice.add_notice(msg)
+        else:
+            msg = (f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已开启全体禁言，"
+                    f"Bot {cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 受影响，"
+                    f"由 {cache.get_group_nick(event.operator_id)}({event.operator_id}) 操作")
+            UrgentNotice.add_notice(msg)
+    elif event.sub_type == "lift_ban":
+        if event.user_id != 0:
+            msg = (f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 在群聊 "
+                    f"{cache.get_group_nick(event.group_id)}({event.group_id}) 中的禁言被"
+                    f"{cache.get_group_nick(event.operator_id)}({event.operator_id}) 解除")
+
+            await UrgentNotice.send(msg)
+            UrgentNotice.add_notice(msg)
+        else:
+            msg = (f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已关闭全体禁言，"
+                    f"Bot {cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 受影响，"
+                    f"由 {cache.get_group_nick(event.operator_id)}({event.operator_id}) 操作")
+            UrgentNotice.add_notice(msg)
 class ManageArg(ArgMatch):
 
     class Meta(ArgMatch.Meta):

@@ -4,7 +4,7 @@ from time import time, localtime, strftime
 from typing import Any, Dict
 from typing_extensions import Self
 from dataclasses import dataclass, field
-from nonebot import on_command
+from nonebot import on_command, on_notice
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters import Bot
@@ -440,3 +440,47 @@ async def _(matcher: Matcher,
 
     finish_msgs = ["操作成功", f"对{nick}的操作已生效", "成功啦"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+banned = on_notice()
+
+
+@banned.handle()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.GroupBanNoticeEvent,
+            adapter: Adapter = AdapterDepend(),
+            session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
+    if event.user_id != int(bot.self_id) and event.user_id != 0:
+        return
+    mark = await adapter.mark_group_without_drive(bot, event)
+
+    if event.sub_type == "ban":
+        shut_up_level = ShutUpLevel.SHUT_LEVEL_HIGH
+        shut_up_time = event.duration + int(
+            time()) if event.duration > 0 else 0
+        interval = event.duration if event.duration > 0 else 0
+        async with session:
+            session.shut_up_list[mark] = ShutUpUnit(
+                shut_mark=mark,
+                shut_time=shut_up_time,
+                shut_level=shut_up_level,
+                oprate_log=
+                f"{await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+        if event.user_id == 0:
+            logger.info("检测到群{}({})开启了全体禁言，已自动安静，时长 {}！", await
+                        adapter.get_group_nick(event.group_id), event.group_id,
+                        seconds_to_dhms(interval, compact=True) or '永久')
+        else:
+            logger.info("检测到群{}({})禁言了Bot，已自动安静，时长 {}！", await
+                        adapter.get_group_nick(event.group_id), event.group_id,
+                        seconds_to_dhms(interval, compact=True) or '永久')
+    elif event.sub_type == "lift_ban":
+        if event.user_id == 0 and session.shut_up_list[mark].shut_time != 0:
+            # 当解除全体禁言但安静时长不为永久时视为不解除禁言
+            return
+        async with session:
+            del session.shut_up_list[mark]
+        logger.info("检测到群{}({})解除禁言了Bot，已自动恢复！", await
+                    adapter.get_group_nick(event.group_id), event.group_id)
