@@ -71,12 +71,6 @@ class TwitterTrans:
             },
             # user_agent=randUserAgent(),
         )
-        await self.context.set_extra_http_headers({
-            "accept-language":
-            "zh-CN,zh;q=0.9",
-            "x-twitter-client-language":
-            "zh-cn"
-        })
         self._enable = True
 
     async def async_reload(self):
