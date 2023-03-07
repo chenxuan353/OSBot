@@ -3,22 +3,16 @@
 
     例如群成员列表、好友列表等
 """
-from asyncio.log import logger
-from dataclasses import dataclass, field
 import math
 import random
-from time import time
-from nonebot import on_request, on_command
+from nonebot import on_command
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot import v11
 from nonebot.permission import SUPERUSER
-from typing import Any, Dict
-from typing_extensions import Self
-from .depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheBotDepend
+from .depends import ArgMatchDepend, OBCacheBotDepend
 from .cache.onebot import BotRecord
-from .session import Session, StoreSerializable
 from .util import matcher_exception_try
-from .argmatch import PageArgMatch, IntArgMatch
+from .argmatch import PageArgMatch
 
 
 group_list = on_command(

@@ -14,14 +14,13 @@ from nonebot.exception import IgnoredException
 from nonebot.adapters import Bot, Event, Message
 from nonebot.message import run_preprocessor
 from nonebot.matcher import Matcher
-from nonebot.adapters.onebot import v11
 from nonebot.permission import SUPERUSER
 from nonebot import get_driver, get_loaded_plugins, on_command
 from nonebot.params import CommandArg
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
 from .model.plugin_manage import PluginModel, PluginSwitchModel
-from .util import matcher_exception_try, match_suggest, only_command, plug_is_disable
+from .util import matcher_exception_try, match_suggest, plug_is_disable
 from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH, META_PLUGIN_ALIAS
 from .depends import AdapterDepend, ArgMatchDepend
 from .exception import MatcherErrorFinsh

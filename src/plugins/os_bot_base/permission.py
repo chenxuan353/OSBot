@@ -23,7 +23,6 @@ from nonebot.adapters import Bot, Event
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND, GROUP_MEMBER
 from .argmatch import ArgMatch, Field, PageArgMatch
-from .config import config
 from .session import Session, StoreSerializable
 from .logger import logger
 from .depends import ArgMatchDepend, Adapter, AdapterDepend, AdapterFactory

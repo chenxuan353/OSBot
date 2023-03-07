@@ -1,4 +1,3 @@
-from asyncio.log import logger
 from collections import deque
 import json
 import os
@@ -10,6 +9,7 @@ from nonebot_plugin_apscheduler import scheduler
 from .config import config
 from .exception import StoreException
 from .model.session import SessionModel
+from .logger import logger
 
 
 class StoreSerializable:

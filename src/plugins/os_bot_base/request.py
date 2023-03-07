@@ -1,7 +1,6 @@
 """
     维护请求列表
 """
-from asyncio.log import logger
 from dataclasses import dataclass, field
 import math
 import random
@@ -16,6 +15,7 @@ from .depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter
 from .session import Session, StoreSerializable
 from .util import matcher_exception_try
 from .argmatch import PageArgMatch, IntArgMatch
+from .logger import logger
 
 
 @dataclass
