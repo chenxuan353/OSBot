@@ -24,7 +24,7 @@ class UtilSession(Session):
 __plugin_meta__ = PluginMetadata(
     name="ob11",
     description="OSBot ob11",
-    usage="无",
+    usage="",
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",

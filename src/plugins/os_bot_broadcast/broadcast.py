@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 from .logger import logger
 
-from ..os_bot_base.depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheBotDepend
+from ..os_bot_base.depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheDepend, OnebotCache
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.util import matcher_exception_try, plug_is_disable, only_command
 from ..os_bot_base.argmatch import ArgMatch, Field
@@ -257,10 +257,12 @@ channel_clear = on_command("清空广播频道", block=True, permission=SUPERUSE
 @matcher_exception_try()
 async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
+            state: T_State,
             session: BroadcastSession = SessionDriveDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
+    state["channel"] = arg.channel
     finish_msgs = ["请发送`确认清空`确认~", "通过`确认清空`继续操作哦"]
     await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
@@ -269,13 +271,13 @@ async def _(matcher: Matcher,
 @matcher_exception_try()
 async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
+            state: T_State,
             message: v11.Message = EventMessage(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
-            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
     msg = str(message).strip()
     if msg == "确认清空":
         async with session:
-            session.channels[arg.channel] = {}
+            session.channels[state["channel"]] = {}
         finish_msgs = ["已清空！", ">>操作已执行<<"]
         await matcher.finish(finish_msgs[random.randint(
             0,
@@ -586,10 +588,14 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.PrivateMessageEvent,
             state: T_State,
-            bot_record: BotRecord = OBCacheBotDepend(),
-            adapter: Adapter = AdapterDepend(),
             msg: v11.Message = CommandArg(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            cache: OnebotCache = OBCacheDepend(),
+            adapter: Adapter = AdapterDepend()):
+    bot_record = cache.get_bot_record(int(bot.self_id))
+    if not bot_record:
+        await matcher.finish()
+
     if not bot_record.groups:
         await matcher.finish("群列表为空哦！")
 
@@ -609,10 +615,13 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             message: v11.Message = EventMessage(),
-            bot_record: BotRecord = OBCacheBotDepend(),
-            adapter: Adapter = AdapterDepend(),
             session: BroadcastSession = SessionDriveDepend(BroadcastSession),
-            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+            cache: OnebotCache = OBCacheDepend(),
+            adapter: Adapter = AdapterDepend()):
+    bot_record = cache.get_bot_record(int(bot.self_id))
+    if not bot_record:
+        await matcher.finish()
+            
     msg = str(message).strip()
     channel_name = state['channel_name']
     if state['confirm'] or msg == "确认" or msg == "继续":
@@ -647,12 +656,13 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.PrivateMessageEvent,
             state: T_State,
-            bot_record: BotRecord = OBCacheBotDepend(),
-            adapter: Adapter = AdapterDepend(),
             msg: v11.Message = CommandArg(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
-    if not bot_record.groups:
-        await matcher.finish("群列表为空哦！")
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            cache: OnebotCache = OBCacheDepend(),
+            adapter: Adapter = AdapterDepend()):
+    bot_record = cache.get_bot_record(int(bot.self_id))
+    if not bot_record:
+        await matcher.finish()
 
     state['confirm'] = True
     channel_name = msg.extract_plain_text().strip() or f"好友_{bot_record.get_nick()}"
@@ -670,10 +680,12 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             message: v11.Message = EventMessage(),
-            bot_record: BotRecord = OBCacheBotDepend(),
-            adapter: Adapter = AdapterDepend(),
             session: BroadcastSession = SessionDriveDepend(BroadcastSession),
-            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+            cache: OnebotCache = OBCacheDepend(),
+            adapter: Adapter = AdapterDepend()):
+    bot_record = cache.get_bot_record(int(bot.self_id))
+    if not bot_record:
+        await matcher.finish()
     msg = str(message).strip()
     channel_name = state['channel_name']
     if state['confirm'] or msg == "确认" or msg == "继续":

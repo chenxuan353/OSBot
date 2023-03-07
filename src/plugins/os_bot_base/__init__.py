@@ -25,6 +25,7 @@ from . import apscheduler
 from . import backup
 from . import request
 from . import permission
+from . import infomation
 
 from .exception import BaseException, StoreException
 

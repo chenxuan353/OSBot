@@ -9,7 +9,7 @@ from nonebot import on_command
 from nonebot.matcher import Matcher
 from nonebot.adapters.onebot import v11
 from nonebot.permission import SUPERUSER
-from .depends import ArgMatchDepend, OBCacheBotDepend
+from .depends import ArgMatchDepend, OnebotCache, OBCacheDepend
 from .cache.onebot import BotRecord
 from .util import matcher_exception_try
 from .argmatch import PageArgMatch
@@ -25,10 +25,14 @@ group_list = on_command(
 @group_list.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: v11.Bot,
             event: v11.PrivateMessageEvent,
-            cache: BotRecord = OBCacheBotDepend(),
-            arg: PageArgMatch = ArgMatchDepend(PageArgMatch)):
-    keys = [key for key in cache.groups]
+            arg: PageArgMatch = ArgMatchDepend(PageArgMatch),
+            cache: OnebotCache = OBCacheDepend()):
+    bot_record = cache.get_bot_record(int(bot.self_id))
+    if not bot_record:
+        await matcher.finish()
+    keys = [key for key in bot_record.groups]
     keys.sort()
     size = 10
     count = len(keys)
@@ -44,7 +48,7 @@ async def _(matcher: Matcher,
     msg = f"{arg.page}/{maxpage}"
     page_keys = keys[(arg.page - 1) * size:arg.page * size]
     for key in page_keys:
-        group = cache.groups[key]
+        group = bot_record.groups[key]
         msg += f"\n{group.get_nick()}({group.id}) - {group.member_count or '?'}/{group.max_member_count or '?'}"
     await matcher.finish(msg)
 
@@ -59,10 +63,14 @@ friend_list = on_command(
 @friend_list.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: v11.Bot,
             event: v11.PrivateMessageEvent,
-            cache: BotRecord = OBCacheBotDepend(),
-            arg: PageArgMatch = ArgMatchDepend(PageArgMatch)):
-    keys = [key for key in cache.friends]
+            arg: PageArgMatch = ArgMatchDepend(PageArgMatch),
+            cache: OnebotCache = OBCacheDepend()):
+    bot_record = cache.get_bot_record(int(bot.self_id))
+    if not bot_record:
+        await matcher.finish()
+    keys = [key for key in bot_record.friends]
     keys.sort()
     size = 10
     count = len(keys)
@@ -79,6 +87,6 @@ async def _(matcher: Matcher,
     nicks = []
     page_keys = keys[(arg.page - 1) * size:arg.page * size]
     for key in page_keys:
-        unit = cache.friends[key]
+        unit = bot_record.friends[key]
         nicks.append(f"{unit.get_nick()}({unit.id})")
     await matcher.finish(f"{msg}\n{'、'.join(nicks)}")

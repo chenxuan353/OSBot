@@ -3,9 +3,23 @@ import random
 from time import time
 from nonebot import on_command as base_on_command
 from nonebot.matcher import Matcher
+from nonebot.adapters import Message
+from nonebot.params import CommandArg
+from nonebot.rule import Rule
 from nonebot.adapters.onebot.v11 import MessageEvent
 
-on_command = partial(base_on_command, block=True)
+
+def only_command():
+    """
+        匹配无参数命令
+    """
+
+    async def checker(msg: Message = CommandArg()) -> bool:
+        return not msg
+
+    return Rule(checker)
+
+on_command = partial(base_on_command, block=True, rule=only_command())
 
 pa = on_command("爪巴", aliases={"爬"}, block=True)
 
