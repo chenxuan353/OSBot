@@ -9,18 +9,19 @@ from nonebot.typing import T_State
 from nonebot.adapters import Bot
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
-from nonebot.params import EventMessage, RawCommand
+from nonebot.params import EventMessage, RawCommand, CommandArg
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import PRIVATE_FRIEND, GROUP_ADMIN, GROUP_OWNER
 from dataclasses import dataclass, field
 
 from .logger import logger
 
-from ..os_bot_base.depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter
+from ..os_bot_base.depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheBotDepend
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.util import matcher_exception_try, plug_is_disable, only_command
 from ..os_bot_base.argmatch import ArgMatch, Field
 from ..os_bot_base.notice import BotSend, UrgentNotice
+from ..os_bot_base.cache.onebot import BotRecord
 
 
 @dataclass
@@ -572,3 +573,125 @@ async def _(
                 target_channel[channel_key] = unit
 
     await matcher.finish("合并成功")
+
+
+channel_bot_group_sync = on_command("同步群列表至频道",
+                                    block=True,
+                                    permission=SUPERUSER)
+
+
+@channel_bot_group_sync.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            state: T_State,
+            bot_record: BotRecord = OBCacheBotDepend(),
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+    if not bot_record.groups:
+        await matcher.finish("群列表为空哦！")
+
+    state['confirm'] = True
+    channel_name = msg.extract_plain_text().strip() or f"群_{bot_record.get_nick()}"
+    state['channel_name'] = channel_name
+
+    if channel_name in session.channels:
+        state['confirm'] = False
+        await matcher.pause(f"频道`{channel_name}`已存在，是否继续？")
+
+
+@channel_bot_group_sync.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            state: T_State,
+            message: v11.Message = EventMessage(),
+            bot_record: BotRecord = OBCacheBotDepend(),
+            adapter: Adapter = AdapterDepend(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+    msg = str(message).strip()
+    channel_name = state['channel_name']
+    if state['confirm'] or msg == "确认" or msg == "继续":
+        async with session:
+            session.channels[channel_name] = {}
+            for group in bot_record.groups.values():
+                group_type = "group"
+                group_id = group.id
+                mark = f"{adapter.get_type()}-{group_type}-{group_id}"
+                try:
+                    unit = BroadcastUnit("", adapter.get_type(), group_type,
+                                         int(group_id), int(bot.self_id))
+                    session.channels[channel_name][mark] = unit
+                except Exception as e:
+                    logger.opt(exception=True).warning(
+                        f"同步 {bot_record.get_nick()}({bot_record.id}) 群广播列表时，生成`BroadcastUnit`异常"
+                    )
+
+        await matcher.finish(f"已成功同步`{channel_name}`频道数据")
+    finish_msgs = ["未确认操作", "pass"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+channel_bot_friend_sync = on_command("同步好友列表至频道",
+                                     block=True,
+                                     permission=SUPERUSER)
+
+
+@channel_bot_friend_sync.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            state: T_State,
+            bot_record: BotRecord = OBCacheBotDepend(),
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+    if not bot_record.groups:
+        await matcher.finish("群列表为空哦！")
+
+    state['confirm'] = True
+    channel_name = msg.extract_plain_text().strip() or f"好友_{bot_record.get_nick()}"
+    state['channel_name'] = channel_name
+
+    if channel_name in session.channels:
+        state['confirm'] = False
+        await matcher.pause(f"频道`{channel_name}`已存在，是否继续？")
+
+
+@channel_bot_friend_sync.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            state: T_State,
+            message: v11.Message = EventMessage(),
+            bot_record: BotRecord = OBCacheBotDepend(),
+            adapter: Adapter = AdapterDepend(),
+            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
+    msg = str(message).strip()
+    channel_name = state['channel_name']
+    if state['confirm'] or msg == "确认" or msg == "继续":
+        async with session:
+            session.channels[channel_name] = {}
+            for unit in bot_record.friends.values():
+                group_type = "private"
+                group_id = unit.id
+                mark = f"{adapter.get_type()}-{group_type}-{group_id}"
+                try:
+                    unit = BroadcastUnit("", adapter.get_type(), group_type,
+                                         int(group_id), int(bot.self_id))
+                    session.channels[channel_name][mark] = unit
+                except Exception as e:
+                    logger.opt(exception=True).warning(
+                        f"同步 {bot_record.get_nick()}({bot_record.id}) 好友广播列表时，生成`BroadcastUnit`异常"
+                    )
+
+        await matcher.finish(f"已成功同步`{channel_name}`频道数据")
+    finish_msgs = ["未确认操作", "pass"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
