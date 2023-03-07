@@ -352,7 +352,7 @@ async def _(matcher: Matcher,
         nick = await adapter.get_unit_nick(arg.unit_id, bot)
 
     await matcher.finish(
-        f"从`{arg.channel}`移除了{'群' if arg.group_type == 'group' else ''}对象 ({nick}){arg.unit_id}"
+        f"从`{arg.channel}`移除了{'群' if arg.group_type == 'group' else ''}对象 {nick}({arg.unit_id})"
     )
 
 
