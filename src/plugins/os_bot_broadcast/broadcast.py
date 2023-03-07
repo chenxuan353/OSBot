@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 from .logger import logger
 
-from ..os_bot_base.depends import SessionDriveDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheDepend, OnebotCache
+from ..os_bot_base.depends import SessionPluginDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheDepend, OnebotCache
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.util import matcher_exception_try, plug_is_disable, only_command
 from ..os_bot_base.argmatch import ArgMatch, Field
@@ -114,7 +114,7 @@ async def _(matcher: Matcher,
             state: T_State,
             adapter: Adapter = AdapterDepend(),
             start: str = RawCommand(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在哦")
@@ -145,7 +145,7 @@ async def _(matcher: Matcher,
             state: T_State,
             adapter: Adapter = AdapterDepend(),
             message: v11.Message = EventMessage(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession)):
 
     msg = str(message).strip()
     if msg not in ["确认广播", "确认发送", "发送", "确认"]:
@@ -205,7 +205,7 @@ channel_create = on_command("创建广播频道", block=True, permission=SUPERUS
 @matcher_exception_try()
 async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel in session.channels:
         await matcher.finish("频道已存在！")
@@ -223,7 +223,7 @@ channel_remove = on_command("移除广播频道", block=True, permission=SUPERUS
 @matcher_exception_try()
 async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
@@ -236,7 +236,7 @@ async def _(matcher: Matcher,
 async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             message: v11.Message = EventMessage(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     msg = str(message).strip()
     if msg == "确认移除":
@@ -258,7 +258,7 @@ channel_clear = on_command("清空广播频道", block=True, permission=SUPERUSE
 async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
@@ -273,7 +273,7 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             message: v11.Message = EventMessage(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession)):
     msg = str(message).strip()
     if msg == "确认清空":
         async with session:
@@ -298,7 +298,7 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.PrivateMessageEvent,
             adapter: Adapter = AdapterDepend(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastArg = ArgMatchDepend(BroadcastArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
@@ -333,7 +333,7 @@ async def _(matcher: Matcher,
             bot: Bot,
             event: v11.PrivateMessageEvent,
             adapter: Adapter = AdapterDepend(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastArg = ArgMatchDepend(BroadcastArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
@@ -369,7 +369,7 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.MessageEvent,
             adapter: Adapter = AdapterDepend(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
@@ -406,7 +406,7 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.MessageEvent,
             adapter: Adapter = AdapterDepend(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelArg = ArgMatchDepend(BroadcastChannelArg)):
     if arg.channel not in session.channels:
         await matcher.finish("频道不存在！！！")
@@ -450,7 +450,7 @@ async def _(matcher: Matcher,
             bot: Bot,
             event: v11.PrivateMessageEvent,
             adapter: Adapter = AdapterDepend(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             arg: BroadcastChannelFilterArg = ArgMatchDepend(
                 BroadcastChannelFilterArg)):
     if arg.channel and arg.channel not in session.channels:
@@ -502,7 +502,7 @@ async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.PrivateMessageEvent,
             adapter: Adapter = AdapterDepend(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession)):
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession)):
     from ..os_bot_base.model.plugin_manage import PluginSwitchModel
     models = await PluginSwitchModel.filter(name="os_bot_twitter")
     channel_name = "推特"
@@ -554,7 +554,7 @@ async def _(
     bot: Bot,
     event: v11.PrivateMessageEvent,
     adapter: Adapter = AdapterDepend(),
-    session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+    session: BroadcastSession = SessionPluginDepend(BroadcastSession),
     arg: BroadcastChannelMergeArg = ArgMatchDepend(BroadcastChannelMergeArg)):
     if arg.origin_channel and arg.origin_channel not in session.channels:
         await matcher.finish("源频道不存在哦~")
@@ -589,7 +589,7 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             msg: v11.Message = CommandArg(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             cache: OnebotCache = OBCacheDepend(),
             adapter: Adapter = AdapterDepend()):
     bot_record = cache.get_bot_record(int(bot.self_id))
@@ -615,7 +615,7 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             message: v11.Message = EventMessage(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             cache: OnebotCache = OBCacheDepend(),
             adapter: Adapter = AdapterDepend()):
     bot_record = cache.get_bot_record(int(bot.self_id))
@@ -657,7 +657,7 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             msg: v11.Message = CommandArg(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             cache: OnebotCache = OBCacheDepend(),
             adapter: Adapter = AdapterDepend()):
     bot_record = cache.get_bot_record(int(bot.self_id))
@@ -680,7 +680,7 @@ async def _(matcher: Matcher,
             event: v11.PrivateMessageEvent,
             state: T_State,
             message: v11.Message = EventMessage(),
-            session: BroadcastSession = SessionDriveDepend(BroadcastSession),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession),
             cache: OnebotCache = OBCacheDepend(),
             adapter: Adapter = AdapterDepend()):
     bot_record = cache.get_bot_record(int(bot.self_id))
