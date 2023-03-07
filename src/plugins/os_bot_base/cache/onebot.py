@@ -176,7 +176,6 @@ class GroupRecord(BaseRecord):
             如若需要自定义加载，请覆盖此方法。
         """
         self.users = {}
-        self.user_cards = {}
 
         self.__dict__.update(self_dict)
         for key in self.users:
