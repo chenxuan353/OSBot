@@ -8,6 +8,7 @@ from .exception import NoneValidationError, RequireMatchError, MatchError, Valid
 from .tool import ProcessTool
 from .field import Field
 from ..logger import logger
+from ..util.zh_util import strip_control_characters
 
 
 class ArgMatch(abc.ABC):
@@ -139,6 +140,7 @@ class ArgMatch(abc.ABC):
             运行消息分离器
         """
         now_text = text.replace("\r", "")  # 移除干扰项
+        now_text = strip_control_characters(text)  # 过滤控制字符
         args = self._args
         for arg in args:
             try:

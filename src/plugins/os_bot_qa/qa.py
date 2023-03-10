@@ -1,3 +1,4 @@
+from asyncio import events
 import math
 import random
 from time import strftime
@@ -7,16 +8,20 @@ from nonebot.adapters import Bot
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
-from nonebot.params import CommandArg, EventMessage, RawCommand
+from nonebot.params import CommandArg, EventMessage, RawCommand, T_State
 from .logger import logger
 from .config import QAMode, QASession, QAUnit
 
-from ..os_bot_base.depends import SessionDepend, ArgMatchDepend, AdapterDepend, Adapter
+from ..os_bot_base.depends import SessionDepend, ArgMatchDepend, AdapterDepend, Adapter, SessionPluginDepend
 from ..os_bot_base.argmatch import PageArgMatch
 from ..os_bot_base.util import matcher_exception_try, only_command
 from ..os_bot_base.permission import PermManage, perm_check_permission
 
-PermManage.register("问答库", "问答库管理权限", False, for_group_member=True, only_super_oprate=False)
+PermManage.register("问答库",
+                    "问答库管理权限",
+                    False,
+                    for_group_member=True,
+                    only_super_oprate=False)
 
 
 def qa_message_precheck(msg: v11.Message) -> bool:
@@ -27,7 +32,7 @@ def qa_message_precheck(msg: v11.Message) -> bool:
 
 
 qa_add = on_command("添加问答",
-                    aliases={"我教你", "创建问答"},
+                    aliases={"我教你", "创建问答", "教你", "创建全局问答", "添加全局问答"},
                     block=True,
                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                     | PRIVATE_FRIEND
@@ -36,14 +41,21 @@ qa_add = on_command("添加问答",
 
 @qa_add.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        bot: Bot,
-        event: v11.MessageEvent,
-        adapter: Adapter = AdapterDepend(),
-        session: QASession = SessionDepend(),
-        msg: v11.Message = CommandArg(),
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
 
@@ -114,7 +126,10 @@ async def _(
 
 
 qa_del = on_command("删除问答",
-                    aliases={"忘记问题", "移除问答"},
+                    aliases={
+                        "忘记问题", "移除问答", "忘掉问题", "忘掉问答", "忘记全局问题", "忘掉全局问题",
+                        "移除全局问答", "删除全局问答"
+                    },
                     block=True,
                     priority=2,
                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
@@ -124,12 +139,20 @@ qa_del = on_command("删除问答",
 
 @qa_del.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        event: v11.MessageEvent,
-        session: QASession = SessionDepend(),
-        msg: v11.Message = CommandArg(),
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
     msg_str = str(msg).strip()
@@ -156,7 +179,9 @@ qa_setting_mode = on_command(
     block=True,
     aliases={
         "设置问题完全匹配", "设置问题关键词匹配", "设置问题模糊匹配", "设置问答完全匹配", "设置问答关键词匹配",
-        "设置问答模糊匹配", "重置匹配模式", "重置问题匹配"
+        "设置问答模糊匹配", "重置匹配模式", "重置问题匹配", "设置全局问题完全匹配", "设置全局问题关键词匹配",
+        "设置全局问题模糊匹配", "设置全局问答完全匹配", "设置全局问答关键词匹配", "设置全局问答模糊匹配", "重置全局匹配模式",
+        "重置全局问题匹配", "重置全局问题匹配模式"
     },
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND
     | perm_check_permission("问答库"))
@@ -164,15 +189,20 @@ qa_setting_mode = on_command(
 
 @qa_setting_mode.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        bot: Bot,
-        event: v11.MessageEvent,
-        adapter: Adapter = AdapterDepend(),
-        session: QASession = SessionDepend(),
-        start: str = RawCommand(),
-        msg: v11.Message = CommandArg(),
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
     msg_str = str(msg).strip()
@@ -205,21 +235,30 @@ async def _(
 qa_setting_hit_probability = on_command(
     "设置问题回复率",
     block=True,
-    aliases={"设置问答回复率", "重置问答回复率", "重置问题回复率", "设置问题回复概率", "设置问答回复概率"},
+    aliases={
+        "设置问答回复率", "重置问答回复率", "重置问题回复率", "设置问题回复概率", "设置问答回复概率", "设置全局问答回复率",
+        "重置全局问答回复率", "重置全局问题回复率", "设置全局问题回复概率", "设置全局问答回复概率", "设置全局问题回复率"
+    },
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND
     | perm_check_permission("问答库"))
 
 
 @qa_setting_hit_probability.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        bot: Bot,
-        event: v11.MessageEvent,
-        adapter: Adapter = AdapterDepend(),
-        session: QASession = SessionDepend(),
-        msg: v11.Message = CommandArg(),
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
     msg_str = str(msg).strip()
@@ -256,6 +295,7 @@ async def _(
 
 
 qa_clear = on_command("清空问答库",
+                      aliases={"清空全局问答库"},
                       block=True,
                       rule=only_command(),
                       permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
@@ -265,8 +305,19 @@ qa_clear = on_command("清空问答库",
 @qa_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: Bot,
             event: v11.MessageEvent,
-            session: QASession = SessionDepend()):
+            state: T_State,
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+    state["session"] = session
     if not session.QAList:
         await matcher.finish("问答库还空空如也呢~")
     await matcher.pause(f">>警告，发送确认清空已继续操作<<")
@@ -275,8 +326,9 @@ async def _(matcher: Matcher,
 @qa_clear.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
-            message: v11.Message = EventMessage(),
-            session: QASession = SessionDepend()):
+            state: T_State,
+            message: v11.Message = EventMessage()):
+    session = state["session"]
     msg = str(message).strip()
     if msg == "确认清空":
         async with session:
@@ -290,7 +342,7 @@ async def _(matcher: Matcher,
 
 
 qa_list = on_command("问答列表",
-                     aliases={"问答库列表", "问题列表"},
+                     aliases={"问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表"},
                      block=True,
                      permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                      | PRIVATE_FRIEND
@@ -300,9 +352,18 @@ qa_list = on_command("问答列表",
 @qa_list.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher,
+            bot: Bot,
             event: v11.MessageEvent,
             arg: PageArgMatch = ArgMatchDepend(PageArgMatch),
-            session: QASession = SessionDepend()):
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
     size = 5
     questons = [q for q in session.QAList.keys()]
     count = len(questons)
@@ -330,24 +391,31 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-qa_view = on_command("检视问题",
-                     aliases={"查看问答", "查看问题", "检视问答"},
-                     block=True,
-                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-                     | PRIVATE_FRIEND
-                     | perm_check_permission("问答库"))
+qa_view = on_command(
+    "检视问题",
+    aliases={"查看问答", "查看问题", "检视问答", "查看全局问答", "查看全局问题", "检视全局问答", "检视全局问题"},
+    block=True,
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+    | PRIVATE_FRIEND
+    | perm_check_permission("问答库"))
 
 
 @qa_view.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        bot: Bot,
-        event: v11.MessageEvent,
-        adapter: Adapter = AdapterDepend(),
-        session: QASession = SessionDepend(),
-        msg: v11.Message = CommandArg(),
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
     msg_str = str(msg).strip()
@@ -395,7 +463,8 @@ async def _(
     if page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
 
-    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
+    group_id = event.group_id if isinstance(event,
+                                            v11.GroupMessageEvent) else None
 
     if page == 1:
         finish_msg = f"共有{len(unit.answers)}个回答({mode_map[unit.mode]})"
@@ -417,7 +486,10 @@ async def _(
 
 
 qa_reply_del = on_command("删除回复",
-                          aliases={"删除回答", "删除问答回复", "删除问题回复"},
+                          aliases={
+                              "删除回答", "删除问答回复", "删除问题回复", "删除全局回复", "删除全局回答",
+                              "删除全局问答回复", "删除全局问题回复"
+                          },
                           block=True,
                           permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                           | PRIVATE_FRIEND
@@ -426,14 +498,20 @@ qa_reply_del = on_command("删除回复",
 
 @qa_reply_del.handle()
 @matcher_exception_try()
-async def _(
-        matcher: Matcher,
-        bot: Bot,
-        event: v11.MessageEvent,
-        adapter: Adapter = AdapterDepend(),
-        session: QASession = SessionDepend(),
-        msg: v11.Message = CommandArg(),
-):
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
     if not qa_message_precheck(msg):
         await matcher.finish("消息里有不受支持的元素哦！")
     msg_str = str(msg).strip()
@@ -478,9 +556,10 @@ qa_auto_reply = on_message(priority=5, block=False, rule=None)
 async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.MessageEvent,
-            session: QASession = SessionDepend(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
             msg: v11.Message = EventMessage()):
-    if not session.QAList:
+    if not g_session.QAList:
         return
     msg_str = str(msg).strip()
 
@@ -498,8 +577,8 @@ async def _(matcher: Matcher,
             logger.warning("未知的问答模式：{}", qa_unit)
         return False
 
-    for queston in session.QAList:
-        qa_unit = session.QAList[queston]
+    for queston in g_session.QAList:
+        qa_unit = g_session.QAList[queston]
         if not use_qa_unit(qa_unit):
             continue
         if len(qa_unit.answers) == 0:
@@ -512,3 +591,89 @@ async def _(matcher: Matcher,
             await matcher.finish(qa_unit.answers[0])
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
+
+    if not g_session.global_enable or not p_session.global_enable or not p_session.QAList:
+        return
+
+    for queston in p_session.QAList:
+        qa_unit = p_session.QAList[queston]
+        if not use_qa_unit(qa_unit):
+            continue
+        if len(qa_unit.answers) == 0:
+            continue
+        if qa_unit.hit_probability != 100:
+            rand = random.randint(1, 100)
+            if rand > qa_unit.hit_probability:
+                continue
+        if len(qa_unit.answers) == 1:
+            await matcher.finish(qa_unit.answers[0])
+        rand_i = random.randint(0, len(qa_unit.answers) - 1)
+        await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
+
+
+qa_enable_global = on_command("启用全局问答库",
+                              aliases={"打开全局问答库", "默认启用全局问答库", "默认打开全局问答库"},
+                              rule=only_command(),
+                              block=True,
+                              permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                              | PRIVATE_FRIEND
+                              | perm_check_permission("问答库"))
+
+
+@qa_enable_global.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "默认" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+
+    if session.global_enable:
+        await matcher.finish("阿拉，已经是启用的状态了")
+    async with session:
+        session.global_enable = True
+    if "默认" in start:
+        await matcher.finish("全局问答库已默认启用~")
+    else:
+        await matcher.finish("已启用全局问答库~")
+
+
+qa_disable_global = on_command("禁用全局问答库",
+                               aliases={"关闭全局问答库", "默认禁用全局问答库", "默认关闭全局问答库"},
+                               rule=only_command(),
+                               block=True,
+                               permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                               | PRIVATE_FRIEND
+                               | perm_check_permission("问答库"))
+
+
+@qa_disable_global.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "默认" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+
+    if session.global_enable:
+        await matcher.finish("阿拉，已经是禁用的状态了")
+    async with session:
+        session.global_enable = True
+    if "默认" in start:
+        await matcher.finish("全局问答库已默认禁用~")
+    else:
+        await matcher.finish("已禁用全局问答库~")

@@ -425,7 +425,8 @@ async def _(matcher: Matcher,
                     return
                 msg += f"\n序列 {trans_model.id}"
                 if adapter.type == trans_model.bot_type:
-                    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
+                    group_id = event.group_id if isinstance(
+                        event, v11.GroupMessageEvent) else None
                     msg += f"\n由 {await adapter.get_unit_nick(trans_model.user_id, group_id=group_id)}({trans_model.user_id}) 烤制"
                 msg += v11.MessageSegment.image(
                     f"base64://{str(base64_data, 'utf-8')}")
@@ -930,6 +931,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                           message: v11.Message, adapter: Adapter,
                           session: TwitterSession,
                           session_plug: TwitterPlugSession):
+    if not twitterTransManage.enable:
+        await matcher.finish("烤推机能未启动！")
     maximgnum = 5  # 至多允许几张图
     imgnum = 0
     msg = ""
@@ -1380,7 +1383,7 @@ async def _(matcher: Matcher):
     await matcher.finish(
         "格式\n"
         "##序号/推文链接 ##标记 内容\n"
-        "正文标记：回复、引用、图片、投票、层x\n"
+        "正文标记：回复、引用、替换图片、投票、层x\n"
         "选项：覆盖、回复、模版\n"
         "标记为空时默认为回复或主推文，序号之后的空格(或者换行)是必要的，标记后可以不包含空格\n"
         "默认情况下不覆盖，默认模版为翻译自日语\n"
@@ -1457,5 +1460,5 @@ async def _(matcher: Matcher,
             await bot.send(event, "重新启动完成")
 
         asyncio.gather(restart())
-        await matcher.finish("开始重启")
+        await matcher.finish("开始重启，可能需要60秒时间，请耐心等待~")
     await matcher.finish("取消操作")

@@ -77,19 +77,28 @@ class TwitterTrans:
         """
             烤推重启
 
-            关闭并等待3秒后重新启动
+            关闭并等待15秒后重新启动
         """
         await self.async_stop()
-        await asyncio.sleep(5)
+        await asyncio.sleep(15)
         await self.async_startup()
 
     async def async_stop(self):
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
-        await self.playwright.stop()  # type: ignore
         self._enable = False
+        try:
+            if self.context:
+                await self.context.close()
+        except:
+            logger.opt(exception=True).debug("关闭playwright上下文时异常")
+        try:
+            if self.browser:
+                await self.browser.close()
+        except:
+            logger.opt(exception=True).debug("关闭playwright浏览器时异常")
+        try:
+            await self.playwright.stop()  # type: ignore
+        except:
+            logger.opt(exception=True).debug("关闭playwright时异常")
         self.context = None
         self.browser = None
         self.playwright = None
@@ -226,6 +235,11 @@ class TwitterTransManage:
         """重启"""
         await self.queue.restart()
         await self.twitter_trans.async_reload()
+
+    @property
+    def enable(self) -> bool:
+        """是否已启用"""
+        return self.twitter_trans.enable
 
     async def reload_script(self):
         """重新加载脚本"""

@@ -28,12 +28,12 @@ __plugin_meta__ = PluginMetadata(
         指令：有没有x！
         无需前缀，管理员可用，其它群员可以由管理员通过`授权 召唤术 @群友`来特殊授权。
         需要禁用权限可以使用`禁用权限 召唤术 @群友` 
-        注意，该AT仅对修改了群名片的群员生效。
+        注意，该AT仅对修改了群名片的群员生效，若群名片中包含`请假`将忽略AT。
     """,
     config=Config,
     extra={
         META_AUTHOR_KEY: "ChenXuan",
-        META_PLUGIN_ALIAS: ["有没有X！", "有没有X!", "有没有x！", "有没有x!", "有没有X", "有没有X", "召唤术"],
+        META_PLUGIN_ALIAS: ["有没有x!", "有没有X", "召唤术"],
         META_ADMIN_USAGE: "什么都没有~",  # 管理员可以获取的帮助
         META_SESSION_KEY: BBQSession,
         META_DEFAULT_SWITCH: False

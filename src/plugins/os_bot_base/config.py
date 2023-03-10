@@ -35,7 +35,7 @@ class Config(BaseSettings):
         - `os_backup_day` 最大备份天数
         - `os_backup_session_enable` 启用session备份
         - `os_backup_database_enable` 启用database备份
-
+        - `os_no_command_prefix` 无指令前缀支持
     """
     superusers: List[Union[int, str]] = Field(default=[])
 
@@ -64,6 +64,7 @@ class Config(BaseSettings):
     os_backup_day: int = Field(default=15)
     os_backup_session_enable: bool = Field(default=True)
     os_backup_database_enable: bool = Field(default=True)
+    os_no_command_prefix: bool = Field(default=False)
 
     class Config:
         extra = "ignore"

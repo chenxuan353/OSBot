@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
 from .exception import FieldInitMatchError, ValidationError
 from .tool import ProcessTool
 
+from ..util.zh_util import stringQ2B
+
 if TYPE_CHECKING:
     from .argmatch import ArgMatch
 
@@ -177,6 +179,10 @@ class Field:
         """
             构造一个关键词类型参数匹配器
 
+            `ignoreQB` 忽略全角半角差异（默认False）
+
+            `ignoreCase` 忽略大小写（默认False）
+
             `keys`关键词字典或列表，用于映射关键词与对应值
 
             当keys为list时匹配到的字符串会原样提供匹配到的字符串为值
@@ -205,23 +211,28 @@ class Field:
                 keys = field._keys
             for key in keys:
                 t_msg = msg.strip().replace("\r", "")
+                t_key = key
                 # 忽略大小写？
                 if "ignoreCase" in field.am_config and field.am_config[
                         "ignoreCase"]:
                     t_msg = t_msg.lower()
-                    key: str = key.lower()
+                    t_key: str = t_key.lower()
+                if "ignoreQB" in field.am_config and field.am_config[
+                        "ignoreQB"]:
+                    t_msg = stringQ2B(t_msg)
+                    t_key: str = stringQ2B(t_key)
                 # 检查是否可以匹配
-                if t_msg.startswith(key):
+                if t_msg.startswith(t_key):
                     if ProcessTool.isStrict(field, am) and not (
-                            key == t_msg
-                            or t_msg.startswith(key + am.Meta.separator)):
+                            t_key == t_msg
+                            or t_msg.startswith(t_key + am.Meta.separator)):
                         continue
                     ProcessTool.setVal(keys[key], field, am)
-                    if t_msg.startswith(key + am.Meta.separator) or (
+                    if t_msg.startswith(t_key + am.Meta.separator) or (
                             am.Meta.separator == ""
-                            and t_msg.startswith(key + "\n")):
-                        return msg[len(key + am.Meta.separator):]
-                    return msg[len(key):]
+                            and t_msg.startswith(t_key + "\n")):
+                        return msg[len(t_key + am.Meta.separator):]
+                    return msg[len(t_key):]
             raise ValidationError(msg="{name} 不在关键词列表中", field=field)
 
         return Field(name=name,
@@ -449,22 +460,27 @@ class Field:
         def process(msg: str, field: "Field", am: "ArgMatch"):
             for key in field._keys:
                 t_msg = msg.strip()
+                t_key = key
                 # 忽略大小写？
                 if "ignoreCase" in field.am_config and field.am_config[
                         "ignoreCase"]:
                     t_msg = t_msg.lower()
-                    key: str = key.lower()
+                    t_key: str = t_key.lower()
+                if "ignoreQB" in field.am_config and field.am_config[
+                        "ignoreQB"]:
+                    t_msg = stringQ2B(t_msg)
+                    t_key: str = stringQ2B(t_key)
                 # 检查是否可以匹配
                 if t_msg.startswith(
-                        key + am.Meta.separator) or t_msg.startswith(key):
+                        t_key + am.Meta.separator) or t_msg.startswith(t_key):
                     if ProcessTool.isStrict(field, am) and not (
-                            key == t_msg
-                            or t_msg.startswith(key + am.Meta.separator)):
+                            t_key == t_msg
+                            or t_msg.startswith(t_key + am.Meta.separator)):
                         continue
                     ProcessTool.setVal(field._keys[key], field, am)
-                    if t_msg.startswith(key + am.Meta.separator):
-                        return msg[len(key + am.Meta.separator):]
-                    return msg[len(key):]
+                    if t_msg.startswith(t_key + am.Meta.separator):
+                        return msg[len(t_key + am.Meta.separator):]
+                    return msg[len(t_key):]
             raise ValidationError(msg="哦呀，{name}需要是开关值哦，是或否之类的。", field=field)
 
         return Field(name=name,
@@ -658,6 +674,7 @@ class Field:
                 t_msg = t_msg[:result.span()[1]]
 
             t_msg = t_msg.strip()
+            t_msg = stringQ2B(t_msg)
 
             try:
                 val = time_parse(t_msg)

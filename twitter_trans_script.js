@@ -66,8 +66,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 样式常量
         tran_main_style:
             'font-family: "Source Han Sans CN", "Segoe UI", Meiryo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;',
-        tran_main_text_style: "font-size: 21px;",
-        tran_text_style: "font-size: 0.9em;",
+        tran_main_text_style: "font-size: 21px;line-height:1.1em",
+        tran_text_style: "font-size: 0.9em;line-height:1.2em",
         tran_type_style:
             "color: #1DA1F2;font-size: 20px;font-weight: 500;padding: 0.3em 0 0.3em 0;",
         tran_media_style: "",
@@ -97,7 +97,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 媒体内需等待元素锚点
         articleVideoWait(rootDom) {
-            return rootDom.querySelector("video");
+            return rootDom.querySelector("video[poster*=video]");
         },
         // 任意推文图片锚点（与articleInImage合用）
         articleImages(rootDom) {
@@ -496,7 +496,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             // 文本处理
             if(!simple_deal){
                 text = text.replace(/(\\\\)/gi, "\\&sla; "); // 转义处理
-                text = text.replace(/(\\i)/gi, "\\&ignore; "); // 转义处理
+                text = text.replace(/(\/i)/gi, "\\&ignore; "); // 转义处理
                 text = text.replace(/(\\s)/gi, "\\&space; "); // 转义处理
                 text = text.replace(/(\\#)/gi, "\\&jh; "); // 转义处理
                 text = text.replace(/(\\@)/gi, "\\&AT; "); // 转义处理
@@ -1404,7 +1404,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             起始标记
             ##标记 内容
             节点标记规则：层数(指定层译文),层数+1(层内层翻译),last(主推文，默认标识亦是),config(配置)
-            中文标记:x/层x/第x层、回复x、层内x/引用x/内嵌x、图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖
+            中文标记:x/层x/第x层、回复x、层内x/引用x/内嵌x、替换图片x、选项x/投票x、(不)覆盖、回复(不)覆盖、引用(不)覆盖
              */
             /**
             trans结构{
@@ -1503,7 +1503,13 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 img: [
                     {
                         mark: "img",
-                        expre: /^图片([0-9]*)/,
+                        expre: /^替换图片([0-9]*)/,
+                        default: () => getImgLevel(),
+                        value: (match) => match[1],
+                    },
+                    {
+                        mark: "img",
+                        expre: /^换图([0-9]*)/,
                         default: () => getImgLevel(),
                         value: (match) => match[1],
                     },

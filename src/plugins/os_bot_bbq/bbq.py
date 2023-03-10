@@ -50,6 +50,8 @@ async def _(matcher: Matcher,
                 # 跳过自己
                 continue
             card: str = member["card"]
+            if "请假" in card:
+                continue
             if "[" in card:
                 card = card[card.index("[") + 1:]
             if "【" in card:
@@ -71,10 +73,14 @@ async def _(matcher: Matcher,
             0,
             len(finish_msgs) - 1)])
 
-    if len(at_list) > 45:
-        await matcher.finish("at列表过长！")
+    if len(at_list) > 60:
+        random.shuffle(at_list)
+        at_list[:60]
+        send_msgs = ('召唤过载！将产生不可知变化', '法术已超载截断！', '不稳定召唤')
+        await matcher.send(send_msgs[random.randint(0, len(send_msgs) - 1)])
+        await asyncio.sleep(random.randint(1000, 5000) / 1000)
 
-    for in_list in list_split(at_list, 15):
+    for in_list in list_split(at_list, 20):
         msg = v11.Message()
         for item in in_list:
             msg += v11.MessageSegment.at(item)

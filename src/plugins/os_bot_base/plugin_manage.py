@@ -10,13 +10,14 @@ import random
 import textwrap
 from typing import Dict, List
 from functools import partial
+from nonebot.consts import PREFIX_KEY, CMD_START_KEY
 from nonebot.exception import IgnoredException
 from nonebot.adapters import Bot, Event, Message
 from nonebot.message import run_preprocessor
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot import get_driver, get_loaded_plugins, on_command
-from nonebot.params import CommandArg
+from nonebot.params import CommandArg, T_State
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
 from .model.plugin_manage import PluginModel, PluginSwitchModel
@@ -27,6 +28,7 @@ from .exception import MatcherErrorFinsh
 from .adapter import AdapterFactory, Adapter
 from .argmatch import ArgMatch, Field, PageArgMatch
 from .logger import logger
+from .config import config
 
 on_command = partial(on_command, block=True)
 driver = get_driver()
@@ -117,10 +119,15 @@ def plug_model_cache_clear():
 
 
 @run_preprocessor
-async def _(bot: Bot, event: Event, matcher: Matcher):
+async def _(bot: Bot, event: Event, matcher: Matcher, state: T_State):
     """
         这个钩子函数会在 NoneBot2 运行 matcher 前运行。
     """
+    prefix_key = state.get(PREFIX_KEY, {}).get(CMD_START_KEY, None)
+    if not config.os_no_command_prefix and prefix_key is not None:
+        if prefix_key == "" and not event.is_tome():
+            logger.debug("由于配置设置，无前缀的非to_me的命令消息将被忽略")
+            raise IgnoredException("由于配置设置，无前缀的非to_me的命令消息将被忽略")
     plugin = matcher.plugin
     if not plugin:
         return
@@ -184,7 +191,9 @@ class ManageArg(ArgMatch):
                                  ignoreCase=True)
     group_id: int = Field.Int("组ID", min=9999, max=99999999999)
     plugin_name: str = Field.Keys("插件名称",
-                                  keys_generate=lambda: cache_plugin_key_map)
+                                  keys_generate=lambda: cache_plugin_key_map,
+                                  ignoreCase=True,
+                                  ignoreQB=True)
     switch: bool = Field.Bool("状态", require=False)
 
     def __init__(self) -> None:
@@ -201,7 +210,9 @@ class PlugArg(ArgMatch):
         des = "匹配插件名"
 
     plugin_name: str = Field.Keys("插件名称",
-                                  keys_generate=lambda: cache_plugin_key_map)
+                                  keys_generate=lambda: cache_plugin_key_map,
+                                  ignoreCase=True,
+                                  ignoreQB=True)
 
     def __init__(self) -> None:
         super().__init__([self.plugin_name])
@@ -426,8 +437,9 @@ OSBot {version}
 包含多引擎翻译、烤推、转推、转动态等功能~
 维护者：晨轩(3309003591)
 仓库：https://github.com/chenxuan353/OSBot
+觉得好用可以点个star哦~
 
-未特殊标注的指令均需要`！`前缀（半角全角均可）
+未特殊标注的指令均需要艾特bot或`！`前缀（半角全角均可）
 
 使用`功能列表 页码(可略)`及`帮助 功能名`来查看帮助信息
 - 主要功能
