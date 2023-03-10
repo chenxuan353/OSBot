@@ -164,7 +164,7 @@ async def _(matcher: Matcher,
         success_count = 0
         failure_count = 0
         msg = v11.Message(f"来自广播的讯息 | 频道 {state['channel']}\n"
-                          if state["is_short"] else "") + state["msg"]
+                          if not state["is_short"] else "") + state["msg"]
         for channelKey in session.channels[state["channel"]]:
             channelUnit = session.channels[state["channel"]][channelKey]
             mark = f"{adapter.get_type()}-global-{channelUnit.group_type}-{channelUnit.unit_id}"
