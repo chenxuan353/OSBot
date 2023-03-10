@@ -4,7 +4,10 @@
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
+other_plugin/
+ext_cache/
 __pycache__/
+config/
 *.py[cod]
 *$py.class
 

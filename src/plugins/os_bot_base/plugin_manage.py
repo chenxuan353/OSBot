@@ -81,6 +81,13 @@ async def plugin_manage_on_startup():
                             if ali_name not in cache_plugin_key_map:
                                 cache_plugin_key_map[ali_name] = plugModel.name
                                 cache_plugin_keys.append(ali_name)
+            else:
+                plugModel.display_name = plugin.name
+                plugModel.des = "该插件未设置描述"
+                plugModel.usage = "暂无"
+                plugModel.admin_usage = "暂无"
+                plugModel.author = "未知"
+                plugModel.default_switch = False
             if plugModel.display_name:
                 cache_plugin_key_map[plugModel.display_name] = plugModel.name
                 cache_plugin_keys.append(plugModel.display_name)
