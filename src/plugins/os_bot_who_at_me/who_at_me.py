@@ -14,7 +14,7 @@ from ..os_bot_base.depends import SessionDepend, ArgMatchDepend, AdapterDepend, 
 from ..os_bot_base.util import matcher_exception_try
 from ..os_bot_base.argmatch import PageArgMatch
 
-who_at_me = on_keyword(keywords={"谁at我", "谁AT我", "谁艾特我", "有人艾特我吗"},
+who_at_me = on_keyword(keywords={"谁at我", "谁AT我", "谁艾特我", "有人艾特我吗", "谁在AT我", "谁在at我"},
                        priority=5,
                        block=False)
 
