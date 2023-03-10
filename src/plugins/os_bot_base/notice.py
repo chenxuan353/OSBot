@@ -449,14 +449,19 @@ async def _(bot: Bot):
     if time() - start_time < 600:
         return
 
-    nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
-    name = f"{nick}({bot.self_id})"
+    async def delay_send():
+        await asyncio.sleep(15)
+        if bot.self_id not in get_bots():
+            return
+        nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
+        name = f"{nick}({bot.self_id})"
 
-    finish_msgs = [f"{name}已上线！", f"{name}已重新连接", f"好耶，{name}回来了~"]
-    msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
-    await UrgentNotice.send(msg)
-    UrgentNotice.add_notice(msg)
+        finish_msgs = [f"{name}已上线！", f"{name}已重新连接", f"好耶，{name}回来了~"]
+        msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+        await UrgentNotice.send(msg)
+        UrgentNotice.add_notice(msg)
 
+    asyncio.gather(delay_send())
 
 driver_shutdown = False
 
