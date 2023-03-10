@@ -19,7 +19,7 @@ from .engine.tencent_engine import TencentEngine
 from .engine.baidu_engine import BaiduEngine
 
 from ..os_bot_base.depends import SessionDepend, ArgMatchDepend
-from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend
+from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend, AdapterFactory
 from ..os_bot_base import only_command
 
 on_command = partial(on_command, block=True)
@@ -161,6 +161,7 @@ trans_msg = on_startswith("机翻", priority=4)
 async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
                        bot: Bot, event: Event):
     engine: Engine = engines[arg.engine]
+    adapter = AdapterFactory.get_adapter(bot)
     source = arg.source
     target = arg.target
     text = arg.tail.strip()
@@ -189,7 +190,9 @@ async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
     except EngineError as e:
         logger.warning(F"翻译引擎异常：{repr(e)}")
         await matcher.finish(F"引擎错误：{e.replay}")
-    await matcher.finish(F"翻：{res.strip().replace('{', '').replace('}', '')}")
+    user_id = await adapter.get_unit_id_from_event(bot, event)
+    group_id = await adapter.get_group_id_from_event(bot, event) if await adapter.msg_is_multi_group(bot, event) else None
+    await matcher.finish(f"@{await adapter.get_unit_nick(user_id, group_id=group_id)} 翻：{res.strip().replace('{', '').replace('}', '')}")
 
 
 @trans.handle()
