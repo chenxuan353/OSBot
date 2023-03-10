@@ -43,7 +43,7 @@ class TransSession(Session):
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
         self.stream_list = {}
-        self.default_trans = "zh-cn"
+        self.default_trans = "jp"
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
