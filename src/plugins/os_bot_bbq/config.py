@@ -4,6 +4,7 @@ from nonebot.plugin import PluginMetadata
 
 from ..os_bot_base import Session
 from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_PLUGIN_ALIAS, META_DEFAULT_SWITCH
+from ..os_bot_base.util import AsyncTokenBucket
 
 
 class Config(BaseSettings):
@@ -16,9 +17,18 @@ class Config(BaseSettings):
 
 
 class BBQSession(Session):
+    _limit_bucket_day: AsyncTokenBucket
+    _limit_bucket: AsyncTokenBucket
+    """用于限制使用频率"""
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
+        self._limit_bucket_day = AsyncTokenBucket(30,
+                                         86400,
+                                         initval=30)
+        self._limit_bucket = AsyncTokenBucket(5,
+                                         15 * 60,
+                                         initval=3)
 
 
 __plugin_meta__ = PluginMetadata(

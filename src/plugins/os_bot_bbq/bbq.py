@@ -11,6 +11,9 @@ from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
 
 from ..os_bot_base.util import matcher_exception_try
 from ..os_bot_base.permission import PermManage, perm_check_permission
+from ..os_bot_base.depends import SessionDepend
+
+from .config import BBQSession
 
 PermManage.register("召唤术",
                     "批量at的权限",
@@ -37,7 +40,18 @@ at_someone = on_regex(r"^有没有(?P<tag>[^\s!！]{1,5})[!！]{1}$",
 async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.GroupMessageEvent,
-            regex_group: Dict[str, Any] = RegexDict()):
+            regex_group: Dict[str, Any] = RegexDict(),
+            session: BBQSession = SessionDepend()):
+    if not await session._limit_bucket.consume(1):
+        finish_msgs = ["禁止滥用命令哦", "召唤太快了", "休息一会吧！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    if not await session._limit_bucket_day.consume(1):
+        finish_msgs = ["超过每日限额了哦", "low power"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
     if 'tag' not in regex_group:
         await matcher.finish("功能异常")
     member_list = await bot.get_group_member_list(group_id=event.group_id)

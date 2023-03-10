@@ -66,10 +66,10 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 样式常量
         tran_main_style:
             'font-family: "Source Han Sans CN", "Segoe UI", Meiryo, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;',
-        tran_main_text_style: "font-size: 21px;line-height:1.1em",
+        tran_main_text_style: "font-size: 19px;line-height:1.1em",
         tran_text_style: "font-size: 0.9em;line-height:1.2em",
         tran_type_style:
-            "color: #1DA1F2;font-size: 20px;font-weight: 500;padding: 0.3em 0 0.3em 0;",
+            "color: #1DA1F2;font-size: 20px;font-weight: 500;padding: 0.3em 0 0.3em 0;min-height: 1.2em",
         tran_media_style: "",
         tran_vote_style: "",
     };
