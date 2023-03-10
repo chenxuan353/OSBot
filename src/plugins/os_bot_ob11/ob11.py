@@ -78,3 +78,45 @@ async def _(matcher: Matcher,
 
     await matcher.finish(
         f"已将{group.get_nick()}({group.id})内咱的名片设置为{arg.card or '与昵称一致'}")
+
+
+# set_login_nick = on_command("设置账号昵称", block=True, permission=SUPERUSER)
+
+
+# @set_login_nick.handle()
+# @matcher_exception_try()
+# async def _(matcher: Matcher,
+#             bot: v11.Bot,
+#             event: v11.GroupMessageEvent,
+#             msg: v11.Message = CommandArg(),
+#             cache: OnebotCache = OBCacheDepend(),
+#             adapter: Adapter = AdapterDepend()):
+#     bot_record = cache.get_bot_record(int(bot.self_id))
+#     if not bot_record:
+#         await matcher.finish()
+
+#     nick = msg.extract_plain_text().strip()
+#     await bot.set_qq_profile(nickname=nick)
+
+#     await matcher.finish("昵称已设置")
+
+
+# set_login_des = on_command("设置账号描述", block=True, permission=SUPERUSER)
+
+
+# @set_login_des.handle()
+# @matcher_exception_try()
+# async def _(matcher: Matcher,
+#             bot: v11.Bot,
+#             event: v11.GroupMessageEvent,
+#             msg: v11.Message = CommandArg(),
+#             cache: OnebotCache = OBCacheDepend(),
+#             adapter: Adapter = AdapterDepend()):
+#     bot_record = cache.get_bot_record(int(bot.self_id))
+#     if not bot_record:
+#         await matcher.finish()
+
+#     personal_note = msg.extract_plain_text().strip()
+#     await bot.set_qq_profile(personal_note=personal_note)
+
+#     await matcher.finish("描述已设置")
