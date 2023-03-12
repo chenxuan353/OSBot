@@ -589,7 +589,7 @@ async def _(matcher: Matcher,
                 continue
         if len(qa_unit.answers) == 1:
             matcher.stop_propagation()
-            await matcher.finish(qa_unit.answers[0])
+            await matcher.finish(v11.Message(qa_unit.answers[0]))
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
         matcher.stop_propagation()
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
@@ -609,7 +609,7 @@ async def _(matcher: Matcher,
                 continue
         if len(qa_unit.answers) == 1:
             matcher.stop_propagation()
-            await matcher.finish(qa_unit.answers[0])
+            await matcher.finish(v11.Message(qa_unit.answers[0]))
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
         matcher.stop_propagation()
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
