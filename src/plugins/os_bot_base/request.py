@@ -1,5 +1,7 @@
 """
-    维护请求列表
+    # 请求处理
+
+    维护群邀请列表以及好友请求列表，并提供请求处理功能
 """
 from dataclasses import dataclass, field
 import math

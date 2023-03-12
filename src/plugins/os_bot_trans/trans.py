@@ -155,7 +155,7 @@ async def _(matcher: Matcher,
 
 trans = on_command("翻译", aliases={"机翻"})
 
-trans_msg = on_startswith("机翻", priority=4)
+trans_msg = on_startswith("机翻", priority=4, block=True)
 
 
 async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,

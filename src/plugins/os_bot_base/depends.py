@@ -1,5 +1,7 @@
 """
-    依赖注入工具
+    # 依赖注入工具
+
+    包含了实用依赖注入工具
 """
 from typing import Any, Optional, Type
 from nonebot.matcher import Matcher

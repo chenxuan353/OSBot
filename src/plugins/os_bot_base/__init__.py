@@ -1,11 +1,25 @@
 """
-# 基础插件
+# OSBot核心基础插件
 
-为其它插件提供基础服务。
+集成了核心服务，为其它插件提供支持。
 
-## 核心功能
+## 支持功能
 
-持久化作用域Session、数据库统一维护、插件工具、插件管理(非侵入式)、插件帮助（基于插件元数据）、权限管理（侵入式）、数据缓存中心（昵称、群名片、群列表、成员列表、好友列表等）
+- `Session`支持（自动持久化、自动缓存、自动清理）
+- 统一数据库维护（`tortoise`）
+- 故障转移与优先响应（保证多个Bot在同一个群时同时只有一个Bot提供服务）
+- 全局黑名单（支持自动屏蔽连接到此后端的bot之间的消息）
+- 消息提醒（Bot离线、上线、内存异常、磁盘异常、功能异常等）
+- 自动备份（非阻塞式的子进程备份）
+- 日志重写（将日志重定向输出到数据目录）
+- 基础运行数据收集（系统状态、数据分析）
+- 插件管理（微侵入式）
+- 插件帮助（基于插件元数据）
+- 权限管理（侵入式）
+- 数据缓存中心（昵称、群名片、群列表、成员列表、好友列表等）
+- 参数解析工具（`Argmatch`）
+- 插件工具集
+- 插件依赖集
 """
 from nonebot import get_driver, require
 
@@ -59,7 +73,7 @@ async def _():
     from . import backup
     await DatabaseManage.get_instance()._close_()
     logger.logger.info("数据库链接已关闭")
-    backup.pool._pool.shutdown(wait=True) # 平滑的关闭进程
+    backup.pool._pool.shutdown(wait=True)  # 平滑的关闭进程
     logger.logger.info("备份进程已停止")
 
 

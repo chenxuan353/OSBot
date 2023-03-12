@@ -1,15 +1,16 @@
 """
-    插件管理器
+    # 插件管理器
 
-    半侵入式，管理插件分群开关，生成插件帮助。
+    微侵入式的分群管理插件开关。
 
-    当插件存在复杂逻辑时，完整的开关需要配合本插件管理器的`API`使用。
+    当插件存在复杂逻辑时，完整的开关需要配合本插件管理器提供的`API`使用。
 """
 import math
 import random
 import textwrap
 from typing import Dict, List
 from functools import partial
+from nonebot.rule import CommandRule
 from nonebot.consts import PREFIX_KEY, CMD_START_KEY
 from nonebot.exception import IgnoredException
 from nonebot.adapters import Bot, Event, Message
@@ -130,10 +131,22 @@ async def _(bot: Bot, event: Event, matcher: Matcher, state: T_State):
     """
         这个钩子函数会在 NoneBot2 运行 matcher 前运行。
     """
+    # 由于NB没有提供matcher是否包含某些Rule的判断方案，故手动检查并缓存结果至全局
+    RULE_IS_COMMAMD_KEY: str = "os_bot_rule_is_commamd"
+    if state.get("RULE_IS_COMMAMD_KEY", None) is None:
+        state[RULE_IS_COMMAMD_KEY] = False
+        for checker in matcher.rule.checkers:
+            if isinstance(checker.call, CommandRule):
+                state[RULE_IS_COMMAMD_KEY] = True
+        type(matcher
+             )._default_state[RULE_IS_COMMAMD_KEY] = state[RULE_IS_COMMAMD_KEY]
+
     prefix_key = state.get(PREFIX_KEY, {}).get(CMD_START_KEY, None)
-    if not config.os_no_command_prefix and prefix_key is not None:
+    if not config.os_no_command_prefix and state[
+            RULE_IS_COMMAMD_KEY] and prefix_key is not None:
         if prefix_key == "" and not event.is_tome():
             logger.debug("由于配置设置，无前缀的非to_me的命令消息将被忽略")
+            matcher.block = False
             raise IgnoredException("由于配置设置，无前缀的非to_me的命令消息将被忽略")
     plugin = matcher.plugin
     if not plugin:

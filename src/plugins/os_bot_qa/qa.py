@@ -588,8 +588,10 @@ async def _(matcher: Matcher,
             if rand > qa_unit.hit_probability:
                 continue
         if len(qa_unit.answers) == 1:
+            matcher.stop_propagation()
             await matcher.finish(qa_unit.answers[0])
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
+        matcher.stop_propagation()
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
 
     if not g_session.global_enable or not p_session.global_enable or not p_session.QAList:
@@ -606,8 +608,10 @@ async def _(matcher: Matcher,
             if rand > qa_unit.hit_probability:
                 continue
         if len(qa_unit.answers) == 1:
+            matcher.stop_propagation()
             await matcher.finish(qa_unit.answers[0])
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
+        matcher.stop_propagation()
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
 
 

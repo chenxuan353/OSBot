@@ -5,6 +5,8 @@ from tortoise import fields
 class SessionModel(Model):
     """
         Session模型
+
+        支持session的数据库存储功能
     """
 
     class Meta:

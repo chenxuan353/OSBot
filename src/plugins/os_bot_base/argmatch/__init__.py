@@ -1,5 +1,7 @@
 """
-    文本解析器
+    # 命令文本解析器
+
+    支持对命令参数进行自动化解析，以半固定格式从文本中分离参数。
 """
 from .field import Field
 from .argmatch import ArgMatch

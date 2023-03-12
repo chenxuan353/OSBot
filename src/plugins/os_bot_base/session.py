@@ -1,3 +1,13 @@
+"""
+    # `Sesstion`服务
+
+    提供自动持久化的`session`功能，在运行时会自动根据事件及事件处理器依赖要求加载并缓存`session`。
+
+    当`session`长时间不活动时也会自动保存并销毁。
+
+    同时支持从驱动粒度到组再到指定对象的作用域粒度。
+"""
+
 from collections import deque
 import json
 import os

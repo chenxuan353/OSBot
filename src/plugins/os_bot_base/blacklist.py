@@ -1,5 +1,13 @@
 """
-    黑名单服务
+    # 全局黑名单服务
+
+    提供黑名单群聊与黑名单账号管理及自动拦截。
+
+    当用户或群聊处于黑名单列表中，任何来自该用户或群聊的事件都将被拦截，同时可能相关的API请求也将被拦截。
+
+    支持设置封禁期限，支持通过配置文件设置固定封禁列表。
+
+    注意：对超级管理员的封禁将视为无效封禁
 """
 import random
 from time import time, localtime, strftime
@@ -336,10 +344,10 @@ async def _(event: Union[v11.GroupMessageEvent, v11.GroupRecallNoticeEvent,
 
 @event_preprocessor
 async def _(bot: v11.Bot,
-            event: v11.PrivateMessageEvent,
+            event: Union[v11.PrivateMessageEvent, v11.FriendRecallNoticeEvent],
             session: BlackSession = SessionPluginDepend(BlackSession)):
     if config.os_ob_black_tmp:
-        if event.sub_type in ("group", "other"):
+        if getattr(event, "sub_type", "") in ("group", "other"):
             logger.debug(f"已禁止处理临时消息 - {event.user_id} [{event.self_id}]")
             raise IgnoredException("")
     if await SUPERUSER(bot, event):
@@ -355,10 +363,11 @@ async def _(bot: v11.Bot,
 
 @event_preprocessor
 async def _(bot: v11.Bot,
-            event: v11.GroupMessageEvent,
+            event: Union[v11.GroupMessageEvent, v11.GroupRecallNoticeEvent,
+                         v11.PokeNotifyEvent],
             session: BlackSession = SessionPluginDepend(BlackSession)):
     if config.os_ob_black_anonymous:
-        if event.sub_type == "anonymous":
+        if getattr(event, "sub_type", "") == "anonymous":
             logger.debug(
                 f"已禁止处理匿名消息 - {event.group_id} - {event.user_id} [{event.self_id}]"
             )

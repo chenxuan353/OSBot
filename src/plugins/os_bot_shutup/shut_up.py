@@ -231,6 +231,12 @@ async def _(matcher: Matcher,
 
     mark = await adapter.mark_group_without_drive(bot, event)
 
+    a = 1
+    b = 2
+
+    for i in range(10):
+        a = 1
+
     # if mark in session.shut_up_list and session.shut_up_list[mark].is_shut_up(
     # ):
     #     await matcher.finish(

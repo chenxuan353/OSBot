@@ -1,14 +1,15 @@
 """
-    # 简要权限服务
+    # 简要权限服务（侵入式）
 
-    支持两种方向的授权模式
+    支持两种方向的授权模式，默认禁用时的授权，以及默认授权时的禁用。
 
-    对默认启用功能的禁用，及对默认禁用功能的启用。
+
 
     对应的指令：
 
-    - 设置权限 xxx
-    - 取消权限 xxx
+    - 授权 权限名
+    - 禁用权限 权限名
+    - 权限操作 [驱动] 组标识 组ID 对象ID 权限名 [授权时间]
 """
 import math
 from time import time, localtime, strftime
@@ -315,10 +316,10 @@ class PermissionOprateArg(ArgMatch):
 
     unit_id: int = Field.Int("成员ID", min=9999, max=99999999999)
 
-    name: str = Field.Keys("权限名",
-                           keys_generate=lambda:
-                           {item: item
-                            for item in PermManage.PERMISSIONS})
+    name: str = Field.Keys(
+        "权限名",
+        keys_generate=lambda: {item: item
+                               for item in PermManage.PERMISSIONS})
 
     auth: bool = Field.Bool("是否授权")
 
@@ -386,10 +387,10 @@ class PermissionGroupArg(ArgMatch):
         name = "权限参数"
         des = "管理权限"
 
-    name: str = Field.Keys("权限名",
-                           keys_generate=lambda:
-                           {item: item
-                            for item in PermManage.PERMISSIONS})
+    name: str = Field.Keys(
+        "权限名",
+        keys_generate=lambda: {item: item
+                               for item in PermManage.PERMISSIONS})
 
     unit_id: int = Field.Int("成员ID", min=9999, max=99999999999, require=False)
 
@@ -405,10 +406,10 @@ class PermissionPrivateArg(ArgMatch):
         name = "权限参数"
         des = "管理权限"
 
-    name: str = Field.Keys("权限名",
-                           keys_generate=lambda:
-                           {item: item
-                            for item in PermManage.PERMISSIONS})
+    name: str = Field.Keys(
+        "权限名",
+        keys_generate=lambda: {item: item
+                               for item in PermManage.PERMISSIONS})
 
     auth_time: int = Field.RelateTime("授权时间", default=0)
 
@@ -550,7 +551,8 @@ async def _(matcher: Matcher,
     meta = await PermManage.get_register(arg.name)
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
-    if not meta.auth and not await PermManage.check_permission(arg.name, bot, event):
+    if not meta.auth and not await PermManage.check_permission(
+            arg.name, bot, event):
         await matcher.finish(f"权限`{arg.name}`已默认禁用")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -588,7 +590,8 @@ async def _(matcher: Matcher,
 perm_list = on_command(
     "权限列表",
     block=True,
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND | GROUP_MEMBER,
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND
+    | GROUP_MEMBER,
 )
 
 

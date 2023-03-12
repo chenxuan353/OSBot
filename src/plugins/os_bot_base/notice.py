@@ -1,3 +1,9 @@
+"""
+    # 通知提醒服务
+
+    - 支持自动分发提醒至紧急联系渠道
+    - 支持自动化推送信息（多个BOT为一个群提供订阅时，优先使用订阅服务的Bot，当此Bot不可用时自动切换）
+"""
 import asyncio
 from collections import deque
 from datetime import datetime
@@ -440,28 +446,37 @@ class LeaveGroupHook:
 
 start_time = time()
 
+disconnect_bots = set()
+
 
 @driver.on_bot_connect
-async def _(bot: Bot):
-    if not isinstance(bot, Bot):
+async def _(bot: v11.Bot):
+    if not config.os_ob_notice_disconnect:
         return
 
     if time() - start_time < 600:
+        return
+
+    if bot.self_id not in disconnect_bots:
         return
 
     async def delay_send():
         await asyncio.sleep(15)
         if bot.self_id not in get_bots():
             return
+        if bot.self_id not in disconnect_bots:
+            return
         nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
         name = f"{nick}({bot.self_id})"
 
         finish_msgs = [f"{name}已上线！", f"{name}已重新连接", f"好耶，{name}回来了~"]
         msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+        disconnect_bots.remove(bot.self_id)
         await UrgentNotice.send(msg)
         UrgentNotice.add_notice(msg)
 
     asyncio.gather(delay_send())
+
 
 driver_shutdown = False
 
@@ -475,24 +490,27 @@ async def _():
 @driver.on_bot_disconnect
 async def _(bot: v11.Bot):
     # bot断开提醒
-    if config.os_ob_notice_disconnect:
-        nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
-        name = f"{nick}({bot.self_id})"
+    if not config.os_ob_notice_disconnect:
+        return
 
-        async def await_send():
-            await asyncio.sleep(30)
-            if driver_shutdown:
-                return
-            bots = get_bots()
-            if bot.self_id not in bots:
-                finish_msgs = [
-                    f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"
-                ]
-                msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
-                await UrgentNotice.send(msg)
-                UrgentNotice.add_notice(msg)
+    nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
+    name = f"{nick}({bot.self_id})"
 
-        asyncio.gather(await_send())
+    async def await_send():
+        await asyncio.sleep(30)
+        if driver_shutdown:
+            return
+        bots = get_bots()
+        if bot.self_id not in bots:
+            finish_msgs = [
+                f"{name}断开连接！", f"{name}失去了连接", f"嗯……{name}好像出了一些问题？"
+            ]
+            msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+            disconnect_bots.add(bot.self_id)
+            await UrgentNotice.send(msg)
+            UrgentNotice.add_notice(msg)
+
+    asyncio.gather(await_send())
 
 
 leave_group = on_notice()
@@ -526,37 +544,46 @@ banned = on_notice()
 
 
 @banned.handle()
-async def _(matcher: Matcher, bot: v11.Bot,
-            event: v11.GroupBanNoticeEvent):
+async def _(matcher: Matcher, bot: v11.Bot, event: v11.GroupBanNoticeEvent):
     if event.user_id != int(bot.self_id) and event.user_id != 0:
         return
     cache = OnebotCache.get_instance()
     if event.sub_type == "ban":
         if event.user_id != 0:
-            msg = (f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 在群聊 "
-                    f"{cache.get_group_nick(event.group_id)}({event.group_id}) 中被"
-                    f"{cache.get_group_nick(event.operator_id)}({event.operator_id}) 禁言")
+            msg = (
+                f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 在群聊 "
+                f"{cache.get_group_nick(event.group_id)}({event.group_id}) 中被"
+                f"{cache.get_group_nick(event.operator_id)}({event.operator_id}) 禁言"
+            )
 
             await UrgentNotice.send(msg)
             UrgentNotice.add_notice(msg)
         else:
-            msg = (f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已开启全体禁言，"
-                    f"Bot {cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 受影响，"
-                    f"由 {cache.get_group_nick(event.operator_id)}({event.operator_id}) 操作")
+            msg = (
+                f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已开启全体禁言，"
+                f"Bot {cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 受影响，"
+                f"由 {cache.get_group_nick(event.operator_id)}({event.operator_id}) 操作"
+            )
             UrgentNotice.add_notice(msg)
     elif event.sub_type == "lift_ban":
         if event.user_id != 0:
-            msg = (f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 在群聊 "
-                    f"{cache.get_group_nick(event.group_id)}({event.group_id}) 中的禁言被"
-                    f"{cache.get_group_nick(event.operator_id)}({event.operator_id}) 解除")
+            msg = (
+                f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 在群聊 "
+                f"{cache.get_group_nick(event.group_id)}({event.group_id}) 中的禁言被"
+                f"{cache.get_group_nick(event.operator_id)}({event.operator_id}) 解除"
+            )
 
             await UrgentNotice.send(msg)
             UrgentNotice.add_notice(msg)
         else:
-            msg = (f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已关闭全体禁言，"
-                    f"Bot {cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 受影响，"
-                    f"由 {cache.get_group_nick(event.operator_id)}({event.operator_id}) 操作")
+            msg = (
+                f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已关闭全体禁言，"
+                f"Bot {cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 受影响，"
+                f"由 {cache.get_group_nick(event.operator_id)}({event.operator_id}) 操作"
+            )
             UrgentNotice.add_notice(msg)
+
+
 class ManageArg(ArgMatch):
 
     class Meta(ArgMatch.Meta):

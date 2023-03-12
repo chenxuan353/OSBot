@@ -7,7 +7,7 @@ class PluginModel(Model):
     """
         插件表
 
-        此表仅供参考
+        此表仅供插件管理器参考
     """
 
     class Meta:

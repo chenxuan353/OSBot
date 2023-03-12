@@ -1,5 +1,7 @@
 """
-    群提醒
+    # 群提醒（进群、退群）
+
+    支持群聊相关提醒，并可以设置模版。
 """
 from nonebot import require
 

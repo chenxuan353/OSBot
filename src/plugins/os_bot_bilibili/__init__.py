@@ -1,3 +1,8 @@
+"""
+    # B站支持（未完成）
+
+    预计将支持动态的获取与发送，直播开关播等功能。
+"""
 # import nonebot
 from nonebot import get_driver
 

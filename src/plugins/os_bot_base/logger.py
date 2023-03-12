@@ -1,3 +1,10 @@
+"""
+    # 日志储存
+
+    支持日志存储，会将日志输出至数据文件夹(默认`./data`)中的`log`目录中
+
+    仅保留十五天内的日志
+"""
 import sys
 import os
 import nonebot
