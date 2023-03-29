@@ -97,7 +97,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 媒体内需等待元素锚点
         articleVideoWait(rootDom) {
-            return rootDom.querySelector("video[poster*=video]");
+            return rootDom.querySelector("video[poster*=twimg]");
         },
         // 任意推文图片锚点（与articleInImage合用）
         articleImages(rootDom) {
