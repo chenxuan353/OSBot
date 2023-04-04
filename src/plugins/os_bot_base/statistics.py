@@ -380,9 +380,10 @@ async def handle_api_result(bot: Bot, exception: Optional[Exception], api: str,
     if exception:
         statistics_record.add_api_call_error_count()
         if api in ["send_msg"]:
-            if isinstance(result, dict):
+            if isinstance(exception, v11.ActionFailed):
+                exp_result: Dict[str, Any] = exception.info
                 UrgentNotice.add_notice(
-                    f"API`{api}`异常 {result.get('msg', '未知错误')}")
+                    f"API`{api}`异常 {exp_result.get('msg', '未知错误')}")
                 session: ApiCalledSession = await get_plugin_session(
                     ApiCalledSession)  # type: ignore
                 exception_str = str(exception) if exception is not None else ""
@@ -391,7 +392,7 @@ async def handle_api_result(bot: Bot, exception: Optional[Exception], api: str,
                                       sort_keys=True,
                                       indent=2,
                                       default=any_to_str)
-                result_str = json.dumps(result,
+                result_str = json.dumps(exp_result,
                                         ensure_ascii=False,
                                         sort_keys=True,
                                         indent=2,
