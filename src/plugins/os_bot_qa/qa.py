@@ -512,9 +512,10 @@ async def _(matcher: Matcher,
     if page == 1:
         finish_msg = f"共有{len(unit.answers)}个回答({mode_map[unit.mode]})"
         finish_msg += f"\n回复率：{unit.hit_probability}%"
+        if unit.alias:
+            finish_msg += f"\n别名：{'、'.join(unit.alias)}"
         finish_msg += f"\n更新：{await adapter.get_unit_nick(unit.update_by, group_id=group_id)}({unit.update_by})"
         finish_msg += f"\n创建：{await adapter.get_unit_nick(unit.create_by, group_id=group_id)}({unit.create_by})"
-        finish_msg += "\n通过`删除回复 问题>回答编号`来移除指定回复"
     else:
         finish_msg = f"的回答~"
     if maxpage > 1:
@@ -685,14 +686,15 @@ async def _(matcher: Matcher,
     if not msg_str:
         await matcher.finish("问题不能为空哦~")
     if ">" not in msg_str:
-        await matcher.finish("删除别名时必须提供问题与别名序号哦！")
+        await matcher.finish("删除别名时必须提供问题与别名名称哦！")
     msg_str_split = msg_str.split(">", maxsplit=1)
-    try:
-        alias_id = int(msg_str_split[1])
-    except:
-        await matcher.finish("删除别名时`>`后边需要是合法的别名序号！")
-    if alias_id <= 0:
-        await matcher.finish("删除别名时`>`后边需要是合法的别名序号！")
+
+    alia_name = msg_str_split[1]
+    if ">" in alia_name:
+        await matcher.finish("别名不能包含`>`号哦！")
+    if len(alia_name) <= 1:
+        await matcher.finish("别名至少两个字符哦！")
+
     queston = msg_str_split[0]
     if ">" in queston:
         await matcher.finish("问题不能包含`>`号哦！")
@@ -704,16 +706,16 @@ async def _(matcher: Matcher,
             0,
             len(finish_msgs) - 1)])
     unit = session.QAList[queston]
-    if alias_id > len(unit.alias):
+    if alia_name not in unit.alias:
         finish_msgs = ["啊咧，别名不存在哦！", "并没有找到对应别名"]
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
     async with session:
-        unit.alias.pop(alias_id - 1)
+        unit.alias.remove(alia_name)
         unit.update_by = int(await adapter.get_unit_id_from_event(bot, event))
         unit.oprate_log += f"\n删除别名 {await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
-    await matcher.finish(f"删除了该问题的一个别名(序列 {alias_id})")
+    await matcher.finish(f"删除了该问题的一个别名")
 
 
 qa_alias_clear = on_command("清空问答别名",
