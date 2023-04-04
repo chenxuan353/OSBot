@@ -33,7 +33,8 @@ class QAUnit(StoreSerializable):
     """
         问答模块单条记录
 
-        - `queston` 问题
+        - `queston` 问题，不能与已有问题重复
+        - `alias` 问题的别名，可以与已有问题重复，重复时将逐条比对直至
         - `answer` 答复
         - `mode` 问答模式
         - `hit_probability` 命中概率(1-100)
@@ -44,6 +45,7 @@ class QAUnit(StoreSerializable):
     """
     queston: str = field(default=None)  # type: ignore
     answers: List[str] = field(default_factory=list)  # type: ignore
+    alias: List[str] = field(default_factory=list)  # type: ignore
     mode: int = field(default=None)  # type: ignore
     hit_probability: int = field(default=None)  # type: ignore
     oprate_log: str = field(default=None)  # type: ignore
@@ -55,12 +57,16 @@ class QAUnit(StoreSerializable):
 class QASession(Session):
 
     QAList: Dict[str, QAUnit]
+    _alias_index: Dict[str, List[QAUnit]]
+    _alias_index_generate_time: float
 
     global_enable: bool = True
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
         self.QAList = {}
+        self._alias_index = {}
+        self._alias_index_generate_time = 0
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
@@ -72,7 +78,23 @@ class QASession(Session):
             unit = QAUnit._load_from_dict(tmp_list[key])
             self.QAList[unit.queston] = unit
 
+        self.generate_index()
+
         return self
+
+    async def save(self):
+        self.generate_index()
+        return await super().save()
+
+    def generate_index(self):
+        self._alias_index = {}
+        self._alias_index_generate_time = time()
+        for queston in self.QAList:
+            unit = self.QAList[queston]
+            for alia in unit.alias:
+                if alia not in self._alias_index:
+                    self._alias_index[alia] = []
+                self._alias_index[alia].append(unit)
 
 
 __plugin_meta__ = PluginMetadata(
@@ -80,7 +102,7 @@ __plugin_meta__ = PluginMetadata(
     description="OSBot 简单问答模块",
     usage="""
         可以通过`教你 问题>回复`或是`添加问答 问题>回复1>回复2`来添加一条问答
-        通过`问答列表`、`查看问答 问题[>页码]`、`忘掉问答 问题`、`忘记问答回复 问题>问答ID`及`设置问题完全/关键词/模糊匹配 问题`来管理问答
+        通过`问答列表`、`查看问答 问题[>页码]`、`忘掉问答 问题`、`忘记问答回复 问题>问答ID`、`设置问题完全/关键词/模糊匹配 问题`及`添加别名 问题>别名`来管理问答
         另外可以通过`设置问题回复率 问题>回复概率`来管理此问题的回复概率，概率取值为1-100，默认为100。
         全局问答库设置`启用/禁用全局问答库`
         关于模式的说明：

@@ -3,6 +3,7 @@ import base64
 import math
 import random
 from time import strftime, time
+from typing import Optional
 import aiohttp
 from nonebot import on_command, on_message
 from nonebot.matcher import Matcher
@@ -32,6 +33,7 @@ def qa_message_precheck(msg: v11.Message) -> bool:
         if msgseg.type not in ("face", "image", "text"):
             return False
     return True
+
 
 async def download_to_base64(url: str,
                              maxsize_kb=1024,
@@ -68,6 +70,7 @@ async def download_to_base64(url: str,
         logger.warning("图片下载失败：{} | {} | {}", url, e.__class__.__name__, e)
         return ""
     return urlbase64
+
 
 qa_add = on_command("添加问答",
                     aliases={"我教你", "创建问答", "教你", "创建全局问答", "添加全局问答"},
@@ -107,7 +110,7 @@ async def _(matcher: Matcher,
         elif msgseg.type == "image":
             url = msgseg.data.get("url", "")
             b64 = await download_to_base64(url)
-            msg_recombination += v11.MessageSegment.image(b64)
+            msg_recombination += v11.MessageSegment.image(f"base64://{b64}")
         elif msgseg.type == "face":
             msg_recombination += msgseg
         else:
@@ -381,7 +384,7 @@ async def _(matcher: Matcher,
 
 
 qa_list = on_command("问答列表",
-                     aliases={"问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表"},
+                     aliases={"问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表", "全局问答库", "问答库"},
                      block=True,
                      permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
                      | PRIVATE_FRIEND
@@ -588,6 +591,193 @@ async def _(matcher: Matcher,
     await matcher.finish(f"删除了该问题的一个回复(序列 {reply_id})")
 
 
+qa_alia_add = on_command("添加问题别名",
+                         aliases={"添加别名", "添加全局问题别名", "添加全局别名"},
+                         block=True,
+                         permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                         | PRIVATE_FRIEND
+                         | perm_check_permission("问答库"))
+
+
+@qa_alia_add.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+    if not qa_message_precheck(msg):
+        await matcher.finish("消息里有不受支持的元素哦！")
+    msg_str = str(msg).strip()
+    if not msg_str:
+        await matcher.finish("问题不能为空哦~")
+    if ">" not in msg_str:
+        await matcher.finish("删除别名时必须提供问题与别名序号哦！")
+    msg_str_split = msg_str.split(">", maxsplit=1)
+
+    queston = msg_str_split[0]
+    if ">" in queston:
+        await matcher.finish("问题不能包含`>`号哦！")
+    if len(queston) <= 1:
+        await matcher.finish("问题至少两个字符哦！")
+
+    alia_name = msg_str_split[1]
+    if ">" in alia_name:
+        await matcher.finish("别名不能包含`>`号哦！")
+    if len(alia_name) <= 1:
+        await matcher.finish("别名至少两个字符哦！")
+
+    if queston not in session.QAList:
+        finish_msgs = ["问题不存在哦！", "唔，没找到这个问题哦！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    unit = session.QAList[queston]
+    if alia_name in unit.alias:
+        finish_msgs = ["啊咧，别名已经存在了哦！", "重复的别名哦！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    async with session:
+        unit.alias.append(alia_name)
+        unit.update_by = int(await adapter.get_unit_id_from_event(bot, event))
+        unit.oprate_log += f"\n添加别名 {await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
+    await matcher.finish(f"添加了该问题的一个别名(序列 {len(unit.alias)})")
+
+
+qa_alia_del = on_command("删除问题别名",
+                         aliases={"删除别名", "删除全局问题别名", "删除全局别名"},
+                         block=True,
+                         permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                         | PRIVATE_FRIEND
+                         | perm_check_permission("问答库"))
+
+
+@qa_alia_del.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+    if not qa_message_precheck(msg):
+        await matcher.finish("消息里有不受支持的元素哦！")
+    msg_str = str(msg).strip()
+    if not msg_str:
+        await matcher.finish("问题不能为空哦~")
+    if ">" not in msg_str:
+        await matcher.finish("删除别名时必须提供问题与别名序号哦！")
+    msg_str_split = msg_str.split(">", maxsplit=1)
+    try:
+        alias_id = int(msg_str_split[1])
+    except:
+        await matcher.finish("删除别名时`>`后边需要是合法的别名序号！")
+    if alias_id <= 0:
+        await matcher.finish("删除别名时`>`后边需要是合法的别名序号！")
+    queston = msg_str_split[0]
+    if ">" in queston:
+        await matcher.finish("问题不能包含`>`号哦！")
+    if len(queston) <= 1:
+        await matcher.finish("问题至少两个字符哦！")
+    if queston not in session.QAList:
+        finish_msgs = ["问题不存在哦！", "唔，没找到这个问题哦！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    unit = session.QAList[queston]
+    if alias_id > len(unit.alias):
+        finish_msgs = ["啊咧，别名不存在哦！", "并没有找到对应别名"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    async with session:
+        unit.alias.pop(alias_id - 1)
+        unit.update_by = int(await adapter.get_unit_id_from_event(bot, event))
+        unit.oprate_log += f"\n删除别名 {await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
+    await matcher.finish(f"删除了该问题的一个别名(序列 {alias_id})")
+
+
+qa_alias_clear = on_command("清空问答别名",
+                            aliases={"清空全局问答别名"},
+                            block=True,
+                            permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                            | PRIVATE_FRIEND)
+
+
+@qa_alias_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            state: T_State,
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if "全局" in start:
+        session = p_session
+        if not await SUPERUSER(bot, event):
+            await matcher.finish()
+    else:
+        session = g_session
+
+    if not session.QAList:
+        await matcher.finish("问答库还空空如也呢~")
+    queston = msg.extract_plain_text().strip()
+    if len(queston) <= 1:
+        await matcher.finish("问题至少两个字符哦！")
+    if queston not in session.QAList:
+        finish_msgs = ["问题不存在哦！", "唔，没找到这个问题哦！"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    state["session"] = session
+    state["queston"] = queston
+    await matcher.pause(f">>警告，发送确认清空已继续操作<<")
+
+
+@qa_alias_clear.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            state: T_State,
+            adapter: Adapter = AdapterDepend(),
+            message: v11.Message = EventMessage()):
+    session: QASession = state["session"]
+    queston = state["queston"]
+    unit = session.QAList[queston]
+    msg = str(message).strip()
+    if msg == "确认清空":
+        async with session:
+            unit.alias.clear()
+            unit.oprate_log += f"\n清空别名 {await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}"
+        finish_msgs = ["已清空！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["未确认的操作", "操作已取消"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
 qa_auto_reply = on_message(priority=5, block=False, rule=None)
 
 
@@ -602,7 +792,7 @@ async def _(matcher: Matcher,
         return
     msg_str = str(msg).strip()
 
-    def use_qa_unit(qa_unit: QAUnit) -> bool:
+    def use_qa_unit(queston, qa_unit: QAUnit) -> bool:
         if qa_unit.mode == QAMode.KEY:
             if queston in msg_str:
                 return True
@@ -616,42 +806,43 @@ async def _(matcher: Matcher,
             logger.warning("未知的问答模式：{}", qa_unit)
         return False
 
-    for queston in g_session.QAList:
-        qa_unit = g_session.QAList[queston]
-        if not use_qa_unit(qa_unit):
-            continue
+    async def select_answers(queston, qa_unit: QAUnit):
+        if not use_qa_unit(queston, qa_unit):
+            return
         if len(qa_unit.answers) == 0:
-            continue
+            return
         if qa_unit.hit_probability != 100:
             rand = random.randint(1, 100)
             if rand > qa_unit.hit_probability:
-                continue
+                return
         if len(qa_unit.answers) == 1:
             matcher.stop_propagation()
             await matcher.finish(v11.Message(qa_unit.answers[0]))
         rand_i = random.randint(0, len(qa_unit.answers) - 1)
         matcher.stop_propagation()
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
+
+    for queston in g_session.QAList:
+        qa_unit = g_session.QAList[queston]
+        await select_answers(queston, qa_unit)
+
+    for queston in g_session._alias_index:
+        alia_units = g_session._alias_index[queston]
+        for alia_unit in alia_units:
+            await select_answers(queston, alia_unit)
 
     if not g_session.global_enable or not p_session.global_enable or not p_session.QAList:
         return
 
     for queston in p_session.QAList:
         qa_unit = p_session.QAList[queston]
-        if not use_qa_unit(qa_unit):
-            continue
-        if len(qa_unit.answers) == 0:
-            continue
-        if qa_unit.hit_probability != 100:
-            rand = random.randint(1, 100)
-            if rand > qa_unit.hit_probability:
-                continue
-        if len(qa_unit.answers) == 1:
-            matcher.stop_propagation()
-            await matcher.finish(v11.Message(qa_unit.answers[0]))
-        rand_i = random.randint(0, len(qa_unit.answers) - 1)
-        matcher.stop_propagation()
-        await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
+        await select_answers(queston, qa_unit)
+    
+    for queston in p_session._alias_index:
+        alia_units = p_session._alias_index[queston]
+        for alia_unit in alia_units:
+            await select_answers(queston, alia_unit)
+
 
 
 qa_enable_global = on_command("启用全局问答库",
