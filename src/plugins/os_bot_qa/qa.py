@@ -279,7 +279,8 @@ qa_setting_hit_probability = on_command(
     block=True,
     aliases={
         "设置问答回复率", "重置问答回复率", "重置问题回复率", "设置问题回复概率", "设置问答回复概率", "设置全局问答回复率",
-        "重置全局问答回复率", "重置全局问题回复率", "设置全局问题回复概率", "设置全局问答回复概率", "设置全局问题回复率"
+        "重置全局问答回复率", "重置全局问题回复率", "设置全局问题回复概率", "设置全局问答回复概率", "设置全局问题回复率",
+        "设置回复概率", "设置全局回复概率", "设置问题回复概率", "设置全局问题回复概率",
     },
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND
     | perm_check_permission("问答库"))
@@ -306,14 +307,14 @@ async def _(matcher: Matcher,
     msg_str = str(msg).strip()
     if not msg_str:
         await matcher.finish("问题不能为空哦~")
-    if ">" in msg_str:
-        msg_str_split = msg_str.split(">", maxsplit=1)
+    if "=" in msg_str:
+        msg_str_split = msg_str.split("=", maxsplit=1)
         try:
             hit_probability = int(msg_str_split[1])
         except:
-            await matcher.finish("设置问题回复概率时`>`后边需要是1-100的整数！")
+            await matcher.finish("设置问题回复概率时`=`后边需要是1-100的整数！")
         if hit_probability <= 0 or hit_probability > 100:
-            await matcher.finish("设置问题回复概率时`>`后边需要是1-100的整数！")
+            await matcher.finish("设置问题回复概率时`=`后边需要是1-100的整数！")
         queston = msg_str_split[0]
     else:
         hit_probability = 100
