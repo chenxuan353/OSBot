@@ -650,9 +650,7 @@ async def _():
                 logger.info("加载流式规则失败，将在60秒后重试（请检查网络）")
                 await asyncio.sleep(60.1)
                 await stream.reload_listeners(listeners)
-            await asyncio.sleep(15)
-            logger.debug("推特流式监听尝试连接")
-            await stream.connect()
+
             logger.info(f"推特功能基准初始化结束 总耗时 {time() - strat_time:.2f}s")
 
             async def inner_update():
@@ -660,6 +658,9 @@ async def _():
                 strat_deal_time = time()
                 await update_all_listener()
                 logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
+                await asyncio.sleep(15)
+                logger.debug("推特流式监听尝试连接")
+                await stream.connect()
                 logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
 
             asyncio.gather(inner_update())
