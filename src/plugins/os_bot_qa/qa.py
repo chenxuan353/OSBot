@@ -814,7 +814,7 @@ async def _(matcher: Matcher,
     if not g_session.QAList and not p_session.QAList:
         await matcher.finish("还没有设置任何问答哦……")
     msg_str = str(msg).strip()
-    qa_keys = []
+    qa_keys = set()
 
     def use_qa_unit(queston, qa_unit: QAUnit) -> bool:
         if qa_unit.mode == QAMode.KEY:
@@ -833,7 +833,7 @@ async def _(matcher: Matcher,
     async def select_answers(queston, qa_unit: QAUnit):
         if not use_qa_unit(queston, qa_unit):
             return
-        qa_keys.append(qa_unit.queston)
+        qa_keys.add(qa_unit.queston)
 
     async def find_qa():
         if g_session.QAList:
