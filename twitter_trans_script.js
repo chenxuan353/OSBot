@@ -171,7 +171,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 转推喜欢数量检索锚点（需移除）
         articleRetweetLike(rootDom) {
             // r-tzz3ar r-1yzf0co
-            return rootDom.querySelector("div.r-tzz3ar");
+            return rootDom.querySelector("DIV[role=group].r-18u37iz.r-1w6e6rj");
         },
         // 底部转推喜欢分享(需移除)
         articleRTLKBar(rootDom){
