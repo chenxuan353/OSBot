@@ -794,11 +794,12 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-qa_index_check = on_command("索引问题",
-                            aliases={"全局索引问题"},
-                            block=True,
-                            permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-                            | PRIVATE_FRIEND)
+qa_index_check = on_command(
+    "索引问题",
+    aliases={"全局索引问题", "问题索引", "全局问题索引", "全局索引问答", "问答索引", "全局问答索引", "索引问答"},
+    block=True,
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+    | PRIVATE_FRIEND)
 
 
 @qa_index_check.handle()
