@@ -169,8 +169,8 @@ async def _(matcher: Matcher,
 
 qa_del = on_command("删除问答",
                     aliases={
-                        "忘记问题", "移除问答", "忘掉问题", "忘掉问答", "忘记全局问题", "忘掉全局问题",
-                        "移除全局问答", "删除全局问答"
+                        "忘记问题", "移除问答", "忘掉问题", "忘掉问答", "忘记全局问题", "忘掉全局问题"
+                        "移除全局问答", "删除全局问答", "删除问题", "全局删除问题"
                     },
                     block=True,
                     priority=2,
@@ -274,16 +274,28 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-qa_setting_hit_probability = on_command(
-    "设置问题回复率",
-    block=True,
-    aliases={
-        "设置问答回复率", "重置问答回复率", "重置问题回复率", "设置问题回复概率", "设置问答回复概率", "设置全局问答回复率",
-        "重置全局问答回复率", "重置全局问题回复率", "设置全局问题回复概率", "设置全局问答回复概率", "设置全局问题回复率",
-        "设置回复概率", "设置全局回复概率", "设置问题回复概率", "设置全局问题回复概率",
-    },
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND
-    | perm_check_permission("问答库"))
+qa_setting_hit_probability = on_command("设置问题回复率",
+                                        block=True,
+                                        aliases={
+                                            "设置问答回复率",
+                                            "重置问答回复率",
+                                            "重置问题回复率",
+                                            "设置问题回复概率",
+                                            "设置问答回复概率",
+                                            "设置全局问答回复率",
+                                            "重置全局问答回复率",
+                                            "重置全局问题回复率",
+                                            "设置全局问题回复概率",
+                                            "设置全局问答回复概率",
+                                            "设置全局问题回复率",
+                                            "设置回复概率",
+                                            "设置全局回复概率",
+                                            "设置问题回复概率",
+                                            "设置全局问题回复概率",
+                                        },
+                                        permission=SUPERUSER | GROUP_ADMIN
+                                        | GROUP_OWNER | PRIVATE_FRIEND
+                                        | perm_check_permission("问答库"))
 
 
 @qa_setting_hit_probability.handle()
@@ -384,12 +396,13 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-qa_list = on_command("问答列表",
-                     aliases={"问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表", "全局问答库", "问答库"},
-                     block=True,
-                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-                     | PRIVATE_FRIEND
-                     | perm_check_permission("问答库"))
+qa_list = on_command(
+    "问答列表",
+    aliases={"问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表", "全局问答库", "问答库"},
+    block=True,
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+    | PRIVATE_FRIEND
+    | perm_check_permission("问答库"))
 
 
 @qa_list.handle()
@@ -781,7 +794,76 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-qa_auto_reply = on_message(priority=5, block=False, rule=None)
+qa_index_check = on_command("索引问题",
+                            aliases={"全局索引问题"},
+                            block=True,
+                            permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                            | PRIVATE_FRIEND)
+
+
+@qa_index_check.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            msg: v11.Message = CommandArg(),
+            p_session: QASession = SessionPluginDepend(QASession),
+            g_session: QASession = SessionDepend(),
+            start: str = RawCommand()):
+    if not g_session.QAList and not p_session.QAList:
+        await matcher.finish("还没有设置任何问答哦……")
+    msg_str = str(msg).strip()
+    qa_keys = []
+
+    def use_qa_unit(queston, qa_unit: QAUnit) -> bool:
+        if qa_unit.mode == QAMode.KEY:
+            if queston in msg_str:
+                return True
+        elif qa_unit.mode == QAMode.FULL:
+            if queston == msg_str:
+                return True
+        elif qa_unit.mode == QAMode.LIKE:
+            if queston in msg_str and len(msg_str) <= len(queston) * 25:
+                return True
+        else:
+            logger.warning("未知的问答模式：{}", qa_unit)
+        return False
+
+    async def select_answers(queston, qa_unit: QAUnit):
+        if not use_qa_unit(queston, qa_unit):
+            return
+        qa_keys.append(qa_unit.queston)
+
+    async def find_qa():
+        if g_session.QAList:
+            for queston in g_session.QAList:
+                qa_unit = g_session.QAList[queston]
+                await select_answers(queston, qa_unit)
+
+            for queston in g_session._alias_index:
+                alia_units = g_session._alias_index[queston]
+                for alia_unit in alia_units:
+                    await select_answers(queston, alia_unit)
+
+        if not g_session.global_enable or not p_session.global_enable or not p_session.QAList:
+            return
+
+        for queston in p_session.QAList:
+            qa_unit = p_session.QAList[queston]
+            await select_answers(queston, qa_unit)
+
+        for queston in p_session._alias_index:
+            alia_units = p_session._alias_index[queston]
+            for alia_unit in alia_units:
+                await select_answers(queston, alia_unit)
+
+    await find_qa()
+
+    msg = v11.MessageSegment.text("索引：") + v11.Message("、".join(qa_keys))
+    await matcher.finish(msg)
+
+
+qa_auto_reply = on_message(priority=99, block=False, rule=None)
 
 
 @qa_auto_reply.handle()
@@ -791,7 +873,7 @@ async def _(matcher: Matcher,
             p_session: QASession = SessionPluginDepend(QASession),
             g_session: QASession = SessionDepend(),
             msg: v11.Message = EventMessage()):
-    if not g_session.QAList:
+    if not g_session.QAList and not p_session.QAList:
         return
     msg_str = str(msg).strip()
 
@@ -825,14 +907,15 @@ async def _(matcher: Matcher,
         matcher.stop_propagation()
         await matcher.finish(v11.Message(qa_unit.answers[rand_i]))
 
-    for queston in g_session.QAList:
-        qa_unit = g_session.QAList[queston]
-        await select_answers(queston, qa_unit)
+    if g_session.QAList:
+        for queston in g_session.QAList:
+            qa_unit = g_session.QAList[queston]
+            await select_answers(queston, qa_unit)
 
-    for queston in g_session._alias_index:
-        alia_units = g_session._alias_index[queston]
-        for alia_unit in alia_units:
-            await select_answers(queston, alia_unit)
+        for queston in g_session._alias_index:
+            alia_units = g_session._alias_index[queston]
+            for alia_unit in alia_units:
+                await select_answers(queston, alia_unit)
 
     if not g_session.global_enable or not p_session.global_enable or not p_session.QAList:
         return
@@ -840,12 +923,11 @@ async def _(matcher: Matcher,
     for queston in p_session.QAList:
         qa_unit = p_session.QAList[queston]
         await select_answers(queston, qa_unit)
-    
+
     for queston in p_session._alias_index:
         alia_units = p_session._alias_index[queston]
         for alia_unit in alia_units:
             await select_answers(queston, alia_unit)
-
 
 
 qa_enable_global = on_command("启用全局问答库",

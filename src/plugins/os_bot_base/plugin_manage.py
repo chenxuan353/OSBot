@@ -84,6 +84,8 @@ async def plugin_manage_on_startup():
                                 cache_plugin_keys.append(ali_name)
             else:
                 plugModel.display_name = plugin.name
+                if plugModel.display_name.startswith("nonebot_plugin_"):
+                    plugModel.display_name = plugModel.display_name[len("nonebot_plugin_"):]
                 plugModel.des = "该插件未设置描述"
                 plugModel.usage = "暂无"
                 plugModel.admin_usage = "暂无"
