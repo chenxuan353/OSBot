@@ -687,6 +687,8 @@ async def _():
         logger.info("推特流式功能初始化")
 
         async def register_scheduled_task():
+
+            await asyncio.sleep(30)
             last_check_send = 0
 
             @scheduler.scheduled_job("interval", seconds=30, name="推特流式监听检查")
@@ -731,7 +733,7 @@ async def _():
                 await asyncio.sleep(15)
                 logger.debug("推特流式监听尝试连接")
                 await stream.connect()
-                await register_scheduled_task()
+                asyncio.gather(register_scheduled_task())
                 logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
 
             asyncio.gather(inner_update())
