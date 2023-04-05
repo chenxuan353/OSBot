@@ -24,7 +24,7 @@ from .config import config
 from .logger import logger
 from .exception import InfoCacheException, MatcherErrorFinsh
 from .cache import OnebotCache
-from .util import matcher_exception_try, only_command
+from .util import matcher_exception_try, only_command, inhibiting_exception
 from .adapter import V11Adapter
 from .depends import ArgMatchDepend
 from .argmatch import ArgMatch, Field, PageArgMatch
@@ -220,6 +220,8 @@ class UrgentNotice:
             `fast_send` 快速发送（无等待）
         """
         cls.add_notice(message)
+
+        @inhibiting_exception()
         async def inner_send():
             if not message:
                 logger.debug(f"尝试广播空消息！")
@@ -436,7 +438,7 @@ class LeaveGroupHook:
         coros: List[Coroutine[Any, Any, None]] = []
 
         for hook in self.hooks:
-            coros.append(hook(group_id, bot_id))
+            coros.append(inhibiting_exception()(hook)(group_id, bot_id))
 
         if wait:
             await asyncio.gather(*coros)
@@ -460,6 +462,7 @@ async def _(bot: v11.Bot):
     if bot.self_id not in disconnect_bots:
         return
 
+    @inhibiting_exception()
     async def delay_send():
         await asyncio.sleep(15)
         if bot.self_id not in get_bots():
@@ -495,6 +498,7 @@ async def _(bot: v11.Bot):
     nick = OnebotCache.get_instance().get_unit_nick(int(bot.self_id))
     name = f"{nick}({bot.self_id})"
 
+    @inhibiting_exception()
     async def await_send():
         await asyncio.sleep(30)
         if driver_shutdown:

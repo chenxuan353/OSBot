@@ -19,7 +19,7 @@ from .logger import logger
 from ..os_bot_base.argmatch import ArgMatch, Field
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.depends import SessionPluginDepend, ArgMatchDepend, Adapter, AdapterDepend, AdapterFactory
-from ..os_bot_base.util import matcher_exception_try, get_plugin_session, seconds_to_dhms
+from ..os_bot_base.util import matcher_exception_try, get_plugin_session, seconds_to_dhms, inhibiting_exception
 
 
 class ShutUpLevel:
@@ -253,6 +253,7 @@ async def _(matcher: Matcher,
                          "禁声") and shut_up_level == ShutUpLevel.SHUT_LEVEL_LOW:
         shut_up_level = ShutUpLevel.SHUT_LEVEL_HIGH
 
+    @inhibiting_exception()
     async def lay_deal():
         async with session:
             session.shut_up_list[mark] = ShutUpUnit(

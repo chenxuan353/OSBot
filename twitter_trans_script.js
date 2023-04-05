@@ -74,6 +74,27 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         tran_vote_style: "",
     };
 
+    if(GLOBAL_TOOL.ENABLE_PLAYWRIGHT){
+        // 自动化烤推的特化配置
+        function log_handle(...args){
+            let out_msg = "";
+            for(let i in args){
+                item = args[i];
+                if(typeof item == "string"){
+                    out_msg += " " + item;
+                }else if (typeof item == "number"){
+                    out_msg += " " + item;
+                }else if (typeof item == "boolean"){
+                    out_msg += " " + item;
+                }else{
+                    out_msg += "\n" + JSON.stringify(item) + "\n";
+                }
+            }
+            console.log(out_msg);
+        }
+        CONFIG_CORE.LOG_OUT = log_handle
+    }
+
     // 烤推核心配置
     // 页面锚点(样式检索点配置)
     const CSSAnchor = {
@@ -1876,6 +1897,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
 
 // `playwright`自动化支持
 if (GLOBAL_TOOL.ENABLE_PLAYWRIGHT) {
+
     function twitterWaitLoad(timeout) {
         return new Promise((resolve) => {
             return GLOBAL_TOOL.TweetHtml.waitLoad(

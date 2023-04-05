@@ -68,6 +68,31 @@ def matcher_exception_try():
     return decorator
 
 
+def inhibiting_exception(task_name: str = "", logger = logger):
+    """
+        抑制异常并输出到日志中，适用于`gather`方法以及所有不需要抛出异常的方法。
+    """
+
+    def decorator(func):
+
+        @wraps(func)
+        async def wrap(*args, **kws):
+            try:
+                return await func(*args, **kws)
+            except Exception as e:
+                if task_name:
+                    logger.opt(exception=True).error("执行异步函数`{}.{}`时异常！",
+                                                     func.__module__,
+                                                     func.__name__)
+                else:
+                    logger.opt(exception=True).error("执行异步函数`{}`时异常！",
+                                                     task_name)
+
+        return wrap
+
+    return decorator
+
+
 def match_suggest(strs: List[str],
                   search: str,
                   ratio_limit: float = 0.6) -> List[str]:
@@ -141,7 +166,6 @@ def seconds_to_dhms(seconds: float, compact: bool = False) -> str:
                 return f"{second} 秒"
             else:
                 return f"{second:.2f} 秒"
-        
 
     days = seconds // (3600 * 24)
     hours = (seconds // 3600) % 24

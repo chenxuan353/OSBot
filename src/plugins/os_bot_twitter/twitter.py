@@ -17,7 +17,7 @@ from .exception import TwitterException, RatelimitException, TwitterDatabaseExce
 from .config import config
 
 from ..os_bot_base.notice import UrgentNotice
-from ..os_bot_base.util import AsyncTokenBucket
+from ..os_bot_base.util import AsyncTokenBucket, inhibiting_exception
 
 
 class ProxyClientRequest(aiohttp.ClientRequest):
@@ -843,7 +843,8 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
             意外断开时的重试 规则 - 至多尝试五次。
         """
-        
+
+        @inhibiting_exception()
         async def wait():
             self.is_retry = True
             await asyncio.sleep(delay)

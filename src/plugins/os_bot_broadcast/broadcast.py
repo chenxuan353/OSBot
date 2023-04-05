@@ -18,7 +18,7 @@ from .logger import logger
 
 from ..os_bot_base.depends import SessionPluginDepend, ArgMatchDepend, AdapterDepend, Adapter, OBCacheDepend, OnebotCache
 from ..os_bot_base.session import Session, StoreSerializable
-from ..os_bot_base.util import matcher_exception_try, plug_is_disable, only_command
+from ..os_bot_base.util import matcher_exception_try, plug_is_disable, only_command, inhibiting_exception
 from ..os_bot_base.argmatch import ArgMatch, Field
 from ..os_bot_base.notice import BotSend, UrgentNotice
 from ..os_bot_base.cache.onebot import BotRecord
@@ -160,6 +160,7 @@ async def _(matcher: Matcher,
         session.history.append(
             f"{umark} 向频道 {state['channel']} 广播 内容：{state['msg']}")
 
+    @inhibiting_exception()
     async def send():
         success_count = 0
         failure_count = 0
@@ -600,7 +601,8 @@ async def _(matcher: Matcher,
         await matcher.finish("群列表为空哦！")
 
     state['confirm'] = True
-    channel_name = msg.extract_plain_text().strip() or f"群_{bot_record.get_nick()}"
+    channel_name = msg.extract_plain_text().strip(
+    ) or f"群_{bot_record.get_nick()}"
     state['channel_name'] = channel_name
 
     if channel_name in session.channels:
@@ -621,7 +623,7 @@ async def _(matcher: Matcher,
     bot_record = cache.get_bot_record(int(bot.self_id))
     if not bot_record:
         await matcher.finish()
-            
+
     msg = str(message).strip()
     channel_name = state['channel_name']
     if state['confirm'] or msg == "确认" or msg == "继续":
@@ -665,7 +667,8 @@ async def _(matcher: Matcher,
         await matcher.finish()
 
     state['confirm'] = True
-    channel_name = msg.extract_plain_text().strip() or f"好友_{bot_record.get_nick()}"
+    channel_name = msg.extract_plain_text().strip(
+    ) or f"好友_{bot_record.get_nick()}"
     state['channel_name'] = channel_name
 
     if channel_name in session.channels:

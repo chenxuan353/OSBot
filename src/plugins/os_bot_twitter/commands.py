@@ -27,7 +27,7 @@ from .config import config
 from .tran import TwitterTransManage
 from .options import Options, Option
 
-from ..os_bot_base.util import matcher_exception_try, only_command
+from ..os_bot_base.util import matcher_exception_try, only_command, inhibiting_exception
 from ..os_bot_base.depends import SessionPluginDepend, SessionDepend
 from ..os_bot_base.depends import Adapter, AdapterDepend, ArgMatchDepend
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
@@ -774,6 +774,7 @@ update_all = on_command("更新所有订阅",
 @matcher_exception_try()
 async def _(matcher: Matcher, bot: Bot, event: v11.PrivateMessageEvent):
 
+    @inhibiting_exception()
     async def run():
         start_time = time()
         await update_all_listener()
@@ -1006,6 +1007,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
             0,
             len(finish_msgs) - 1)])
 
+    @inhibiting_exception()
     async def wait_result():
         tran_user_nick = await adapter.get_unit_nick_from_event(
             event.user_id, bot, event)
@@ -1452,6 +1454,7 @@ async def _(matcher: Matcher,
             tweet_tran_reload_inreload = False
             await matcher.finish("引擎离线，可能正在重启！")
 
+        @inhibiting_exception()
         async def restart():
             global tweet_tran_reload_inreload
             tweet_tran_reload_inreload = True

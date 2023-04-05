@@ -17,7 +17,7 @@ from .logger import logger
 from .config import config, TwitterPlugSession, TwitterSession
 from .exception import TwitterPollingSendError
 
-from ..os_bot_base.util import get_plugin_session, plug_is_disable, get_session
+from ..os_bot_base.util import get_plugin_session, plug_is_disable, get_session, inhibiting_exception
 from ..os_bot_base.notice import UrgentNotice, BotSend
 from ..os_bot_base.adapter.onebot import V11Adapter
 from ..os_bot_base.exception import MatcherErrorFinsh
@@ -557,6 +557,7 @@ def list_split(listTemp, n):
         yield listTemp[i:i + n]
 
 
+@inhibiting_exception()
 async def update_all_listen_user():
     """
         更新所有用户资料（异步）
@@ -596,6 +597,7 @@ async def update_all_listen_user():
     logger.debug("已成功更新所有用户信息")
 
 
+@inhibiting_exception()
 async def update_all_listener():
     """
         更新所有用户的时间线（异步）
@@ -616,8 +618,7 @@ async def update_all_listener():
                 await asyncio.sleep(10)
                 await client.get_timeline(id=listener)
             logger.debug("已更新 {}@{} 的时间线", user.name, user.username)
-        except (TweepyException, asyncio.exceptions.TimeoutError,
-                aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
+        except Exception as e:
             user = None
             try:
                 user = await client.model_user_get_or_none(listener)
@@ -686,6 +687,7 @@ async def _():
     if config.os_twitter_stream_enable:
         logger.info("推特流式功能初始化")
 
+        @inhibiting_exception()
         async def register_scheduled_task():
 
             await asyncio.sleep(30)
@@ -725,6 +727,7 @@ async def _():
 
             logger.info(f"推特功能基准初始化结束 总耗时 {time() - strat_time:.2f}s")
 
+            @inhibiting_exception()
             async def inner_update():
                 logger.info("推特时间线启动检测开始")
                 strat_deal_time = time()
@@ -784,6 +787,7 @@ async def _():
                 await user_follow_and_update(listener)
                 await asyncio.sleep(60.5)
 
+    @inhibiting_exception()
     async def startup():
         """
             启动初始化

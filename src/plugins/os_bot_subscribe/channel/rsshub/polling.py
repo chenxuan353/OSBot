@@ -19,7 +19,7 @@ from ...logger import logger
 from ...exception import BaseException
 from .config import config
 
-from ....os_bot_base.util import seconds_to_dhms
+from ....os_bot_base.util import seconds_to_dhms, inhibiting_exception
 from ....os_bot_base.depends import get_plugin_session
 from ....os_bot_base import Session
 
@@ -127,8 +127,10 @@ async def _():
                                                           )  # type: ignore
     await session._lock()
 
+    @inhibiting_exception()
     async def pool_loop(channel: RsshubChannel):
-        logger.debug("Rsshub轮询启动 {} 的总订阅数 {}", channel.name, len(await _model_get_listeners(channel.channel_subtype)))
+        logger.debug("Rsshub轮询启动 {} 的总订阅数 {}", channel.name,
+                     len(await _model_get_listeners(channel.channel_subtype)))
         RssCls = channel.rss_cls
 
         url_cycle = cycle(urls)
