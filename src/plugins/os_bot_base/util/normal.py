@@ -79,6 +79,12 @@ def inhibiting_exception(task_name: str = "", logger = logger):
         async def wrap(*args, **kws):
             try:
                 return await func(*args, **kws)
+            except NoneBotException as e:
+                raise e
+            except FieldMatchError as e:
+                raise e
+            except MatcherErrorFinsh as e:
+                raise e
             except Exception as e:
                 if task_name:
                     logger.opt(exception=True).error("执行异步函数`{}.{}`时异常！",
