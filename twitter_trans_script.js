@@ -79,7 +79,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         function log_handle(...args){
             let out_msg = "";
             for(let i in args){
-                item = args[i];
+                let item = args[i];
                 if(typeof item == "string"){
                     out_msg += " " + item;
                 }else if (typeof item == "number"){
