@@ -1462,3 +1462,33 @@ async def _(matcher: Matcher,
         asyncio.gather(restart())
         await matcher.finish("开始重启，可能需要60秒时间，请耐心等待~")
     await matcher.finish("取消操作")
+
+
+tweet_tran_update_script = on_command("更新烤推脚本",
+                                      permission=SUPERUSER,
+                                      rule=only_command(),
+                                      block=True)
+
+
+@tweet_tran_update_script.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    os.system("nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &")
+    await matcher.finish("已自动执行更新脚本")
+
+
+
+tweet_tran_update_and_reload_script = on_command("更新并重载烤推脚本",
+                                      permission=SUPERUSER,
+                                      rule=only_command(),
+                                      block=True)
+
+
+@tweet_tran_update_and_reload_script.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    os.system("nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &")
+    await matcher.send("已自动执行更新脚本")
+    await asyncio.sleep(15)
+    await twitterTransManage.reload_script()
+    await matcher.finish("更新完成")

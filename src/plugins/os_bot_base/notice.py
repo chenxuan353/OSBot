@@ -219,7 +219,7 @@ class UrgentNotice:
             `low_sleep` 低延迟，默认情况下随机1-10秒，低延迟时保持1秒
             `fast_send` 快速发送（无等待）
         """
-
+        cls.add_notice(message)
         async def inner_send():
             if not message:
                 logger.debug(f"尝试广播空消息！")
@@ -473,7 +473,6 @@ async def _(bot: v11.Bot):
         msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
         disconnect_bots.remove(bot.self_id)
         await UrgentNotice.send(msg)
-        UrgentNotice.add_notice(msg)
 
     asyncio.gather(delay_send())
 
@@ -508,7 +507,6 @@ async def _(bot: v11.Bot):
             msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
             disconnect_bots.add(bot.self_id)
             await UrgentNotice.send(msg)
-            UrgentNotice.add_notice(msg)
 
     asyncio.gather(await_send())
 
@@ -528,7 +526,6 @@ async def _(matcher: Matcher, bot: v11.Bot,
             f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 已被移出群聊 "
             f"{cache.get_group_nick(event.group_id)}({event.group_id})")
         await UrgentNotice.send(msg)
-        UrgentNotice.add_notice(msg)
         # 被移出群聊时执行
         await LeaveGroupHook.get_instance().run_hooks(event.group_id,
                                                       event.user_id,
@@ -537,7 +534,6 @@ async def _(matcher: Matcher, bot: v11.Bot,
         msg = (f"{cache.get_unit_nick(int(bot.self_id))}({bot.self_id}) 退出群聊 "
                f"{cache.get_group_nick(event.group_id)}({event.group_id})")
         await UrgentNotice.send(msg)
-        UrgentNotice.add_notice(msg)
 
 
 banned = on_notice()
@@ -557,7 +553,6 @@ async def _(matcher: Matcher, bot: v11.Bot, event: v11.GroupBanNoticeEvent):
             )
 
             await UrgentNotice.send(msg)
-            UrgentNotice.add_notice(msg)
         else:
             msg = (
                 f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已开启全体禁言，"
@@ -574,7 +569,6 @@ async def _(matcher: Matcher, bot: v11.Bot, event: v11.GroupBanNoticeEvent):
             )
 
             await UrgentNotice.send(msg)
-            UrgentNotice.add_notice(msg)
         else:
             msg = (
                 f"群聊 {cache.get_group_nick(event.group_id)}({event.group_id}) 已关闭全体禁言，"

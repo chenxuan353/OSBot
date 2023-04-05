@@ -549,6 +549,53 @@ client: AsyncTwitterClient = None  # type: ignore
 stream: AsyncTwitterStream = None  # type: ignore
 
 
+def list_split(listTemp, n):
+    """
+        列表分割生成器
+    """
+    for i in range(0, len(listTemp), n):
+        yield listTemp[i:i + n]
+
+
+async def update_all_listen_user():
+    """
+        更新所有用户资料（异步）
+    """
+    listeners = await _model_get_listeners()
+    ids = []
+    for listener in listeners:
+        user = None
+        try:
+            user = await client.model_user_get_or_none(listener)
+            if not user:
+                logger.error(" {} 用户信息不存在，已跳过资料更新", id)
+                continue
+            if user.protected:
+                logger.error(" {} 的时间线，受保护，已跳过资料更新", listener)
+                continue
+        except (TweepyException, asyncio.exceptions.TimeoutError,
+                aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
+            user = None
+            try:
+                user = await client.model_user_get_or_none(listener)
+            except Exception as e:
+                pass
+        if user:
+            ids.append(user.id)
+    try:
+        for sub_ids in list_split(ids, 100):
+            try:
+                await client.get_users(ids=sub_ids)
+            except (asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
+                await asyncio.sleep(10)
+                await client.get_users(ids=sub_ids)
+    except (TweepyException, asyncio.exceptions.TimeoutError,
+            aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
+        logger.error("更新所有用户信息失败")
+        return
+    logger.debug("已成功更新所有用户信息")
+
+
 async def update_all_listener():
     """
         更新所有用户的时间线（异步）
@@ -558,10 +605,10 @@ async def update_all_listener():
         try:
             user = await client.model_user_get_or_none(listener)
             if not user:
-                logger.error(" {} 用户信息不存在，已取消关注操作", id)
-                return False
+                logger.error(" {} 用户信息不存在，已跳过时间线更新", id)
+                continue
             if user.protected:
-                logger.error(" {} 的时间线，受保护，已取消更新", listener)
+                logger.error(" {} 的时间线，受保护，已跳过时间线更新", listener)
                 continue
             try:
                 await client.get_timeline(id=listener)
@@ -639,6 +686,29 @@ async def _():
     if config.os_twitter_stream_enable:
         logger.info("推特流式功能初始化")
 
+        async def register_scheduled_task():
+            last_check_send = 0
+
+            @scheduler.scheduled_job("interval", seconds=30, name="推特流式监听检查")
+            async def _():
+                nonlocal last_check_send
+                if stream.is_running():
+                    return
+                await asyncio.sleep(30)
+                if stream.is_running():
+                    return
+                await asyncio.sleep(30)
+                if stream.is_running():
+                    return
+                if time() - last_check_send > 7200:
+                    # 两次发送消息间隔至少两小时
+                    await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
+                    last_check_send = time()
+
+            @scheduler.scheduled_job("interval", seconds=30, name="用户信息更新")
+            async def _():
+                await update_all_listen_user()
+
         async def stream_startup():
             strat_time = time()
             listeners = await _model_get_listeners()
@@ -661,27 +731,10 @@ async def _():
                 await asyncio.sleep(15)
                 logger.debug("推特流式监听尝试连接")
                 await stream.connect()
+                await register_scheduled_task()
                 logger.info(f"推特功能初始化结束 总耗时 {time() - strat_time:.2f}s")
 
             asyncio.gather(inner_update())
-
-            last_check_send = 0
-
-            @scheduler.scheduled_job("interval", seconds=30, name="推特流式监听检查")
-            async def _():
-                nonlocal last_check_send
-                if stream.is_running():
-                    return
-                await asyncio.sleep(30)
-                if stream.is_running():
-                    return
-                await asyncio.sleep(30)
-                if stream.is_running():
-                    return
-                if time() - last_check_send > 7200:
-                    # 两次发送消息间隔至少两小时
-                    await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
-                    last_check_send = time()
 
             @driver.on_shutdown
             async def _():

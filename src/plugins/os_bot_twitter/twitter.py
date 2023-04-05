@@ -16,6 +16,7 @@ from .logger import logger
 from .exception import TwitterException, RatelimitException, TwitterDatabaseException
 from .config import config
 
+from ..os_bot_base.notice import UrgentNotice
 from ..os_bot_base.util import AsyncTokenBucket
 
 
@@ -765,13 +766,16 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
                          return_type=return_type,
                          wait_on_rate_limit=wait_on_rate_limit,
                          **kwargs)
-        self.running = False
         self.async_stream = async_stream
         self.client = async_stream.client
+        self.is_retry = False
         self.error = deque(maxlen=10)  # 记录五次错误
 
+    @property
+    def running(self):
+        return self.task is not None and not self.task.done() or self.is_retry
+
     async def on_connect(self):
-        self.running = True
         self.connect_error_clear()
         logger.info("推特过滤流已连接！")
 
@@ -802,13 +806,10 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         logger.warning("推特过滤流错误 errors:{}", errors)
 
     async def on_closed(self, resp):
-        self.running = False
-        logger.error("推特过滤流被推特关闭，在30秒后尝试重连 {}", resp)
+        logger.error("推特过滤流被推特关闭 {}", resp)
         self.connect_error(resp)
-        await self.connect_retry(delay=30)
 
     async def on_disconnect(self):
-        self.running = False
         logger.info("推特过滤流已断开连接")
 
     async def on_connection_error(self):
@@ -842,14 +843,17 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
             意外断开时的重试 规则 - 至多尝试五次。
         """
-
+        
         async def wait():
+            self.is_retry = True
             await asyncio.sleep(delay)
             if self.connect_error_count() >= 5:
                 logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
+                self.is_retry = False
                 return
             if not self.isrunning():
                 await self.async_stream.connect()
+                self.is_retry = False
 
         asyncio.gather(wait())
 
@@ -904,14 +908,16 @@ class AsyncTwitterStream:
             listeners_rules.append(StreamRule(value=listeners_line[:-4]))
 
         if len(listeners_rules) > config.os_twitter_stream_rule_limit:
-            logger.error("规则数量超限！将产生截断。当前监听总数：{} 生成规则数：{}", len(listeners),
-                         len(listeners_rules))
+            info = f"规则数量超限！将产生截断。当前监听总数：{len(listeners)} 生成规则数：{len(listeners_rules)}"
+            logger.error(info)
+            await UrgentNotice.send(info)
             listeners_rules = listeners_rules[:config.
                                               os_twitter_stream_rule_limit]
         else:
             if len(listeners) > config.os_twitter_stream_rule_limit * 13 - 10:
-                logger.warning("监听数量即将达到当前允许的上限，请注意维护监听列表！ 当前监听总数：{}",
-                               len(listeners))
+                info = f"监听数量即将达到当前允许的上限，请注意维护监听列表！ 当前监听总数：{len(listeners)}"
+                logger.warning(info)
+                UrgentNotice.add_notice(info)
 
         await self.stream.add_rules(listeners_rules)
 
