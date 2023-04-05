@@ -85,20 +85,27 @@ class TwitterTrans:
 
     async def async_stop(self):
         self._enable = False
+        logger.debug("尝试关闭playwright context")
         try:
             if self.context:
                 await self.context.close()
         except:
             logger.opt(exception=True).debug("关闭playwright上下文时异常")
+        logger.debug("尝试关闭playwright browser")
         try:
             if self.browser:
                 await self.browser.close()
         except:
             logger.opt(exception=True).debug("关闭playwright浏览器时异常")
-        try:
-            await self.playwright.stop()  # type: ignore
-        except:
-            logger.opt(exception=True).debug("关闭playwright时异常")
+        logger.debug("尝试关闭playwright")
+        async def stop_playwright():
+            try:
+                await self.playwright.stop() # type: ignore
+            except:
+                logger.opt(exception=True).debug("关闭playwright时异常")
+                return
+            logger.debug("成功关闭playwright")
+        asyncio.gather(stop_playwright())
         self.context = None
         self.browser = None
         self.playwright = None
