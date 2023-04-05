@@ -459,7 +459,7 @@ class AsyncTwitterClient:
         if not await self.token_buckets.get_users.consume(1):
             raise RatelimitException("速率限制")
 
-        userResponse = await self.client.get_users(
+        usersResponse = await self.client.get_users(
             ids=ids,
             expansions=self.user_expansions,
             tweet_fields=self.tweet_fields,
