@@ -859,8 +859,9 @@ async def _(matcher: Matcher,
                 await select_answers(queston, alia_unit)
 
     await find_qa()
-
-    msg = v11.MessageSegment.text("索引：") + v11.Message("、".join(qa_keys))
+    if not qa_keys:
+        await matcher.finish("阿拉，没有找到相关问答。")
+    msg = v11.MessageSegment.text("索引列表：") + v11.Message("、".join(qa_keys))
     await matcher.finish(msg)
 
 
