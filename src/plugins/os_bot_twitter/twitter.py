@@ -806,11 +806,13 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         logger.warning("推特过滤流错误 errors:{}", errors)
 
     async def on_closed(self, resp):
-        logger.error("推特过滤流被推特关闭 {}", resp)
+        logger.error("推特过滤流被推特关闭，在15秒后尝试重连 {}", resp)
         self.connect_error(resp)
+        await self.connect_retry(delay=15)
 
     async def on_disconnect(self):
         logger.info("推特过滤流已断开连接")
+        UrgentNotice.add_notice("推特过滤流已断开连接")
 
     async def on_connection_error(self):
         logger.warning("推特流式传输连接失败，连接超时！ (或发生 ClientPayloadError)")
