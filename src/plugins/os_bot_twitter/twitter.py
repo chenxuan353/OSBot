@@ -846,14 +846,19 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
         @inhibiting_exception()
         async def wait():
-            self.is_retry = True
-            await asyncio.sleep(delay)
-            if self.connect_error_count() >= 5:
-                logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
-                self.is_retry = False
+            if self.is_retry:
                 return
-            if not self.isrunning():
-                await self.async_stream.connect()
+            self.is_retry = True
+            try:
+                await asyncio.sleep(delay)
+                if self.connect_error_count() >= 5:
+                    logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
+                    self.is_retry = False
+                    return
+                if not self.isrunning():
+                    await self.async_stream.connect()
+                    self.is_retry = False
+            finally:
                 self.is_retry = False
 
         asyncio.gather(wait())
