@@ -529,6 +529,44 @@ async def _(matcher: Matcher,
     await matcher.finish(f"已成功同步`{channel_name}`频道数据")
 
 
+channel_bbq_sync = on_command("同步搬运组插件广播频道",
+                                  block=True,
+                                  rule=only_command(),
+                                  permission=SUPERUSER)
+
+
+@channel_bbq_sync.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            session: BroadcastSession = SessionPluginDepend(BroadcastSession)):
+    from ..os_bot_base.model.plugin_manage import PluginSwitchModel
+    models = await PluginSwitchModel.filter(name="os_bot_bbq")
+    channel_name = "搬运组"
+    async with session:
+        session.channels[channel_name] = {}
+        for model in models:
+            if not model.switch:
+                continue
+            if not model.group_mark.startswith(adapter.get_type()):
+                continue
+            mark_splits = model.group_mark.split("-")
+            group_type = mark_splits[-2]
+            unit_id = mark_splits[-1]
+            mark = f"{adapter.get_type()}-{group_type}-{unit_id}"
+            try:
+                unit = BroadcastUnit("", adapter.get_type(), group_type,
+                                     int(unit_id), int(bot.self_id))
+                session.channels[channel_name][mark] = unit
+            except Exception as e:
+                logger.opt(
+                    exception=True).warning(f"同步{channel_name}插件广播列表时，生成`BroadcastUnit`异常")
+
+    await matcher.finish(f"已成功同步`{channel_name}`频道数据")
+
+
 class BroadcastChannelMergeArg(ArgMatch):
 
     class Meta(ArgMatch.Meta):
