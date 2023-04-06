@@ -773,7 +773,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
     @property
     def running(self):
-        return self.task is not None and not self.task.done() or self.is_retry
+        return self.task is not None and not self.task.done()
 
     async def on_connect(self):
         self.connect_error_clear()
@@ -815,7 +815,9 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     async def on_connection_error(self):
         logger.warning("推特流式传输连接失败，连接超时！ (或发生 ClientPayloadError)")
 
-    def isrunning(self):
+    def isrunning(self, ignore_retry: bool = False):
+        if not ignore_retry and self.is_retry:
+            return True
         return self.running
 
     def connect_error(self, error: Any):
@@ -855,7 +857,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
                     logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
                     self.is_retry = False
                     return
-                if not self.isrunning():
+                if not self.isrunning(ignore_retry=True):
                     await self.async_stream.connect()
                     self.is_retry = False
             finally:
