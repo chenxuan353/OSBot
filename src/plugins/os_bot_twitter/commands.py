@@ -1069,7 +1069,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                 return
             msg += v11.MessageSegment.image(
                 f"base64://{str(base64_data, 'utf-8')}")
-
+        if random.randint(0,100) > 70:
+            msg += v11.MessageSegment.text("遇到无法载图可以重试哦~")
         # 发送消息
         await bot.send(event, msg)
 
