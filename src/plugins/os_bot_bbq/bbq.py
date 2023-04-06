@@ -42,6 +42,7 @@ async def _(matcher: Matcher,
             event: v11.GroupMessageEvent,
             regex_group: Dict[str, Any] = RegexDict(),
             session: BBQSession = SessionDepend()):
+    await session._lock()
     if not await session._limit_bucket.consume(1):
         finish_msgs = ["禁止滥用命令哦", "召唤太快了", "休息一会吧！"]
         await matcher.finish(finish_msgs[random.randint(
