@@ -147,6 +147,7 @@ class TwitterTrans:
             raise TransException("烤推脚本未加载！")
         if trans is None and trans_str is None:
             raise BaseException("必须提供`trans`与`trans_str`的其中一个参数")
+        page = None
         try:
             screenshot_filename = f"{tweet_id}-{tweet_username}-{int(time()*1000)}-{random.randint(1000, 9999)}.jpg"
             screenshot_path = os.path.join(self.screenshot_path,
@@ -190,7 +191,9 @@ class TwitterTrans:
             raise e
         except Exception as e:
             raise TransException("未知原因异常，请联系管理员", cause=e)
-
+        finally:
+            if page and not page.is_closed():
+                await page.close()
     def load_script(self):
         """
             加载或重新加载脚本
