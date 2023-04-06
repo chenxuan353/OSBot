@@ -594,7 +594,7 @@ async def update_all_listen_user():
             aiohttp.ClientError, aiohttp.ClientConnectorError) as e:
         logger.error("更新所有用户信息失败")
         return
-    logger.debug("已成功更新所有用户信息")
+    logger.debug("已成功更新所有用户信息 共 {} 位", len(ids))
 
 
 @inhibiting_exception()
