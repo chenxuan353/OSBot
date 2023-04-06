@@ -1,7 +1,7 @@
 from functools import partial
 import random
 from time import time
-from nonebot import on_command as base_on_command
+from nonebot import on_command
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
 from nonebot.params import CommandArg
@@ -19,9 +19,8 @@ def only_command():
 
     return Rule(checker)
 
-on_command = partial(base_on_command, block=True, rule=only_command())
 
-pa = on_command("爪巴", aliases={"爬"}, block=True)
+pa = on_command("爪巴", aliases={"爬"}, block=True, rule=only_command())
 
 
 @pa.handle()
@@ -31,7 +30,10 @@ async def _(matcher: Matcher):
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-zaima = on_command("在吗", block=True, aliases={"zaima", "在", "zai"})
+zaima = on_command("在吗",
+                   aliases={"zaima", "在", "zai"},
+                   block=True,
+                   rule=only_command())
 
 
 @zaima.handle()
@@ -40,7 +42,7 @@ async def _(matcher: Matcher):
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-ping = on_command("ping", block=True)
+ping = on_command("ping", block=True, rule=only_command())
 
 
 @ping.handle()
