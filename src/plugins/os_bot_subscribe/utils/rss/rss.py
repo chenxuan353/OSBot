@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import time
 from typing import Any, Dict, Optional, Type
+from ...logger import logger
 import aiohttp
 import feedparser
 from feedparser import FeedParserDict
@@ -211,11 +212,15 @@ class Rss:
             if validate and not self.rss_parse.validate(data):
                 return "此订阅无法通过验证，请联系管理员"
         except RssRequestStatusError:
+            logger.opt(exception=True).debug("订阅源访问失败")
             return "订阅源访问失败"
         except RssRequestFailure:
+            logger.opt(exception=True).debug("连接失败，请检查网络")
             return "连接失败，请检查网络。"
         except RssParserError:
+            logger.opt(exception=True).debug("rss解析失败，请联系管理员")
             return "rss解析失败，请联系管理员"
         except Exception:
+            logger.opt(exception=True).debug("页面解析出现异常，路径可能不支持rss解析。")
             return "页面解析出现异常，路径可能不支持rss解析。"
         return None
