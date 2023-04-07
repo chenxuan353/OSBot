@@ -182,7 +182,7 @@ async def _():
                                 cache_key].updated:
                             """发布时间小于上一次获取时间时拒绝使用此次更新信息"""
                             logger.debug(
-                                "{}-{} 发布时间小于上次更新 此更新通过 {} 获取",
+                                "{}-{} 发布时间小于上次更新 该数据已忽略 更新来源 - {}",
                                 channel.channel_id, listener,
                                 session._channel_data[cache_key].source_url)
                             continue
