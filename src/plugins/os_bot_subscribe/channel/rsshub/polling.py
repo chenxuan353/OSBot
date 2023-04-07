@@ -214,10 +214,10 @@ async def _():
             await channel_session.save()
             end_time = time()
             if len(listeners) > 10:
-                logger.info("Rsshub轮询完成 耗时 {}",
+                logger.info("Rsshub轮询完成 共 {} 订阅，耗时 {}", len(listeners),
                             seconds_to_dhms(end_time - start_time))
             elif len(listeners) > 5:
-                logger.debug("Rsshub轮询完成 耗时 {}",
+                logger.debug("Rsshub轮询完成 共 {} 订阅，耗时 {}", len(listeners),
                              seconds_to_dhms(end_time - start_time))
             if len(listeners) <= 3:
                 await asyncio.sleep(5)
