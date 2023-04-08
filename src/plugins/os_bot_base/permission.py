@@ -138,6 +138,7 @@ class PermMeta:
     auth: bool
     for_group_member: bool
     only_super_oprate: bool
+    ignore_super: bool
 
 
 class PermManage:
@@ -156,7 +157,8 @@ class PermManage:
                  des: str,
                  auth: bool = False,
                  for_group_member=False,
-                 only_super_oprate=True):
+                 only_super_oprate=True,
+                 ignore_super: bool = False):
         """
             - `name` 权限名
             - `des` 权限描述
@@ -165,10 +167,10 @@ class PermManage:
             - `only_super_oprate` 仅允许超级管理员操作
         """
         cls.PERMISSIONS[name] = PermMeta(name, des, auth, for_group_member,
-                                         only_super_oprate)
+                                         only_super_oprate, ignore_super)
 
     @classmethod
-    async def check_permission(cls, name: str, bot: Bot, event: Event):
+    async def check_permission(cls, name: str, bot: Bot, event: Event, ignore_super: bool = False):
         """
             权限检查
 
@@ -178,9 +180,11 @@ class PermManage:
         """
         if name not in cls.PERMISSIONS:
             raise PermissionError(f"权限`{name}`未注册")
-        if await SUPERUSER(bot, event):
-            return True
         meta = cls.PERMISSIONS[name]
+
+        if not ignore_super and not meta.ignore_super and await SUPERUSER(bot, event):
+            return True
+
         session: PermissionSession = await get_plugin_session(PermissionSession
                                                               )
         adapter = AdapterFactory.get_adapter(bot)
@@ -520,7 +524,7 @@ async def _(matcher: Matcher,
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
     if not meta.auth and not await PermManage.check_permission(
-            arg.name, bot, event):
+            arg.name, bot, event, ignore_super=True):
         await matcher.finish(f"权限`{arg.name}`已默认禁用")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -552,7 +556,7 @@ async def _(matcher: Matcher,
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
     if not meta.auth and not await PermManage.check_permission(
-            arg.name, bot, event):
+            arg.name, bot, event, ignore_super=True):
         await matcher.finish(f"权限`{arg.name}`已默认禁用")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -614,6 +618,6 @@ async def _(matcher: Matcher,
 
     msg = f"{arg.page}/{maxpage}"
     for item in perms:
-        auth = await PermManage.check_permission(item.name, bot, event)
+        auth = await PermManage.check_permission(item.name, bot, event, ignore_super=True)
         msg += f"\n{item.name}[{'√' if auth else 'X'}] - {item.des or '没有描述'}"
     await matcher.finish(msg)
