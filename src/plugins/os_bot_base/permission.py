@@ -503,7 +503,7 @@ async def _(matcher: Matcher,
 
 perm_auth_rm = on_command(
     "权限收回",
-    aliases={"收回权限", "取消授权", "取消权限", "权限禁用", "禁用权限"},
+    aliases={"收回权限", "取消授权", "取消权限", "权限禁用", "禁用权限", "禁用授权"},
     block=True,
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER | PRIVATE_FRIEND,
 )
@@ -570,7 +570,7 @@ async def _(matcher: Matcher,
         oprate_log=
         f"{await adapter.mark(bot, event)}_{strftime('%Y-%m-%d %H:%M:%S')}",
         expire_time=0 if not arg.auth_time else int(time()) + arg.auth_time,
-        auth=True)
+        auth=False)
 
     if meta.for_group_member:
         if arg.auth_time == 0:
