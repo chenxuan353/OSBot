@@ -619,5 +619,5 @@ async def _(matcher: Matcher,
     msg = f"{arg.page}/{maxpage}"
     for item in perms:
         auth = await PermManage.check_permission(item.name, bot, event, ignore_super=True)
-        msg += f"\n{item.name}[{'√' if auth else 'X'}] - {item.des or '没有描述'}"
+        msg += f"\n{'' if item.for_group_member else '群 '}{item.name}[{'√' if auth else 'X'}] - {item.des or '没有描述'}"
     await matcher.finish(msg)

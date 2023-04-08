@@ -1209,7 +1209,11 @@ async def _(matcher: Matcher,
             len(finish_msgs) - 1)])
 
     async with session:
-        session.template_map[user.username] = arg.tail
+        if arg.tail.strip():
+            session.template_map[user.username] = arg.tail
+        else:
+            if user.username in session.template_map:
+                del session.template_map[user.username]
 
     finish_msgs = ["设置成功~", "成功啦", f"成功设置{user.name}的模版！"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])

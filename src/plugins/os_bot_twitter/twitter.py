@@ -778,6 +778,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     async def on_connect(self):
         self.connect_error_clear()
         logger.info("推特过滤流已连接！")
+        UrgentNotice.add_notice("推特过滤流已连接！")
 
     async def on_tweet(self, tweet: Tweet):
         await self.client.get_tweet(f"{tweet.id}", use_limit=False)

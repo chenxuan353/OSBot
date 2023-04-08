@@ -116,6 +116,7 @@ async def _(matcher: Matcher,
     at_list = [
         at for at in session.ob11_ats if at.target_id in [0, event.user_id]
     ]
+    at_list.reverse()
     count = len(at_list)
     maxpage = math.ceil(count / size)
 

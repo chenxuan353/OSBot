@@ -32,22 +32,22 @@ class TokenBucket(object):
     """
 
     def __init__(self,
-                 num: int,
+                 num: float,
                  issuetime: float = 1,
-                 initval: int = 0,
-                 capacity: int = 0,
-                 cumulative_time: int = 0,
+                 initval: float = 0,
+                 capacity: float = 0,
+                 cumulative_time: float = 0,
                  cumulative_delay: int = 0):
         """
-            num: int 发放数量
+            num: float 发放数量
 
             issuetime: float 发放这些数量需要的时间(s)
 
-            initval: int 桶中初始令牌数
+            initval: float 桶中初始令牌数
 
-            capacity: int 桶的最大容量，默认为发放数量
+            capacity: float 桶的最大容量，默认为发放数量
 
-            cumulative_time: int 定义从什么时候开始累积令牌，默认当前时间。累积开始前每次成功的取令牌都将清空库存。
+            cumulative_time: float 定义从什么时候开始累积令牌，默认当前时间。累积开始前每次成功的取令牌都将清空库存。
 
             cumulative_delay: int 累积延迟，单位秒，当前时间+累积延迟=开始累积的时间，与`cumulative_time`参数二选一。
         """
@@ -63,10 +63,10 @@ class TokenBucket(object):
         # 当前剩余令牌数量
         self._current_amount = initval
         # 最近一次发放时间
-        self._last_consume_time = int(time.time())
+        self._last_consume_time = time.time()
 
         if cumulative_time <= 0:
-            cumulative_time = int(time.time())
+            cumulative_time = time.time()
             if cumulative_delay > 0:
                 cumulative_time += cumulative_delay
 
@@ -74,7 +74,7 @@ class TokenBucket(object):
 
     # token_amount是发送数据需要的令牌数
     def _consume(self, token_amount: int = 1, take_token: bool = True) -> bool:
-        now_time = int(time.time())
+        now_time = time.time()
         increment = (now_time - self._last_consume_time
                      ) * self._rate  # 计算从上次发送到这次发送，新发放的令牌数量
         # print(F"increment:{increment} | current_amount:{self._current_amount} | last_consume_time:{self._last_consume_time}")
@@ -113,11 +113,11 @@ class AsyncTokenBucket(TokenBucket):
     """
 
     def __init__(self,
-                 num: int,
+                 num: float,
                  issuetime: float = 1,
-                 initval: int = 0,
-                 capacity: int = 0,
-                 cumulative_time: int = 0,
+                 initval: float = 0,
+                 capacity: float = 0,
+                 cumulative_time: float = 0,
                  cumulative_delay: int = 0):
         super().__init__(num, issuetime, initval, capacity, cumulative_time,
                          cumulative_delay)

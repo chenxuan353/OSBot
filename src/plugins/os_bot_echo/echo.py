@@ -32,8 +32,7 @@ async def _(matcher: Matcher):
 
 zaima = on_command("在吗",
                    aliases={"zaima", "在", "zai"},
-                   block=True,
-                   rule=only_command())
+                   block=True)
 
 
 @zaima.handle()
