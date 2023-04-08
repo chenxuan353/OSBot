@@ -29,6 +29,7 @@ class BBQSession(Session):
         self._limit_bucket = AsyncTokenBucket(5,
                                          15 * 60,
                                          initval=3)
+        self._keep = True
 
 
 __plugin_meta__ = PluginMetadata(

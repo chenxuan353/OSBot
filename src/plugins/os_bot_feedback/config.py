@@ -26,6 +26,7 @@ class FeedbackSession(Session):
         self._limit_bucket = AsyncTokenBucket(3,
                                          10 * 60,
                                          initval=3)
+        self._keep = True
 
 
 
