@@ -23,8 +23,8 @@ class GroupNoticeSession(Session):
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
-        self.enter_notice = False
-        self.leave_notice = False
+        self.enter_notice = True
+        self.leave_notice = True
         self.enter_notice_template = "@新人欢迎加入群聊，记得查看群公告哦~"
         self.leave_notice_template = "[账号信息] 离开了我们……"
 
