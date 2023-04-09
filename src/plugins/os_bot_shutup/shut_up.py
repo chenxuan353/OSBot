@@ -116,7 +116,7 @@ async def _(bot: Bot,
     mark = await adapter.mark_group_without_drive(bot, event)
 
     if isinstance(event, v11.GroupMessageEvent):
-        if mark in session.passive_modes and await GROUP_MEMBER(bot, event):
+        if mark in session.passive_modes and await GROUP_MEMBER(bot, event) and not await SUPERUSER(bot, event):
             logger.info("在对象`{}`中处于被动状态，群成员消息处理已禁用", mark)
             raise IgnoredException("")
 
