@@ -115,6 +115,11 @@ async def _(bot: Bot,
 
     mark = await adapter.mark_group_without_drive(bot, event)
 
+    if isinstance(event, v11.GroupMessageEvent):
+        if mark in session.passive_modes and await GROUP_MEMBER(bot, event):
+            logger.info("在对象`{}`中处于被动状态，群成员消息处理已禁用", mark)
+            raise IgnoredException("")
+
     if mark not in session.shut_up_list:
         return
 
@@ -134,9 +139,6 @@ async def _(bot: Bot,
             if await SUPERUSER(bot, event) or await GROUP_ADMIN(
                     bot, event) or await GROUP_OWNER(bot, event):
                 shut_level = ShutUpLevel.SHUT_LEVEL_MIDDLE
-        if mark in session.passive_modes and await GROUP_MEMBER(bot, event):
-            logger.info("在对象`{}`中处于被动状态，群成员消息处理已禁用", mark)
-            raise IgnoredException("")
 
     # 对不同级别过滤采取不同的放行措施
     if shut_level != ShutUpLevel.SHUT_LEVEL_HIGH:

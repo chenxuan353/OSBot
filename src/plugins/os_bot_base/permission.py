@@ -439,7 +439,7 @@ async def _(matcher: Matcher,
     meta = await PermManage.get_register(arg.name)
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
-    if meta.auth and await PermManage.check_permission(arg.name, bot, event):
+    if meta.auth and await PermManage.check_permission(arg.name, bot, event, ignore_super=True):
         await matcher.finish(f"权限`{arg.name}`已默认授权")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -470,7 +470,7 @@ async def _(matcher: Matcher,
     meta = await PermManage.get_register(arg.name)
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
-    if meta.auth and await PermManage.check_permission(arg.name, bot, event):
+    if meta.auth and await PermManage.check_permission(arg.name, bot, event, ignore_super=True):
         await matcher.finish(f"权限`{arg.name}`已默认授权")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")

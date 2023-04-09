@@ -158,13 +158,13 @@ async def _(matcher: Matcher,
 
 trans = on_command("翻译",
                    aliases={"机翻"},
-                   permission=perm_check_permission("烤推") | GROUP_ADMIN
+                   permission=perm_check_permission("机翻") | GROUP_ADMIN
                    | GROUP_OWNER | SUPERUSER)
 
 trans_msg = on_startswith("机翻",
                           priority=4,
                           block=True,
-                          permission=perm_check_permission("烤推") | GROUP_ADMIN
+                          permission=perm_check_permission("机翻") | GROUP_ADMIN
                           | GROUP_OWNER | SUPERUSER)
 
 
