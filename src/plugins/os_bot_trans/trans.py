@@ -21,6 +21,9 @@ from .engine.baidu_engine import BaiduEngine
 from ..os_bot_base.depends import SessionDepend, ArgMatchDepend
 from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend, AdapterFactory
 from ..os_bot_base import only_command
+from ..os_bot_base.permission import PermManage, perm_check_rule, perm_check_permission
+
+PermManage.register("机翻", "机翻权限", True, only_super_oprate=False)
 
 on_command = partial(on_command, block=True)
 
@@ -153,9 +156,16 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-trans = on_command("翻译", aliases={"机翻"})
+trans = on_command("翻译",
+                   aliases={"机翻"},
+                   permission=perm_check_permission("烤推") | GROUP_ADMIN
+                   | GROUP_OWNER | SUPERUSER)
 
-trans_msg = on_startswith("机翻", priority=4, block=True)
+trans_msg = on_startswith("机翻",
+                          priority=4,
+                          block=True,
+                          permission=perm_check_permission("烤推") | GROUP_ADMIN
+                          | GROUP_OWNER | SUPERUSER)
 
 
 async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
@@ -191,8 +201,11 @@ async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
         logger.warning(F"翻译引擎异常：{repr(e)}")
         await matcher.finish(F"引擎错误：{e.replay}")
     user_id = await adapter.get_unit_id_from_event(bot, event)
-    group_id = await adapter.get_group_id_from_event(bot, event) if await adapter.msg_is_multi_group(bot, event) else None
-    await matcher.finish(f"@{await adapter.get_unit_nick(user_id, group_id=group_id)} 翻：{res.strip().replace('{', '').replace('}', '')}")
+    group_id = await adapter.get_group_id_from_event(
+        bot, event) if await adapter.msg_is_multi_group(bot, event) else None
+    await matcher.finish(
+        f"@{await adapter.get_unit_nick(user_id, group_id=group_id)} 翻：{res.strip().replace('{', '').replace('}', '')}"
+    )
 
 
 @trans.handle()
@@ -279,9 +292,10 @@ async def _(matcher: Matcher,
         unit_uuit = event.user_id
     if arg.switch is None:
         arg.switch = not (unit_uuit in streamlist)
-    
-    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
-    
+
+    group_id = event.group_id if isinstance(event,
+                                            v11.GroupMessageEvent) else None
+
     unit_nick = await adapter.get_unit_nick(unit_uuit, group_id=group_id)
     if not arg.switch:
         if unit_uuit not in streamlist:
@@ -363,16 +377,19 @@ async def _(matcher: Matcher,
         await matcher.finish(finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)])
-    group_id = event.group_id if isinstance(event, v11.GroupMessageEvent) else None
-    
+    group_id = event.group_id if isinstance(event,
+                                            v11.GroupMessageEvent) else None
+
     if len(streamlist) == 1:
         for uid in streamlist:
             await matcher.finish(
-                f"只有{await adapter.get_unit_nick(uid, bot, group_id=group_id)}在列表中~")
-    
+                f"只有{await adapter.get_unit_nick(uid, bot, group_id=group_id)}在列表中~"
+            )
+
     nicks = []
     for uid in streamlist:
-        nicks.append(f"{await adapter.get_unit_nick(uid, bot, group_id=group_id)}")
+        nicks.append(
+            f"{await adapter.get_unit_nick(uid, bot, group_id=group_id)}")
     await matcher.finish(f"列表！\n{'、'.join(nicks)}")
 
 

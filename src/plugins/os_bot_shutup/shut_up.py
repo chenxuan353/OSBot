@@ -1,7 +1,7 @@
 import asyncio
 import random
 from time import time, localtime, strftime
-from typing import Any, Dict
+from typing import Any, Dict, List, Set
 from typing_extensions import Self
 from dataclasses import dataclass, field
 from nonebot import on_command, on_notice
@@ -9,7 +9,7 @@ from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot import v11
-from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND
+from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND, GROUP_MEMBER
 from nonebot.params import RawCommand
 from nonebot.exception import IgnoredException, MockApiException
 from nonebot.message import run_preprocessor
@@ -70,10 +70,14 @@ class ShutUpUnit(StoreSerializable):
 
 class ShutUpSession(Session):
     shut_up_list: Dict[str, ShutUpUnit]
+    """闭嘴时长"""
+    passive_modes: Set[str]
+    """被动模式列表"""
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
         self.shut_up_list = {}
+        self.passive_modes = set()
 
     def _init_from_dict(self, self_dict: Dict[str, Any]) -> Self:
         self.__dict__.update(self_dict)
@@ -84,6 +88,8 @@ class ShutUpSession(Session):
         for key in tmp_list:
             unit = ShutUpUnit._load_from_dict(tmp_list[key])  # type: ignore
             self.shut_up_list[key] = unit
+
+        self.passive_modes = set(self.passive_modes)
 
         return self
 
@@ -105,6 +111,7 @@ async def _(bot: Bot,
 
     session: ShutUpSession = await get_plugin_session(ShutUpSession
                                                       )  # type: ignore
+
     mark = await adapter.mark_group_without_drive(bot, event)
 
     if mark not in session.shut_up_list:
@@ -126,6 +133,9 @@ async def _(bot: Bot,
         if await SUPERUSER(bot, event) or await GROUP_ADMIN(
                 bot, event) or await GROUP_OWNER(bot, event):
             shut_level = ShutUpLevel.SHUT_LEVEL_MIDDLE
+        elif mark in session.passive_modes and await GROUP_MEMBER(bot, event):
+            logger.info("在对象`{}`中处于被动状态，群成员消息处理已禁用", mark)
+            raise IgnoredException("")
 
     # 对不同级别过滤采取不同的放行措施
     if shut_level != ShutUpLevel.SHUT_LEVEL_HIGH:
@@ -230,13 +240,6 @@ async def _(matcher: Matcher,
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
 
     mark = await adapter.mark_group_without_drive(bot, event)
-
-    a = 1
-    b = 2
-
-    for i in range(10):
-        a = 1
-
     # if mark in session.shut_up_list and session.shut_up_list[mark].is_shut_up(
     # ):
     #     await matcher.finish(
@@ -446,6 +449,52 @@ async def _(matcher: Matcher,
 
     finish_msgs = ["操作成功", f"对{nick}的操作已生效", "成功啦"]
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+shut_passive_modes = on_command("被动模式",
+                                aliases={"进入被动模式", "开启被动模式"},
+                                block=True,
+                                permission=SUPERUSER | GROUP_ADMIN
+                                | GROUP_ADMIN)
+
+
+@shut_passive_modes.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            arg: ShutUpManageArg = ArgMatchDepend(ShutUpManageArg),
+            adapter: Adapter = AdapterDepend(),
+            session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
+    mark = await adapter.mark_group_without_drive(bot, event)
+    if mark in session.passive_modes:
+        await matcher.finish("已经处于被动模式")
+    async with session:
+        session.passive_modes.add(mark)
+    await matcher.finish(">已启用被动模式<")
+
+
+shut_passive_modes_cancel = on_command("取消被动模式",
+                                       aliases={"退出被动模式"},
+                                       block=True,
+                                       permission=SUPERUSER | GROUP_ADMIN
+                                       | GROUP_ADMIN)
+
+
+@shut_passive_modes_cancel.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            arg: ShutUpManageArg = ArgMatchDepend(ShutUpManageArg),
+            adapter: Adapter = AdapterDepend(),
+            session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
+    mark = await adapter.mark_group_without_drive(bot, event)
+    if mark not in session.passive_modes:
+        await matcher.finish("不在被动模式哦！")
+    async with session:
+        session.passive_modes.discard(mark)
+    await matcher.finish(">已关闭被动模式<")
 
 
 banned = on_notice()

@@ -45,11 +45,14 @@ class StoreSerializable:
                     or isinstance(val, int) or isinstance(val, str)
                     or isinstance(val, dict) or isinstance(val, float)
                     or isinstance(val, list) or isinstance(val, tuple)
-                    or isinstance(val, bool) or isinstance(val, deque)):
+                    or isinstance(val, bool) or isinstance(val, deque)
+                    or isinstance(val, set)):
                 # 如果不是基本类型或者实现了StoreSerializable则会被忽略，并发出警告
                 logger.warning(f"{type(self)}的 {key} 中存在无法序列化的对象 {type(val)}")
                 continue
             if isinstance(val, deque):
+                val = list(val)
+            if isinstance(val, set):
                 val = list(val)
             elif isinstance(val, StoreSerializable):
                 val = val._serializable()
