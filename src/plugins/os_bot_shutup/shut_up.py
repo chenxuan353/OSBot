@@ -462,7 +462,7 @@ shut_passive_modes = on_command("被动模式",
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: v11.Bot,
-            event: v11.PrivateMessageEvent,
+            event: v11.GroupMessageEvent,
             arg: ShutUpManageArg = ArgMatchDepend(ShutUpManageArg),
             adapter: Adapter = AdapterDepend(),
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
@@ -485,7 +485,7 @@ shut_passive_modes_cancel = on_command("取消被动模式",
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: v11.Bot,
-            event: v11.PrivateMessageEvent,
+            event: v11.GroupMessageEvent,
             arg: ShutUpManageArg = ArgMatchDepend(ShutUpManageArg),
             adapter: Adapter = AdapterDepend(),
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
