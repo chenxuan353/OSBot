@@ -1,7 +1,7 @@
 """
     爱丽丝组定制的邮箱推送
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import Type
 from ....utils.rss import Rss, RssChannelData, RssItemData
 from ....model import SubscribeModel
@@ -34,6 +34,11 @@ class RsshubEmailAliceChannel(RsshubChannel):
     @property
     def options_cls(self) -> Optional[Type[Options]]:
         return EmailAliceOptions
+
+    @property
+    def poll_interval(self) -> Tuple[int, int]:
+        """请求间隔范围 ms"""
+        return (5000, 6000)
 
     def subscribe_str_to_path(self, subscribe_str: str) -> str:
         arg = subscribe_str.strip()
