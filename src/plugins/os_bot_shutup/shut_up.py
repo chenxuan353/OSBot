@@ -454,6 +454,67 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
+class PassiveModesArg(ArgMatch):
+
+    class Meta(ArgMatch.Meta):
+        name = "被动模式管理参数"
+        des = "进行一个定向的被动管理（"
+
+    drive_type: str = Field.Keys("驱动", {
+        "ob11": ["onebot11", "gocqhttp"],
+    },
+                                 default="ob11",
+                                 ignoreCase=True,
+                                 require=False)
+
+    group_type: str = Field.Keys("组标识", {
+        "group": ["g", "group", "组", "群", "群聊"],
+        "private": ["p", "private", "私聊", "好友", "私"],
+    },
+                                 ignoreCase=True)
+    unit_id: int = Field.Int("组ID", min=9999, max=99999999999)
+
+    enable: bool = Field.Bool("启用", default=True)
+
+    
+
+    def __init__(self) -> None:
+        super().__init__([
+            self.drive_type, self.group_type, self.unit_id, self.enable
+        ])
+
+
+
+shut_up_passive_modes_oprate = on_command("操作被动模式",
+                            block=True,
+                            permission=SUPERUSER)
+
+
+@shut_up_passive_modes_oprate.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.PrivateMessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            arg: PassiveModesArg = ArgMatchDepend(PassiveModesArg),
+            session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
+
+    mark = f"{arg.drive_type}-global-{arg.group_type}-{arg.unit_id}"
+
+    if arg.enable:
+        if mark in session.passive_modes:
+            await matcher.finish("对象已经处于被动模式")
+        async with session:
+            session.passive_modes.add(mark)
+        await matcher.finish(">已启用被动模式<")
+
+    if mark in session.passive_modes:
+        await matcher.finish("对象并不处于被动模式")
+    async with session:
+        session.passive_modes.discard(mark)
+    await matcher.finish(">已关闭被动模式<")
+
+
 shut_passive_modes = on_command("被动模式",
                                 aliases={"进入被动模式", "开启被动模式"},
                                 block=True,
