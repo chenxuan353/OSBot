@@ -129,12 +129,12 @@ async def _(bot: Bot,
                            event) and shut_level != ShutUpLevel.SHUT_LEVEL_LOW:
             shut_level = ShutUpLevel.SHUT_LEVEL_LOW
 
-    if isinstance(event, v11.GroupMessageEvent
-                  ) and shut_level == ShutUpLevel.SHUT_LEVEL_HIGH:
-        if await SUPERUSER(bot, event) or await GROUP_ADMIN(
-                bot, event) or await GROUP_OWNER(bot, event):
-            shut_level = ShutUpLevel.SHUT_LEVEL_MIDDLE
-        elif mark in session.passive_modes and await GROUP_MEMBER(bot, event):
+    if isinstance(event, v11.GroupMessageEvent):
+        if shut_level == ShutUpLevel.SHUT_LEVEL_HIGH:
+            if await SUPERUSER(bot, event) or await GROUP_ADMIN(
+                    bot, event) or await GROUP_OWNER(bot, event):
+                shut_level = ShutUpLevel.SHUT_LEVEL_MIDDLE
+        if mark in session.passive_modes and await GROUP_MEMBER(bot, event):
             logger.info("在对象`{}`中处于被动状态，群成员消息处理已禁用", mark)
             raise IgnoredException("")
 
