@@ -209,7 +209,7 @@ async def _():
                 except Exception as e:
                     logger.opt(exception=True).error("轮询中发生意外的报错")
                 await asyncio.sleep(
-                    random.randint(*channel.poll_interval) / len(urls) / 1000)
+                    max(random.randint(*channel.poll_interval) / len(urls) / 1000, 0.01))
 
             await channel_session.save()
             end_time = time()
