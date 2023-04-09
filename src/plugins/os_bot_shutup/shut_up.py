@@ -13,13 +13,14 @@ from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRI
 from nonebot.params import RawCommand
 from nonebot.exception import IgnoredException, MockApiException
 from nonebot.message import run_preprocessor
+
 from .config import config
 from .logger import logger
 
 from ..os_bot_base.argmatch import ArgMatch, Field
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.depends import SessionPluginDepend, ArgMatchDepend, Adapter, AdapterDepend, AdapterFactory
-from ..os_bot_base.util import matcher_exception_try, get_plugin_session, seconds_to_dhms, inhibiting_exception
+from ..os_bot_base.util import matcher_exception_try, get_plugin_session, seconds_to_dhms, inhibiting_exception, only_command
 
 
 class ShutUpLevel:
@@ -454,6 +455,7 @@ async def _(matcher: Matcher,
 shut_passive_modes = on_command("被动模式",
                                 aliases={"进入被动模式", "开启被动模式"},
                                 block=True,
+                                rule=only_command(),
                                 permission=SUPERUSER | GROUP_ADMIN
                                 | GROUP_ADMIN)
 
@@ -463,7 +465,6 @@ shut_passive_modes = on_command("被动模式",
 async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.GroupMessageEvent,
-            arg: ShutUpManageArg = ArgMatchDepend(ShutUpManageArg),
             adapter: Adapter = AdapterDepend(),
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
     mark = await adapter.mark_group_without_drive(bot, event)
@@ -486,7 +487,6 @@ shut_passive_modes_cancel = on_command("取消被动模式",
 async def _(matcher: Matcher,
             bot: v11.Bot,
             event: v11.GroupMessageEvent,
-            arg: ShutUpManageArg = ArgMatchDepend(ShutUpManageArg),
             adapter: Adapter = AdapterDepend(),
             session: ShutUpSession = SessionPluginDepend(ShutUpSession)):
     mark = await adapter.mark_group_without_drive(bot, event)
