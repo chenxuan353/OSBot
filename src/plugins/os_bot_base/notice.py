@@ -166,8 +166,12 @@ class BotSend:
             status = await send_use_bot(bots[priority_bot_id])
             if status is not None:
                 return status
-        for id in bots:
-            status = await send_use_bot(bots[id])
+
+        # 乱序发送，保证随机性
+        rbots = list(bots.values())
+        random.shuffle(rbots)
+        for rbot in rbots:
+            status = await send_use_bot(rbot)
             if status is not None:
                 return status
         return False

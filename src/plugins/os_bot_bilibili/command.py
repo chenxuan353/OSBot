@@ -48,7 +48,7 @@ bilibili_login = on_command("B站登录",
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: v11.Bot,
-            event: v11.MessageEvent,
+            mevent: v11.MessageEvent,
             adapter: Adapter = AdapterDepend(),
             session: BilibiliSession = SessionDepend(BilibiliSession)):
     bo = BilibiliOprateUtil(
@@ -67,7 +67,8 @@ async def _(matcher: Matcher,
             filedata = None
             qrcode_tips = ["请在3分钟内扫描，并确认~", "呐，要在三分钟之内确认哦！", "三分钟内扫码确认哦~"]
             qrcode_tip = qrcode_tips[random.randint(0, len(qrcode_tips) - 1)]
-            await matcher.send(
+            await bot.send(
+                mevent,
                 v11.MessageSegment.text(qrcode_tip) +
                 v11.MessageSegment.image(f"base64://{b64}"))
 
@@ -83,9 +84,10 @@ async def _(matcher: Matcher,
                 logger.debug("B站登录检查：{} {}", event, data)
                 if time() - start_time > 180:
                     finish_msgs = ('登录超时！', '二维码失效了……', '大失败！')
-                    await matcher.send(finish_msgs[random.randint(
-                        0,
-                        len(finish_msgs) - 1)])
+                    await bot.send(
+                        mevent,
+                        finish_msgs[random.randint(0,
+                                                   len(finish_msgs) - 1)])
                     return
             try:
                 credential.raise_for_no_bili_jct()
@@ -99,9 +101,9 @@ async def _(matcher: Matcher,
             user_name = user_info['name']
             logger.info("B站用户 {} 登录成功", user_name)
             finish_msgs = ('登录成功~', '成功啦！', f'欢迎您{user_name}！')
-            await matcher.send(finish_msgs[random.randint(
-                0,
-                len(finish_msgs) - 1)])
+            await bot.send(
+                mevent, finish_msgs[random.randint(0,
+                                                   len(finish_msgs) - 1)])
 
     asyncio.gather(login_wait())
 
@@ -495,10 +497,11 @@ async def _(matcher: Matcher,
             0,
             len(finish_msgs) - 1)])
 
-    result = await bot.send(event, "rtmp推流方式(30秒后撤回)\n"
-                         f"地址：\n{session.live_rtmp_code}\n"
-                         f"推流码：\n{session.live_rtmp_code}")
-    
+    result = await bot.send(
+        event, "rtmp推流方式(30秒后撤回)\n"
+        f"地址：\n{session.live_rtmp_code}\n"
+        f"推流码：\n{session.live_rtmp_code}")
+
     if "message_id" not in result:
         return
 

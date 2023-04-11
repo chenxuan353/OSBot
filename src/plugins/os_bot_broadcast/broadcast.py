@@ -461,7 +461,7 @@ async def _(matcher: Matcher,
         await matcher.finish(
             f"频道列表：{'、'.join([key for key in session.channels])}")
 
-    size = 50
+    size = 25
     channel = session.channels[arg.channel]
     keys = list(channel.keys())
     count = len(keys)
@@ -474,7 +474,7 @@ async def _(matcher: Matcher,
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
     list_page = keys[(arg.page - 1) * size:arg.page * size]
-    pages = f"{arg.page}/{maxpage}" if count >= 50 else ""
+    pages = f"{arg.page}/{maxpage}" if count >= 25 else ""
     names = []
     for item in list_page:
         nick = channel[item].unit_id
