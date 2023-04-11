@@ -3,7 +3,7 @@ from nonebot import on_command
 from nonebot.permission import SUPERUSER
 from nonebot.adapters.onebot import v11
 from nonebot.matcher import Matcher
-from nonebot.params import CommandArg
+from nonebot.params import CommandArg, CommandStart, EventToMe
 
 from ..os_bot_base.cache.onebot import GroupRecord
 from ..os_bot_base.argmatch import ArgMatch, Field
@@ -50,8 +50,7 @@ async def _(matcher: Matcher,
                              user_id=int(bot.self_id),
                              card=card)
 
-    await matcher.finish(
-        f"咱的名片设置为 {card or '与昵称一致'} 啦")
+    await matcher.finish(f"咱的名片设置为 {card or '与昵称一致'} 啦")
 
 
 @set_group_card.handle()
@@ -80,8 +79,13 @@ async def _(matcher: Matcher,
         f"已将{group.get_nick()}({group.id})内咱的名片设置为{arg.card or '与昵称一致'}")
 
 
-# set_login_nick = on_command("设置账号昵称", block=True, permission=SUPERUSER)
+# 命令前缀为空则需要to_me，否则不需要
+def smart_to_me(command_start: str = CommandStart(),
+                to_me: bool = EventToMe()) -> bool:
+    return bool(command_start) or to_me
 
+
+# set_login_nick = on_command("设置账号昵称", block=True, permission=SUPERUSER)
 
 # @set_login_nick.handle()
 # @matcher_exception_try()
@@ -100,9 +104,7 @@ async def _(matcher: Matcher,
 
 #     await matcher.finish("昵称已设置")
 
-
 # set_login_des = on_command("设置账号描述", block=True, permission=SUPERUSER)
-
 
 # @set_login_des.handle()
 # @matcher_exception_try()

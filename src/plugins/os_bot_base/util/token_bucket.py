@@ -39,7 +39,7 @@ class TokenBucket(object):
                  cumulative_time: float = 0,
                  cumulative_delay: int = 0):
         """
-            num: float 发放数量
+            num: float 令牌发放数量
 
             issuetime: float 发放这些数量需要的时间(s)
 

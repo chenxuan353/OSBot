@@ -21,6 +21,7 @@ from ..os_bot_base.util import get_plugin_session, plug_is_disable, get_session,
 from ..os_bot_base.notice import UrgentNotice, BotSend
 from ..os_bot_base.adapter.onebot import V11Adapter
 from ..os_bot_base.exception import MatcherErrorFinsh
+from ..os_bot_base.permission import PermManage
 
 driver = get_driver()
 
@@ -303,15 +304,29 @@ class PollTwitterUpdate(TwitterUpdate):
                                           subscribe.bot_type,
                                           subscribe.tweet_trans)
 
-        # 生成推文映射
-        while f"{session.num}" in session.tweet_map:
-            session.num += 1
-        tweet_num = f"{session.num}"
-        session.tweet_map[tweet_num] = tweet.id
-        session.num += 1
-        await session.save()
-        msg += f"\n序 {tweet_num}"
-        msg += f"\nhttps://twitter.com/{tweet.author_username}/status/{tweet.id}"
+        # 生成推文映射(没有烤推权限时不生成序)
+        try:
+            mark_splits = subscribe.group_mark.split("-")
+            group_type = mark_splits[-2]
+            group_id = mark_splits[-1]
+            if group_type != "group" or await PermManage.check_permission_from_mark(
+                    "烤推", subscribe.bot_type, group_id, ""):
+                # 生成推文映射
+                while f"{session.num}" in session.tweet_map:
+                    session.num += 1
+                tweet_num = f"{session.num}"
+                session.tweet_map[tweet_num] = tweet.id
+                session.num += 1
+                await session.save()
+                msg += f"\n序 {tweet_num}"
+            if await PermManage.check_permission_from_mark(
+                    "推文链接", subscribe.bot_type, group_id, ""):
+                # 安全起见移除链接推送
+                msg += f"\nhttps://twitter.com/{tweet.author_username}/status/{tweet.id}"
+        except Exception as e:
+            logger.opt(exception=True).warning("推文更新消息转换异常 订阅 {} 消息 {}",
+                                               subscribe.id, msg)
+
         try:
             await self.push_message(subscribe, msg)
         except TwitterPollingSendError as e:

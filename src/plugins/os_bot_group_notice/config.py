@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 
@@ -8,11 +8,20 @@ from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION
 
 class Config(BaseSettings):
     """
-        工具插件
+        群聊通知插件
+
+        - `os_bot_group_enter_notice` 进群提醒开关默认值
+        - `os_bot_group_leave_notice` 退群提醒开关默认值
     """
+
+    os_bot_group_enter_notice: bool = Field(default=True)
+    os_bot_group_leave_notice: bool = Field(default=True)
 
     class Config:
         extra = "ignore"
+
+global_config = get_driver().config
+config = Config(**global_config.dict())
 
 
 class GroupNoticeSession(Session):
@@ -23,8 +32,8 @@ class GroupNoticeSession(Session):
 
     def __init__(self, *args, key: str = "default", **kws):
         super().__init__(*args, key=key, **kws)
-        self.enter_notice = True
-        self.leave_notice = True
+        self.enter_notice = config.os_bot_group_enter_notice
+        self.leave_notice = config.os_bot_group_leave_notice
         self.enter_notice_template = "@新人 欢迎加入群聊，记得查看群公告哦~"
         self.leave_notice_template = "[昵称] 离开了我们……"
 
@@ -50,6 +59,3 @@ __plugin_meta__ = PluginMetadata(
         META_SESSION_KEY: GroupNoticeSession
     },
 )
-
-global_config = get_driver().config
-config = Config(**global_config.dict())

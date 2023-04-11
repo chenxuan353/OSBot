@@ -21,3 +21,4 @@ tortoise-orm==0.19.2
 tweepy==4.12.1
 typing_extensions==4.4.0
 yarl==1.8.1
+bilibili-api-python==15.3.1

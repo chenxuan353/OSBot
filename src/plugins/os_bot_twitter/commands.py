@@ -27,7 +27,7 @@ from .config import config
 from .tran import TwitterTransManage
 from .options import Options, Option
 
-from ..os_bot_base.util import matcher_exception_try, only_command, inhibiting_exception
+from ..os_bot_base.util import matcher_exception_try, only_command, inhibiting_exception, RateLimitDepend, RateLimitUtil
 from ..os_bot_base.depends import SessionPluginDepend, SessionDepend
 from ..os_bot_base.depends import Adapter, AdapterDepend, ArgMatchDepend
 from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
@@ -38,6 +38,7 @@ from ..os_bot_base.permission import PermManage, perm_check_rule
 driver = get_driver()
 twitterTransManage: TwitterTransManage = None  # type: ignore
 PermManage.register("烤推", "烤推权限", True, only_super_oprate=False)
+PermManage.register("推文链接", "推文链接推送", True, only_super_oprate=True)
 
 
 @driver.on_startup
@@ -955,7 +956,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
         msg = msg[1:]
     if msg.startswith("#"):
         msg = msg[1:]
-    msg = msg.rstrip()
+    msg = msg.strip()
     arg = TransArg()(msg)
     tweet_id = deal_tweet_link(arg.tweet_str, session)
     tweet_username = ""
@@ -1024,8 +1025,8 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
 
         # 存档
         try:
+            # 非截图时存档
             if arg.tail:
-                # 仅截图时不存档
                 trans_model = TwitterTransModel()
                 trans_model.group_mark = await adapter.mark_group_without_drive(
                     bot, event)
@@ -1040,16 +1041,16 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                 trans_model.tweet_id = tweet_id
                 trans_model.file_name = filename
                 await trans_model.save()
+
+                if tweet:
+                    tweet.trans = True
+                    await tweet.save(update_fields=["trans"])
         except Exception as e:
             logger.opt(exception=True).error("保存烤推记录时异常！")
             await bot.send(event, "烤推时异常，请联系管理员")
             return
 
-        if tweet:
-            tweet.trans = True
-            await tweet.save(update_fields=["trans"])
-
-        finish_msgs = ["烤好啦", "熟啦", "叮！", "出锅！"]
+        finish_msgs = ["烤好啦", "熟啦", "叮！", "出锅！", "", "好耶！", "十分！", "完成啦！"]
         msg = f"@{tran_user_nick} " + finish_msgs[random.randint(
             0,
             len(finish_msgs) - 1)] + "\n"
@@ -1069,8 +1070,15 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                 return
             msg += v11.MessageSegment.image(
                 f"base64://{str(base64_data, 'utf-8')}")
-        if random.randint(0,100) > 70:
-            msg += v11.MessageSegment.text("遇到无法载图可以重试哦~")
+        if random.randint(0, 100) > 70:
+            tips = [
+                "遇到无法载图可以重试哦", "使用`看推 序号`查看历史推文", "可以用推文列表检查历史推文~",
+                "遇到BUG及时反馈~"
+            ]
+            tip = tips[random.randint(0, len(finish_msgs) - 1)]
+            msg += v11.MessageSegment.text(tip)
+        elif not arg.tail:
+            msg += v11.MessageSegment.text("推荐使用`看推 序号/链接`查看推文")
         # 发送消息
         await bot.send(event, msg)
 
@@ -1078,7 +1086,9 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
     wait_time = math.ceil(wait_time)
     if wait_num == 0:
         finish_msgs = [
-            "烤！", f"烤制{wait_time}秒~", "制作中~", f"定时{wait_time}秒", "放入烤架！"
+            "烤！", f"烤制{wait_time}秒~", "制作中~", f"定时{wait_time}秒", "放入烤架！",
+            "烤架已就绪", "烤架准备好啦", "武火速烤！", "开始厨艺表演~", "大火烤制~", "微波加热！", "核心烘焙中~",
+            "窑炉烧制>"
         ]
         await matcher.finish(finish_msgs[random.randint(
             0,
@@ -1086,7 +1096,9 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
     else:
         finish_msgs = [
             f"稍等一会哦，大概{wait_time:.0f}秒。", f"收到订单！{wait_time:.0f}秒后出餐！",
-            f"前方{wait_num}人，稍等片刻。"
+            f"前方{wait_num}人，稍等片刻。", f"烤架忙碌，等待{wait_time:.0f}秒",
+            f"计时开始，等待{wait_time:.0f}秒", f"烤架忙碌，{wait_num}人在排队",
+            f"文火慢烤{wait_time:.0f}秒"
         ]
         await matcher.finish(finish_msgs[random.randint(
             0,
@@ -1384,7 +1396,9 @@ tweet_tran_help = on_command("烤推帮助",
                              block=True)
 
 
-@tweet_tran_help.handle()
+@tweet_tran_help.handle({
+    RateLimitDepend(RateLimitUtil.QPS(0.1)),
+})
 @matcher_exception_try()
 async def _(matcher: Matcher):
     await matcher.finish(
@@ -1481,21 +1495,24 @@ tweet_tran_update_script = on_command("更新烤推脚本",
 @tweet_tran_update_script.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
-    os.system("nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &")
+    os.system(
+        "nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &"
+    )
     await matcher.finish("已自动执行更新脚本")
 
 
-
 tweet_tran_update_and_reload_script = on_command("更新并重载烤推脚本",
-                                      permission=SUPERUSER,
-                                      rule=only_command(),
-                                      block=True)
+                                                 permission=SUPERUSER,
+                                                 rule=only_command(),
+                                                 block=True)
 
 
 @tweet_tran_update_and_reload_script.handle()
 @matcher_exception_try()
 async def _(matcher: Matcher):
-    os.system("nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &")
+    os.system(
+        "nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &"
+    )
     await matcher.send("已自动执行更新脚本")
     await asyncio.sleep(15)
     await twitterTransManage.reload_script()

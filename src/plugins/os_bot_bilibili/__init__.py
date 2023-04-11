@@ -1,20 +1,24 @@
 """
-    # B站支持（未完成）
+    # B站功能支持
 
-    预计将支持动态的获取与发送，直播开关播等功能。
+    提供动态发送、动态删除、直播间标题设置、指定分区开播、下播等功能
 """
-# import nonebot
-from nonebot import get_driver
+import asyncio
+import platform
+from nonebot import require
 
-from .config import Config
 
-global_config = get_driver().config
-config = Config(**global_config.dict())
 
-# Export something for other plugin
-# export = nonebot.export()
-# export.foo = "bar"
 
-# @export.xxx
-# def some_function():
-#     pass
+# 如果系统为 Windows，则防止修改loop_policy
+if "windows" in platform.system().lower():
+    policy = asyncio.get_event_loop_policy()
+    import bilibili_api
+    asyncio.set_event_loop_policy(policy)
+
+
+require('os_bot_base')
+
+from .config import __plugin_meta__
+
+from . import command

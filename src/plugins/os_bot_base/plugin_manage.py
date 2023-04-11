@@ -22,7 +22,7 @@ from nonebot.params import CommandArg, T_State
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
 from .model.plugin_manage import PluginModel, PluginSwitchModel
-from .util import matcher_exception_try, match_suggest, plug_is_disable
+from .util import matcher_exception_try, match_suggest, plug_is_disable, RateLimitDepend, RateLimitUtil
 from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH, META_PLUGIN_ALIAS
 from .depends import AdapterDepend, ArgMatchDepend
 from .exception import MatcherErrorFinsh
@@ -39,7 +39,7 @@ cache_plugin_keys: List[str] = []
 
 async def plugin_manage_on_startup():
     """
-        这个钩子函数会在 NoneBot2 启动时运行。
+        这个函数会在 NoneBot2 启动时运行。
     """
     cache_plugin_keys.clear()
     try:
@@ -85,7 +85,8 @@ async def plugin_manage_on_startup():
             else:
                 plugModel.display_name = plugin.name
                 if plugModel.display_name.startswith("nonebot_plugin_"):
-                    plugModel.display_name = plugModel.display_name[len("nonebot_plugin_"):]
+                    plugModel.display_name = plugModel.display_name[
+                        len("nonebot_plugin_"):]
                 if plugModel.default_switch is None:
                     plugModel.des = "该插件未设置描述"
                     plugModel.usage = "暂无"
@@ -147,6 +148,8 @@ async def _(bot: Bot, event: Event, matcher: Matcher, state: T_State):
     prefix_key = state.get(PREFIX_KEY, {}).get(CMD_START_KEY, None)
     if not config.os_no_command_prefix and state[
             RULE_IS_COMMAMD_KEY] and prefix_key is not None:
+        if isinstance(prefix_key, str):
+            prefix_key = prefix_key.strip()
         if prefix_key == "" and not event.is_tome():
             logger.debug("由于配置设置，无前缀的非to_me的命令消息将被忽略")
             matcher.block = False
@@ -427,7 +430,7 @@ async def _(matcher: Matcher,
 plug_list = on_command("插件列表", aliases={"pluglist", "功能列表"})
 
 
-@plug_list.handle()
+@plug_list.handle(parameterless=[RateLimitDepend(RateLimitUtil.QPS(0.5))])
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: Bot,
@@ -453,7 +456,7 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-version = "v0.5beta"
+version = "v1.0dev"
 
 help_msg = f"""
 OSBot {version}
@@ -462,13 +465,11 @@ OSBot {version}
 仓库：https://github.com/chenxuan353/OSBot
 觉得好用可以点个star哦~
 
-未特殊标注的指令均需要艾特bot或`！`前缀（半角全角均可）
+- 主要功能
+有没有X！(批量艾特)、机翻、流式翻译、B站操作、问答库、转推、烤推、进群/退群提醒、RSS订阅、谁艾特我、安静一会(禁言bot的替代方案)等
 
 使用`功能列表 页码(可略)`及`帮助 功能名`来查看帮助信息
-- 主要功能
-有没有X！(批量艾特)、机翻、流式翻译、问答库、转推、烤推、安静一会(禁言bot的替代方案)、进群/退群提醒、RSS订阅、谁艾特我等
-
-使用指令时使用空格分隔参数执行更准确哦。
+未特殊标注的指令均需要艾特bot或感叹号前缀，使用空格分隔参数执行更准确哦。
 遇到问题可以使用`反馈 内容`，会尽快处理。
 
 >>非必要请勿禁言，可使用`闭嘴xx分钟`等指令来实现相同效果<<
@@ -477,7 +478,7 @@ OSBot {version}
 help = on_command("插件帮助", aliases={"plughelp", "功能帮助", "帮助", "help"})
 
 
-@help.handle()
+@help.handle(parameterless=[RateLimitDepend(RateLimitUtil.QPS(0.1))])
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: Bot,
@@ -513,20 +514,71 @@ async def _(matcher: Matcher,
     await matcher.finish(f"{status}\n{pluginModel.usage or '空空如也'}")
 
 
+#  textwrap.dedent("""content""").strip()
+admin_core_help_list = [
+    {
+        "names": {"通知列表", "紧急通知", "通知"},
+        "msg":
+        "通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理"
+        "\n通过`通知列表`、`清空通知列表`来查看可能需要的通知"
+    },
+    {
+        "names": {"黑名单", "封禁", "系统黑名单"},
+        "msg":
+        "通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单"
+    },
+    {
+        "names": {"故障转移", "负载均衡"},
+        "msg": "通过`还得是你/优先响应`切换优先响应"
+    },
+    {
+        "names": {"权限", "权限操作", "权限列表", "授权"},
+        "msg":
+        "通过`权限操作 组标识 组ID 对象ID 是否授权 权限名 [授权时间]`、`权限授予 [成员ID/@某人] 权限名 [授权时间]`、`权限禁用 权限名 [授权时间]`、`权限列表`等指令管理权限"
+    },
+    {
+        "names": {"插件管理", "功能管理", "插件"},
+        "msg":
+        "可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理"
+        "\n需要远程控制插件状态可以通过`插件管理 群/私聊 ID 插件名称 状态`来远程设置"
+    },
+]
+admin_core_help_kws = {}
+admin_core_help_keys: Dict[str, str] = {}
+for item in admin_core_help_list:
+    for name in item["names"]:
+        admin_core_help_kws[name] = item["msg"]
+        admin_core_help_keys[name] = name
+
+
+class PlugAdminArg(ArgMatch):
+
+    class Meta(ArgMatch.Meta):
+        name = "插件名参数"
+        des = "匹配插件名"
+
+    plugin_name: str = Field.Keys("插件名称",
+                                  keys_generate=lambda: {
+                                      **admin_core_help_keys,
+                                      **cache_plugin_key_map
+                                  },
+                                  ignoreCase=True,
+                                  ignoreQB=True)
+
+    def __init__(self) -> None:
+        super().__init__([self.plugin_name])
+
+
 admin_help_msg = f"""
 OSBot {version}
 
-使用`超管功能帮助 插件名`来查看超级管理员专属帮助（大部分插件应该都没有）
-可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理
-需要远程控制插件状态可以通过`插件管理 群/私聊 ID 插件名称 状态`来远程设置
-通过`紧急通知列表`、`减少/增加紧急通知人`、`重载紧急通知列表`、`查看紧急通知列表`、`清空紧急通知列表`、`发送紧急通知(组)`对紧急通知进行管理
-通过`封禁 Q号 时间`、`群封禁 群号 时间`、`解封 Q号`、`群解封 群号`、`封禁列表`、`系统封禁列表`等指令管理黑名单
-通过`权限操作 组标识 组ID 对象ID 是否授权 权限名 [授权时间]`、`权限授予 [成员ID/@某人] 权限名 [授权时间]`、`权限禁用 权限名 [授权时间]`、`权限列表`等指令管理权限
-通过`还得是你/优先响应`切换优先响应
+使用`管理帮助 插件名或功能名`来查看超级管理员专属帮助（大部分插件应该都没有）
+
+核心功能关键词(可用于管理帮助)：黑名单、故障转义、权限、插件管理
+
 通过`触发退群操作 群号`来触发相关插件的退群清理
-通过`通知列表`、`清空通知列表`来查看可能需要的通知
 其它命令 `运行数据统计`、`系统状态`
-下述命令需要安装额外插件
+下述命令需要安装额外插件(ob11)
 群聊中通过`设置群名片 [名片]`来设置群名片
 私聊中可以使用`设置群名片 群号 [名片]`来设置群名片
 """.strip()
@@ -548,7 +600,9 @@ async def _(matcher: Matcher,
     msg_str = ArgMatch.message_to_str(msg).strip()
     if not msg_str:
         await matcher.finish(admin_help_msg)
-    arg = PlugArg()(msg_str)
+    arg = PlugAdminArg()(msg_str)
+    if arg.plugin_name in admin_core_help_keys:
+        await matcher.finish(admin_core_help_kws[arg.plugin_name])
     pluginModel = await get_plugin(arg.plugin_name)
     try:
         adapter = AdapterFactory.get_adapter(bot)
@@ -569,3 +623,25 @@ async def _(matcher: Matcher,
         await matcher.finish(f"{pluginModel.usage or '空空如也'}")
 
     await matcher.finish(f"{status}\n{pluginModel.admin_usage or '空空如也'}")
+
+
+user_use_rule_msg = f"""
+OSBot {version}
+
+烤推启用条件：暂无限制
+转推启用条件：正常运营至少一个月的字幕组
+
+致力于可用性保障，禁止滥用指令及诱导发布违规信息。
+
+非必要请勿禁言，使用`闭嘴xx分钟`实现同样效果！
+违反此规约的用户或群组可能会永久拒绝服务！
+感谢使用！
+""".strip()
+
+user_use_rule = on_command("使用规约", aliases={"注意事项"})
+
+
+@user_use_rule.handle(parameterless=[RateLimitDepend(RateLimitUtil.PER_M(1))])
+@matcher_exception_try()
+async def _(matcher: Matcher):
+    await matcher.finish(user_use_rule_msg)

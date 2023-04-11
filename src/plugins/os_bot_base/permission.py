@@ -12,6 +12,7 @@
     - 权限操作 [驱动] 组标识 组ID 对象ID 权限名 [授权时间]
 """
 import math
+import random
 from time import time, localtime, strftime
 from typing import Any, Dict, Optional
 from typing_extensions import Self
@@ -23,6 +24,9 @@ from nonebot.rule import Rule
 from nonebot.adapters import Bot, Event
 from nonebot.adapters.onebot import v11
 from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER, PRIVATE_FRIEND, GROUP_MEMBER
+from nonebot.params import EventMessage
+
+from .util.rule import only_command
 from .argmatch import ArgMatch, Field, PageArgMatch
 from .session import Session, StoreSerializable
 from .logger import logger
@@ -170,29 +174,27 @@ class PermManage:
                                          only_super_oprate, ignore_super)
 
     @classmethod
-    async def check_permission(cls, name: str, bot: Bot, event: Event, ignore_super: bool = False):
+    async def check_permission_from_mark(cls,
+                                         name: str,
+                                         adapter_type: str,
+                                         group_id: str,
+                                         unit_id: str = "",
+                                         is_group: bool = True):
         """
             权限检查
 
             检查指定事件主体是否拥有指定权限
 
-            当事件主体为超级管理员时默认为True
+            注意：不会检查超级管理员权限
         """
         if name not in cls.PERMISSIONS:
             raise PermissionError(f"权限`{name}`未注册")
         meta = cls.PERMISSIONS[name]
 
-        if not ignore_super and not meta.ignore_super and await SUPERUSER(bot, event):
-            return True
-
         session: PermissionSession = await get_plugin_session(PermissionSession
                                                               )
-        adapter = AdapterFactory.get_adapter(bot)
-        is_group = await adapter.msg_is_multi_group(bot, event)
-        group_id = f"{await adapter.get_group_id_from_event(bot, event)}"
-        unit_id = f"{await adapter.get_unit_id_from_event(bot, event)}"
 
-        mark_group = f"{adapter.get_type()}-{'G' if is_group else 'P'}-{group_id}"
+        mark_group = f"{adapter_type}-{'G' if is_group else 'P'}-{group_id}"
         mark_unit = unit_id
 
         if meta.for_group_member:
@@ -205,6 +207,38 @@ class PermManage:
             return meta.auth
 
         return unit.is_auth()
+
+    @classmethod
+    async def check_permission(cls,
+                               name: str,
+                               bot: Bot,
+                               event: Event,
+                               ignore_super: bool = False):
+        """
+            权限检查
+
+            检查指定事件主体是否拥有指定权限
+
+            当事件主体为超级管理员时默认为True
+        """
+        if name not in cls.PERMISSIONS:
+            raise PermissionError(f"权限`{name}`未注册")
+        meta = cls.PERMISSIONS[name]
+
+        if not ignore_super and not meta.ignore_super and await SUPERUSER(
+                bot, event):
+            return True
+
+        session: PermissionSession = await get_plugin_session(PermissionSession
+                                                              )
+        adapter = AdapterFactory.get_adapter(bot)
+        is_group = await adapter.msg_is_multi_group(bot, event)
+        group_id = f"{await adapter.get_group_id_from_event(bot, event)}"
+        unit_id = f"{await adapter.get_unit_id_from_event(bot, event)}"
+
+        return await cls.check_permission_from_mark(name, adapter.get_type(),
+                                                    group_id, unit_id,
+                                                    is_group)
 
     @classmethod
     async def get_mask(cls, bot: Bot, event: Event) -> str:
@@ -266,6 +300,36 @@ class PermManage:
                 session.premissions[mark_group][name] = unit
 
         return unit
+
+    @classmethod
+    async def reset_perm(cls, drive_type: str, is_group: bool, group_id: str):
+        """重置当前组权限"""
+        session: PermissionSession = await get_plugin_session(PermissionSession
+                                                              )
+        mark_group = f"{drive_type}-{'G' if is_group else 'P'}-{group_id}"
+        async with session:
+            if mark_group in session.premissions_group_member:
+                del session.premissions_group_member[mark_group]
+            if mark_group in session.premissions:
+                del session.premissions[mark_group]
+
+    @classmethod
+    async def reset_perm_all(cls, name: str):
+        """重置所有权限到默认值（危险操作）"""
+        if name not in cls.PERMISSIONS:
+            raise PermissionError(f"权限`{name}`未注册")
+        session: PermissionSession = await get_plugin_session(PermissionSession
+                                                              )
+        async with session:
+            # 移除该权限所有权限配置
+            for mark_groups in session.premissions_group_member.values():
+                for mark_units in mark_groups.values():
+                    if name in mark_units:
+                        del mark_units[name]
+
+            for mark_groups in session.premissions.values():
+                if name in mark_groups:
+                    del mark_groups[name]
 
     @classmethod
     async def is_register(cls, name: str) -> bool:
@@ -439,7 +503,8 @@ async def _(matcher: Matcher,
     meta = await PermManage.get_register(arg.name)
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
-    if meta.auth and await PermManage.check_permission(arg.name, bot, event, ignore_super=True):
+    if meta.auth and await PermManage.check_permission(
+            arg.name, bot, event, ignore_super=True):
         await matcher.finish(f"权限`{arg.name}`已默认授权")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -470,7 +535,8 @@ async def _(matcher: Matcher,
     meta = await PermManage.get_register(arg.name)
     if not meta:
         await matcher.finish(f"权限`{arg.name}`不存在！")
-    if meta.auth and await PermManage.check_permission(arg.name, bot, event, ignore_super=True):
+    if meta.auth and await PermManage.check_permission(
+            arg.name, bot, event, ignore_super=True):
         await matcher.finish(f"权限`{arg.name}`已默认授权")
     if meta.only_super_oprate and not await SUPERUSER(bot, event):
         await matcher.finish(f"权限`{arg.name}`仅允许超级管理员设定")
@@ -616,8 +682,100 @@ async def _(matcher: Matcher,
     if arg.page > maxpage:
         await matcher.finish(f"超过最大页数({maxpage})了哦")
 
+    is_super = await SUPERUSER(bot, event)
+
     msg = f"{arg.page}/{maxpage}"
     for item in perms:
-        auth = await PermManage.check_permission(item.name, bot, event, ignore_super=True)
+        if item.only_super_oprate and not is_super:
+            continue
+        auth = await PermManage.check_permission(item.name,
+                                                 bot,
+                                                 event,
+                                                 ignore_super=True)
         msg += f"\n{'' if item.for_group_member else '群 '}{item.name}[{'√' if auth else 'X'}] - {item.des or '没有描述'}"
     await matcher.finish(msg)
+
+
+class AtPageArgMatch(ArgMatch):
+
+    unit_id: int = Field.Int("ID", min=9999, max=99999999999)
+
+    page: int = Field.Int("页数", min=1, default=1, help="页码，大于等于1。")
+
+    def __init__(self) -> None:
+        super().__init__([AtPageArgMatch.unit_id, AtPageArgMatch.page])
+
+
+user_perm_list = on_command(
+    "用户权限列表",
+    block=True,
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER,
+)
+
+
+@user_perm_list.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.GroupMessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            arg: AtPageArgMatch = ArgMatchDepend(AtPageArgMatch)):
+    size = 10
+    perms = [v for v in PermManage.PERMISSIONS.values()]
+    count = len(perms)
+    maxpage = math.ceil(count / size)
+
+    if count == 0:
+        await matcher.finish(f"唔……什么也没有？")
+    if arg.page > maxpage:
+        await matcher.finish(f"超过最大页数({maxpage})了哦")
+
+    is_super = await SUPERUSER(bot, event)
+
+    msg = f"{arg.page}/{maxpage}"
+    for item in perms:
+        if item.only_super_oprate and not is_super:
+            continue
+        auth = await PermManage.check_permission_from_mark(
+            item.name, adapter.get_type(), str(event.group_id),
+            str(arg.unit_id))
+        msg += f"\n{'' if item.for_group_member else '群 '}{item.name}[{'√' if auth else 'X'}] - {item.des or '没有描述'}"
+    await matcher.finish(msg)
+
+
+perm_reset = on_command(
+    "重置权限",
+    block=True,
+    rule=only_command(),
+    permission=SUPERUSER,
+)
+
+
+@perm_reset.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend()):
+    finish_msgs = ["请发送`确认重置`确认~", "通过`确认重置`继续操作哦"]
+    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+@perm_reset.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: v11.MessageEvent,
+            message: v11.Message = EventMessage(),
+            adapter: Adapter = AdapterDepend()):
+    msg = str(message).strip()
+    if msg == "确认重置":
+        await PermManage.reset_perm(
+            adapter.get_type(), await adapter.msg_is_multi_group(bot, event),
+            str(await adapter.get_group_id_from_event(bot, event)))
+        finish_msgs = ["已重置！", ">>操作已执行<<"]
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
+    finish_msgs = ["未确认操作", "pass"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])

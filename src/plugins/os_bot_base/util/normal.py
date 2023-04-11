@@ -68,7 +68,7 @@ def matcher_exception_try():
     return decorator
 
 
-def inhibiting_exception(task_name: str = "", logger = logger):
+def inhibiting_exception(task_name: str = "", logger=logger):
     """
         抑制异常并输出到日志中，适用于`gather`方法以及所有不需要抛出异常的方法。
     """
@@ -79,12 +79,14 @@ def inhibiting_exception(task_name: str = "", logger = logger):
         async def wrap(*args, **kws):
             try:
                 return await func(*args, **kws)
-            except NoneBotException as e:
-                raise e
-            except FieldMatchError as e:
-                raise e
-            except MatcherErrorFinsh as e:
-                raise e
+            except (MatcherErrorFinsh, NoneBotException, FieldMatchError) as e:
+                if task_name:
+                    logger.opt(exception=True).debug("执行异步函数`{}.{}`时异常！",
+                                                     func.__module__,
+                                                     func.__name__)
+                else:
+                    logger.opt(exception=True).debug("执行异步函数`{}`时异常！",
+                                                     task_name)
             except Exception as e:
                 if task_name:
                     logger.opt(exception=True).error("执行异步函数`{}.{}`时异常！",

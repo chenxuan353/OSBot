@@ -1,4 +1,7 @@
+import base64
 import random
+from time import time
+import aiohttp
 from nonebot import on_command, on_notice, get_bots
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot
@@ -11,6 +14,7 @@ from .config import GroupNoticeSession
 
 from ..os_bot_base.depends import SessionDepend, AdapterDepend, Adapter
 from ..os_bot_base.util import matcher_exception_try, only_command
+from ..os_bot_base.exception import MatcherErrorFinsh
 
 notice_enable = on_command("启用群聊提醒",
                            aliases={
@@ -82,6 +86,43 @@ async def _(matcher: Matcher,
         await matcher.finish("已禁用进群及退群提醒！")
 
 
+async def download_to_base64(url: str,
+                             maxsize_kb=1024,
+                             ignore_exception: bool = False) -> str:
+    maxsize = maxsize_kb * 1024
+    timeout = 15
+    try:
+        req = aiohttp.request("get",
+                              url,
+                              timeout=aiohttp.ClientTimeout(total=10))
+        async with req as resp:
+            code = resp.status
+            if code != 200:
+                raise MatcherErrorFinsh("获取图片失败，状态看起来不是很好的样子。")
+            if resp.content_length and resp.content_length > maxsize:
+                raise MatcherErrorFinsh(f'图片太大！要小于{maxsize_kb}kb哦')
+            size = 0
+            start = time()
+            filedata = bytes()
+            async for chunk in resp.content.iter_chunked(1024):
+                if time() - start > timeout:
+                    raise MatcherErrorFinsh('下载超时了哦')
+                filedata += chunk
+                size += len(chunk)
+                if size > maxsize:
+                    raise MatcherErrorFinsh(f'图片太大！要小于{maxsize_kb}kb哦')
+            urlbase64 = str(base64.b64encode(filedata), "utf-8")
+    except MatcherErrorFinsh as e:
+        if ignore_exception:
+            logger.warning("图片下载失败：{} | {}", url, e)
+            return ""
+        raise e
+    except Exception as e:
+        logger.warning("图片下载失败：{} | {} | {}", url, e.__class__.__name__, e)
+        return ""
+    return urlbase64
+
+
 notice_setting = on_command("设置进群提醒",
                             aliases={"设置入群提醒", "设置退群提醒"},
                             block=True,
@@ -103,7 +144,8 @@ async def _(matcher: Matcher,
                 msgseg.data.get("text", ""))
         elif msgseg.type == "image":
             url = msgseg.data.get("url", "")
-            msg_recombination += v11.MessageSegment.image(url)
+            b64 = await download_to_base64(url)
+            msg_recombination += v11.MessageSegment.image(f"base64://{b64}")
         elif msgseg.type == "face":
             msg_recombination += msgseg
         else:

@@ -3,7 +3,7 @@ import random
 import re
 import time
 from typing import Any, Dict, List, Optional
-from nonebot import on_command, on_startswith, on_message
+from nonebot import on_command, on_startswith, on_message, require
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
 from nonebot.params import CommandArg, EventMessage
@@ -21,10 +21,10 @@ from .engine.baidu_engine import BaiduEngine
 from ..os_bot_base.depends import SessionDepend, ArgMatchDepend
 from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend, AdapterFactory
 from ..os_bot_base import only_command
-from ..os_bot_base.permission import PermManage, perm_check_rule, perm_check_permission
+from ..os_bot_base.permission import PermManage, perm_check_permission
+from ..os_bot_base.util import RateLimitDepend, RateLimitUtil
 
 PermManage.register("机翻", "机翻权限", True, only_super_oprate=False)
-
 on_command = partial(on_command, block=True)
 
 _engines: List["Engine"] = [
@@ -208,7 +208,10 @@ async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
     )
 
 
-@trans.handle()
+@trans.handle(parameterless=[
+    RateLimitDepend(RateLimitUtil.QPS(5), scope=RateLimitUtil.SCOPE_HANDLE),
+    RateLimitDepend(RateLimitUtil.PER_M(15))
+])
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: Bot,
@@ -218,7 +221,10 @@ async def _(matcher: Matcher,
     await trans_handle(matcher, arg, session, bot, event)
 
 
-@trans_msg.handle()
+@trans_msg.handle(parameterless=[
+    RateLimitDepend(RateLimitUtil.QPS(5), scope=RateLimitUtil.SCOPE_HANDLE),
+    RateLimitDepend(RateLimitUtil.PER_M(10))
+])
 @matcher_exception_try()
 async def _(matcher: Matcher,
             bot: Bot,
@@ -432,7 +438,17 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-stream_spy = on_message(priority=5, block=False, rule=None)
+try:
+    require('os_bot_shutup')
+    from ..os_bot_shutup.const import STATE_PASSIVE_IGNORE
+    stream_spy_state = {STATE_PASSIVE_IGNORE: True}
+except:
+    stream_spy_state = {}
+
+stream_spy = on_message(priority=5,
+                        block=False,
+                        rule=None,
+                        state=stream_spy_state)
 
 
 @stream_spy.handle()

@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic import BaseSettings, Field
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 
@@ -10,6 +10,7 @@ class Config(BaseSettings):
     """
         工具插件
     """
+    withdraw_max_size: int = Field(default=100)
 
     class Config:
         extra = "ignore"

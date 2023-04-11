@@ -16,11 +16,20 @@ from nonebot.message import run_preprocessor
 
 from .config import config
 from .logger import logger
+from .const import STATE_PASSIVE_IGNORE
 
 from ..os_bot_base.argmatch import ArgMatch, Field
 from ..os_bot_base.session import Session, StoreSerializable
 from ..os_bot_base.depends import SessionPluginDepend, ArgMatchDepend, Adapter, AdapterDepend, AdapterFactory
 from ..os_bot_base.util import matcher_exception_try, get_plugin_session, seconds_to_dhms, inhibiting_exception, only_command
+from ..os_bot_base.permission import PermManage, perm_check_permission
+
+PermManage.register("被动模式豁免",
+                    "允许在被动模式下使用指令",
+                    auth=False,
+                    for_group_member=True,
+                    only_super_oprate=False)
+passive_modes_perm_check = perm_check_permission("被动模式豁免")
 
 
 class ShutUpLevel:
@@ -116,7 +125,10 @@ async def _(bot: Bot,
     mark = await adapter.mark_group_without_drive(bot, event)
 
     if isinstance(event, v11.GroupMessageEvent):
-        if mark in session.passive_modes and await GROUP_MEMBER(bot, event) and not await SUPERUSER(bot, event):
+        if (mark in session.passive_modes and await GROUP_MEMBER(bot, event)
+                and not await SUPERUSER(bot, event)
+                and not matcher.state.get(STATE_PASSIVE_IGNORE, None)
+                and not await passive_modes_perm_check(bot, event)):
             logger.info("在对象`{}`中处于被动状态，群成员消息处理已禁用", mark)
             raise IgnoredException("")
 
@@ -476,18 +488,14 @@ class PassiveModesArg(ArgMatch):
 
     enable: bool = Field.Bool("启用", default=True)
 
-    
-
     def __init__(self) -> None:
-        super().__init__([
-            self.drive_type, self.group_type, self.unit_id, self.enable
-        ])
-
+        super().__init__(
+            [self.drive_type, self.group_type, self.unit_id, self.enable])
 
 
 shut_up_passive_modes_oprate = on_command("操作被动模式",
-                            block=True,
-                            permission=SUPERUSER)
+                                          block=True,
+                                          permission=SUPERUSER)
 
 
 @shut_up_passive_modes_oprate.handle()

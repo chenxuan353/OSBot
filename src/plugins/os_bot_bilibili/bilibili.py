@@ -1,0 +1,192 @@
+"""
+    # 进行了部分改造的`bilibili_api`方法
+
+    优化可能影响性能及不符合异步规范的部分。
+
+    主要工作为将异步但使用同步`httpx`的方法修正为异步。
+
+    以及，将不需要进行的文件处理移除。
+
+    目前已处理的方法
+    - `get_qrcode` 获取登录二维码，修改为完整异步请求
+    - `check_qrcode_events` 检查是否已登录，修改为完整异步请求
+    - `async_check_valid` cookie有效性检查
+    - `Picture.__set_picture_meta_from_bytes` 将原本通过文件加载的方式改为直接加载`content`的`bytes`数据
+    - `Picture.upload_file` 将非异步加载图片方法改为异步
+"""
+import os
+import tempfile
+import uuid
+import httpx
+import qrcode
+from yarl import URL
+from typing import Any, List, Optional, Tuple, Union, Dict
+from bilibili_api import Credential, Picture
+from bilibili_api.login_func import API as LOGIN_API, QrCodeLoginEvents, LoginError
+from bilibili_api.utils.Credential import API as CREDENTIAL_API
+from bilibili_api.utils.network_httpx import request
+from bilibili_api.live_area import get_area_list_sub as __get_area_list_sub
+from bilibili_api.live import get_self_live_info
+
+LOGIN_API["qrcode"]["get_qrcode_and_token"][
+    "url"] = "https://passport.bilibili.com/qrcode/getLoginUrl"
+LOGIN_API["qrcode"]["get_events"][
+    "url"] = "https://passport.bilibili.com/qrcode/getLoginInfo"
+
+
+async def make_qrcode(url) -> str:
+    qr = qrcode.QRCode()
+    qr.add_data(url)
+    img = qr.make_image()
+    img.save(os.path.join(tempfile.gettempdir(), "qrcode.png"))
+    return os.path.join(tempfile.gettempdir(), "qrcode.png")
+
+
+async def get_qrcode() -> Tuple[str, str]:
+    """获取登录二维码 返回值 (二维码文件路径,验证密钥)"""
+    api = LOGIN_API["qrcode"]["get_qrcode_and_token"]
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(api["url"])
+        resp_json = resp.json()
+    qrcode_login_data = resp_json["data"]
+    login_key: str = qrcode_login_data["oauthKey"]
+    qrcode = qrcode_login_data["url"]
+    qrcode_image = await make_qrcode(qrcode)
+    return (qrcode_image, login_key)
+
+
+async def check_qrcode_events(
+        login_key) -> Tuple[QrCodeLoginEvents, Union[str, "Credential"]]:
+    """
+    检查登录状态。（建议频率 1s，这个 API 也有风控！）
+
+    Args:
+        login_key (str): 登录密钥（get_qrcode 的返回值第二项)
+
+    Returns:
+        Tuple[QrCodeLoginEvents, str|Credential]: 状态(第一项）和信息（第二项）（如果成功登录信息为凭据类）
+    """
+    events_api = LOGIN_API["qrcode"]["get_events"]
+    data = {"oauthKey": login_key}
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            events_api["url"],
+            data=data,
+            cookies={
+                "buvid3": str(uuid.uuid1()),
+                "Domain": ".bilibili.com"
+            },
+        )
+        resp_json = resp.json()
+    events: Dict[str, Any] = resp_json
+    if "code" in events.keys() and events["code"] == -412:
+        raise LoginError(events["message"])
+    if events["data"] == -4:
+        return QrCodeLoginEvents.SCAN, events["message"]
+    elif events["data"] == -5:
+        return QrCodeLoginEvents.CONF, events["message"]
+    elif isinstance(events["data"], dict):
+        url: str = events["data"]["url"]
+        cookies_list = url.split("?")[1].split("&")
+        sessdata = ""
+        bili_jct = ""
+        dede = ""
+        for cookie in cookies_list:
+            if cookie[:8] == "SESSDATA":
+                sessdata = cookie[9:]
+            if cookie[:8] == "bili_jct":
+                bili_jct = cookie[9:]
+            if cookie[:11].upper() == "DEDEUSERID=":
+                dede = cookie[11:]
+        c = Credential(sessdata, bili_jct, dedeuserid=dede)
+        return QrCodeLoginEvents.DONE, c
+    else:
+        raise Exception()
+
+
+def get_area_list_sub() -> List[Dict[str, Any]]:
+    return __get_area_list_sub()  # type: ignore
+
+
+async def async_load_url(url: str, imgtype: str = "") -> "Picture":
+    """
+    加载网络图片。(async 方法)
+
+    Args:
+        url (str): 图片链接
+
+    Returns:
+        Picture: 加载后的图片对象
+    """
+    if URL(url).scheme == "":
+        url = "https:" + url
+    obj = Picture()
+    session = httpx.AsyncClient()
+    resp = await session.get(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0"
+        },
+    )
+    obj.content = resp.read()
+    obj.url = url
+    obj.__set_picture_meta_from_bytes(imgtype)
+    return obj
+
+
+class BilibiliOprateUtil:
+
+    def __init__(self, credential: Credential) -> None:
+        self.credential = credential
+
+    async def live_update_title(self, room_id: int,
+                                title: str) -> Optional[Dict[str, Any]]:
+        """
+            修改直播间标题
+
+            [参考](https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/live/manage.md#更新直播间标题)
+
+            结果字典
+            - `code` `0`表示成功
+            - `msg` 信息
+        """
+        api = {
+            "method": "POST",
+            "url": "https://api.live.bilibili.com/room/v1/Room/update",
+        }
+        data = {"room_id": room_id, "title": title}
+        return await request(api["method"],
+                             api["url"],
+                             data=data,
+                             credential=self.credential)
+
+    async def async_check_valid(self):
+        """
+        检查 cookies 是否有效
+
+        Returns:
+            bool: cookies 是否有效
+        """
+        if not self.credential.has_sessdata():
+            return False
+        if not self.credential.has_bili_jct():
+            return False
+        api = CREDENTIAL_API["valid"]
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                api["url"],
+                cookies=self.credential.get_cookies(),
+            )
+            datas = resp.json()
+
+        if datas["code"] == 0:
+            return True
+        return False
+
+    async def get_self_live_info(self) -> Dict[str, Any]:
+        return await get_self_live_info(self.credential)
+
+
+# 加载模块补丁
+
+from . import bilibili_patch

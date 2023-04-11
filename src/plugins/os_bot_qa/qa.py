@@ -396,13 +396,15 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
 
 
-qa_list = on_command(
-    "问答列表",
-    aliases={"问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表", "全局问答库", "问答库"},
-    block=True,
-    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-    | PRIVATE_FRIEND
-    | perm_check_permission("问答库"))
+qa_list = on_command("问答列表",
+                     aliases={
+                         "问答库列表", "问题列表", "全局问答库列表", "全局问题列表", "全局问答列表",
+                         "全局问答库", "问答库", "你学过什么"
+                     },
+                     block=True,
+                     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                     | PRIVATE_FRIEND
+                     | perm_check_permission("问答库"))
 
 
 @qa_list.handle()
