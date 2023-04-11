@@ -9,7 +9,7 @@ from .bilibili import BilibiliOprateUtil
 from .exception import BilibiliCookieVaildFailure, BilibiliOprateFailure
 
 from ..os_bot_base import Session
-from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_PLUGIN_ALIAS
+from ..os_bot_base.consts import META_AUTHOR_KEY, META_ADMIN_USAGE, META_SESSION_KEY, META_PLUGIN_ALIAS, META_DEFAULT_SWITCH
 
 
 class Config(BaseSettings):
@@ -136,7 +136,8 @@ __plugin_meta__ = PluginMetadata(
         META_ADMIN_USAGE:
         "什么都没有~",  # 管理员可以获取的帮助
         META_SESSION_KEY:
-        BilibiliSession
+        BilibiliSession,
+        META_DEFAULT_SWITCH: False
     },
 )
 
