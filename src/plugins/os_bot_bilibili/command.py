@@ -71,29 +71,40 @@ async def _(matcher: Matcher,
                 mevent,
                 v11.MessageSegment.text(qrcode_tip) +
                 v11.MessageSegment.image(f"base64://{b64}"))
+            try:
+                while True:
+                    await asyncio.sleep(5)
+                    if session.sessdata:
+                        logger.debug("登录等待已失效……")
+                        return
 
-            while True:
-                await asyncio.sleep(5)
-                if session.sessdata:
-                    logger.debug("登录等待已失效……")
-                    return
-                event, data = await check_qrcode_events(login_key)
-                if event == QrCodeLoginEvents.DONE:
-                    credential: Credential = data  # type: ignore
-                    break
-                logger.debug("B站登录检查：{} {}", event, data)
-                if time() - start_time > 180:
-                    finish_msgs = ('登录超时！', '二维码失效了……', '大失败！')
-                    await bot.send(
-                        mevent,
-                        finish_msgs[random.randint(0,
-                                                   len(finish_msgs) - 1)])
-                    return
+                    event, data = await check_qrcode_events(login_key)
+                    if event == QrCodeLoginEvents.DONE:
+                        credential: Credential = data  # type: ignore
+                        break
+                    logger.debug("B站登录检查：{} {}", event, data)
+                    if time() - start_time > 165:
+                        finish_msgs = ('登录超时！', '二维码失效了……', '大失败！')
+                        await bot.send(
+                            mevent,
+                            finish_msgs[random.randint(0,
+                                                       len(finish_msgs) - 1)])
+                        return
+            except Exception as e:
+                logger.opt(exception=True).warning("登录失败")
+                finish_msgs = ('登录失败', '未能成功登录')
+                await bot.send(
+                    mevent, finish_msgs[random.randint(0,
+                                                       len(finish_msgs) - 1)])
+                return
             try:
                 credential.raise_for_no_bili_jct()
                 credential.raise_for_no_sessdata()
             except:
-                logger.info("登陆失败。。。")
+                finish_msgs = ('登录失败', '未能成功登录')
+                await bot.send(
+                    mevent, finish_msgs[random.randint(0,
+                                                       len(finish_msgs) - 1)])
                 return
             session.sessdata = credential.sessdata
             session.bili_jct = credential.bili_jct

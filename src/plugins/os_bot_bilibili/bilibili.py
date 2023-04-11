@@ -27,6 +27,7 @@ from bilibili_api.utils.Credential import API as CREDENTIAL_API
 from bilibili_api.utils.network_httpx import request
 from bilibili_api.live_area import get_area_list_sub as __get_area_list_sub
 from bilibili_api.live import get_self_live_info
+from .exception import BilibiliOprateFailure
 
 LOGIN_API["qrcode"]["get_qrcode_and_token"][
     "url"] = "https://passport.bilibili.com/qrcode/getLoginUrl"
@@ -85,6 +86,8 @@ async def check_qrcode_events(
         return QrCodeLoginEvents.SCAN, events["message"]
     elif events["data"] == -5:
         return QrCodeLoginEvents.CONF, events["message"]
+    elif events["data"] == -2:
+        raise BilibiliOprateFailure("登录超时")
     elif isinstance(events["data"], dict):
         url: str = events["data"]["url"]
         cookies_list = url.split("?")[1].split("&")
@@ -101,7 +104,7 @@ async def check_qrcode_events(
         c = Credential(sessdata, bili_jct, dedeuserid=dede)
         return QrCodeLoginEvents.DONE, c
     else:
-        raise Exception()
+        raise BilibiliOprateFailure("响应异常")
 
 
 def get_area_list_sub() -> List[Dict[str, Any]]:
