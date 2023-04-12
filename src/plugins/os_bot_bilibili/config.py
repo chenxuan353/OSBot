@@ -121,7 +121,8 @@ __plugin_meta__ = PluginMetadata(
     name="B站",
     description="OSBot B站 B站相关功能支持",
     usage="""
-        支持指令`开启直播间 分区名`、`关闭直播间`、`修改直播标题`、`登录B站`、`B站登出`、`开始发送动态`等
+        *该功能需要维护者手动开启
+        支持指令`开启直播间 分区名`、`关闭直播间`、`修改直播标题`、`登录B站`、`B站登出`、`开始发送动态`、`B站登录用户`等
         通过`B站功能帮助`查看操作说明
         若需要授权其他人操作可使用`授权 B级人员 @群成员`进行
     """,
@@ -144,4 +145,5 @@ __plugin_meta__ = PluginMetadata(
 global_config = get_driver().config
 config = Config(**global_config.dict())
 
-settings.proxy = config.os_bot_bilibili_proxy or None
+settings.proxy = config.os_bot_bilibili_proxy if not config.os_bot_bilibili_proxy else ""
+settings.timeout = config.os_bot_bilibili_timeout if config.os_bot_bilibili_timeout > 5 else 5

@@ -521,6 +521,34 @@ async def _(matcher: Matcher,
     await bot.delete_msg(message_id=result["message_id"])
 
 
+bilibili_login_user = on_command(
+    "B站登录用户",
+    aliases={"查看B站登录用户"},
+    block=True,
+    rule=only_command(),
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+    | PRIVATE_FRIEND | perm_check_permission("B级人员"))
+
+
+@bilibili_login_user.handle(parameterless=[
+    RateLimitDepend(RateLimitUtil.PER_M(1)),
+    RateLimitDepend(RateLimitUtil.PER_15M(15),
+                    prompts=["使用次数过多，指令正在冷却中……", "负载过高，请稍后再试！"],
+                    scope=RateLimitUtil.SCOPE_HANDLE)
+])
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: v11.Bot,
+            event: v11.MessageEvent,
+            adapter: Adapter = AdapterDepend(),
+            session: BilibiliSession = SessionDepend(BilibiliSession)):
+    await credential_check(matcher, session)
+
+    user_info = await session.get_self_info()
+
+    result = await matcher.finish(f"当前登录用户：{user_info['name']}")
+
+
 bilibili_live_rename = on_command(
     "修改直播间标题",
     aliases={"修改直播标题", "设置直播标题", "设置直播间标题", "更新直播间标题", "更新直播标题"},

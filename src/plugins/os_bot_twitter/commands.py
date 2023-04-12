@@ -38,7 +38,7 @@ from ..os_bot_base.permission import PermManage, perm_check_rule
 driver = get_driver()
 twitterTransManage: TwitterTransManage = None  # type: ignore
 PermManage.register("烤推", "烤推权限", True, only_super_oprate=False)
-PermManage.register("推文链接", "推文链接推送", True, only_super_oprate=True)
+PermManage.register("推文链接", "推文链接推送", False, only_super_oprate=True)
 
 
 @driver.on_startup
