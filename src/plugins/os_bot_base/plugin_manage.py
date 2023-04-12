@@ -18,9 +18,11 @@ from nonebot.message import run_preprocessor
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot import get_driver, get_loaded_plugins, on_command
-from nonebot.params import CommandArg, T_State
+from nonebot.params import CommandArg, T_State, EventMessage
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
+
+from .util.rule import only_command
 from .model.plugin_manage import PluginModel, PluginSwitchModel
 from .util import matcher_exception_try, match_suggest, plug_is_disable, RateLimitDepend, RateLimitUtil
 from .consts import META_NO_MANAGE, META_ADMIN_USAGE, META_AUTHOR_KEY, META_DEFAULT_SWITCH, META_PLUGIN_ALIAS
@@ -456,6 +458,58 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
+plug_reset_all = on_command("重置所有插件开关", block=True, rule=only_command())
+
+
+@plug_reset_all.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            adapter: Adapter = AdapterDepend()):
+    finish_msgs = ["请发送`确认重置`继续~", "通过`确认重置`继续操作哦"]
+    await matcher.pause(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+@plug_reset_all.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            message: Message = EventMessage(),
+            adapter: Adapter = AdapterDepend()):
+
+    msg = str(message).strip()
+    if msg == "确认重置":
+        mark = await adapter.mark_group_without_drive(bot, event)
+        await PluginSwitchModel.filter(**{"group_mark": mark}).delete()
+        plug_model_cache_clear()
+        await matcher.finish("已重置当前群或私聊的所有插件状态")
+    finish_msgs = ["未确认操作", "操作已取消"]
+    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+
+
+plug_reset = on_command("重置插件开关", permission=SUPERUSER)
+
+
+@plug_reset.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: PlugArg = ArgMatchDepend(PlugArg),
+            adapter: Adapter = AdapterDepend()):
+    pluginModel = await get_plugin(arg.plugin_name)
+    mark = await adapter.mark_group_without_drive(bot, event)
+    entity = {"name": pluginModel.name, "group_mark": mark}
+    switchModel = await PluginSwitchModel.get_or_none(**entity)
+    if not switchModel:
+        await matcher.finish("并没有设置过插件开关")
+    await switchModel.delete()
+    plug_model_cache_clear()
+    await matcher.finish("已重置")
+
+
 version = "v1.1dev"
 
 help_msg = f"""
@@ -541,6 +595,7 @@ admin_core_help_list = [
         "msg":
         "可通过`全局禁用/启用插件 插件名`、`启用/禁用插件 插件名`、`默认启用/禁用插件 插件名`等命令进行插件管理"
         "\n需要远程控制插件状态可以通过`插件管理 群/私聊 ID 插件名称 状态`来远程设置"
+        "\n特殊指令`重置所有插件开关`、`重置插件开关 插件名`"
     },
 ]
 admin_core_help_kws = {}

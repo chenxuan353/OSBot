@@ -29,7 +29,7 @@ PermManage.register("B级人员",
                     only_super_oprate=False)
 
 bilibili_login = on_command("B站登录",
-                            aliases={"B站登入"},
+                            aliases={"B站登入", "b站登入", "b站登录"},
                             block=True,
                             rule=only_command(),
                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
@@ -119,12 +119,13 @@ async def _(matcher: Matcher,
     asyncio.gather(login_wait())
 
 
-bilibili_logout = on_command("B站登出",
-                             aliases={"B站注销", "退出B站登录", "登出B站", "清除B站cookie"},
-                             block=True,
-                             rule=only_command(),
-                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
-                             | PRIVATE_FRIEND | perm_check_permission("B级人员"))
+bilibili_logout = on_command(
+    "B站登出",
+    aliases={"B站注销", "退出B站登录", "登出B站", "清除B站cookie", "b站登出", "登出b站", "退出b站登录"},
+    block=True,
+    rule=only_command(),
+    permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+    | PRIVATE_FRIEND | perm_check_permission("B级人员"))
 
 
 @bilibili_logout.handle()
@@ -369,7 +370,9 @@ for area in _area_list:
 
 bilibili_live_start = on_command(
     "开启直播间",
-    aliases={"开始直播", "开始B站直播", "开启B站直播间", "开播", "开启直播", "开启直播间"},
+    aliases={
+        "开始直播", "开始B站直播", "开启B站直播间", "开始b站直播", "开启b站直播间", "开播", "开启直播", "开启直播间"
+    },
     block=True,
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
     | PRIVATE_FRIEND | perm_check_permission("B级人员"))
@@ -427,7 +430,7 @@ async def _(matcher: Matcher,
 
 bilibili_live_stop = on_command(
     "关闭直播间",
-    aliases={"关闭直播", "关闭B站直播", "关闭B站直播间", "下播", "停止直播"},
+    aliases={"关闭直播", "关闭B站直播", "关闭B站直播间", "关闭b站直播", "关闭b站直播间", "下播", "停止直播"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
@@ -523,7 +526,7 @@ async def _(matcher: Matcher,
 
 bilibili_login_user = on_command(
     "B站登录用户",
-    aliases={"查看B站登录用户"},
+    aliases={"查看B站登录用户", "查看b站登录用户", "b站登录用户"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
@@ -606,7 +609,9 @@ bilibili_help_msg = f"""
 若需要授权其他人操作可使用`授权 B级人员 @群成员`进行（仅允许管理员操作）
 """.strip()
 
-bilibili_help = on_command("B站功能帮助", aliases={"B站帮助"}, block=True)
+bilibili_help = on_command("B站功能帮助",
+                           aliases={"B站帮助", "b站帮助", "b站功能帮助"},
+                           block=True)
 
 
 @bilibili_help.handle(parameterless=[RateLimitDepend(RateLimitUtil.PER_M(1))])

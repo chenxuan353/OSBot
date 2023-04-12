@@ -12,11 +12,12 @@ from .logger import logger
 
 from ..os_bot_base.depends import SessionDepend, ArgMatchDepend, AdapterDepend, Adapter
 from ..os_bot_base.util import matcher_exception_try
-from ..os_bot_base.argmatch import PageArgMatch
+from ..os_bot_base.argmatch import ArgMatch, Field, PageArgMatch
+from ..os_bot_base.util import RateLimitDepend, RateLimitUtil
 
 who_at_me = on_keyword(keywords={
     "谁at我", "谁AT我", "谁艾特我", "有人艾特我吗", "谁在AT我", "谁在at我", "谁在艾特我", "谁再AT我",
-    "谁再at我", "谁再艾特我", "谁艾特我"
+    "谁再at我", "谁再艾特我", "谁艾特我", "有人at我", "有人艾特我"
 },
                        priority=5,
                        block=False)
@@ -50,9 +51,12 @@ async def _(matcher: Matcher,
 
     nick = await adapter.get_unit_nick(at_unit.origin_id,
                                        group_id=event.group_id)
-
     finish_msgs = (f"@{nick} 艾特了你", f"或许是 @{nick}")
-    await matcher.finish(finish_msgs[random.randint(0, len(finish_msgs) - 1)])
+    finish_msg = finish_msgs[random.randint(0, len(finish_msgs) - 1)]
+    if random.randint(0, 100) > 50:
+        tips = ["通过艾特我什么事查看详情~", "不妨试试艾特我什么事"]
+        finish_msg += "\n" + tips[random.randint(0, len(tips) - 1)]
+    await matcher.finish(finish_msg)
 
 
 why_at_me = on_keyword(keywords={"at我干啥", "艾特我干啥", "艾特我什么事"},
@@ -99,23 +103,38 @@ async def _(matcher: Matcher,
     await matcher.finish(finish_msg)
 
 
-at_me_list = on_command("at列表",
-                        aliases={"艾特列表"},
-                        block=True,
-                        permission=GROUP_ADMIN | GROUP_OWNER | GROUP_MEMBER)
+class AtListPageArgMatch(ArgMatch):
+
+    unit_id: int = Field.Int("ID",
+                             default=0,
+                             require=False,
+                             min=9999,
+                             max=99999999999)
+    page: int = Field.Int("页数", min=1, default=1, help="页码，大于等于1。")
+
+    def __init__(self) -> None:
+        super().__init__([self.unit_id, self.page])
 
 
-@at_me_list.handle()
+at_who_list = on_command("at列表",
+                         aliases={"艾特列表"},
+                         block=True,
+                         permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
+                         | GROUP_MEMBER)
+
+
+@at_who_list.handle(parameterless=[RateLimitDepend(RateLimitUtil.PER_M(2))])
 @matcher_exception_try()
 async def _(matcher: Matcher,
             event: v11.GroupMessageEvent,
-            arg: PageArgMatch = ArgMatchDepend(PageArgMatch),
+            arg: AtListPageArgMatch = ArgMatchDepend(AtListPageArgMatch),
             session: WhoAtMeSession = SessionDepend(),
             adapter: Adapter = AdapterDepend()):
+    user_id = event.user_id
+    if arg.unit_id:
+        user_id = arg.unit_id
     size = 5
-    at_list = [
-        at for at in session.ob11_ats if at.target_id in [0, event.user_id]
-    ]
+    at_list = [at for at in session.ob11_ats if at.target_id in [0, user_id]]
     at_list.reverse()
     count = len(at_list)
     maxpage = math.ceil(count / size)
@@ -141,7 +160,8 @@ at_me_group_list = on_command("群at列表",
                               permission=GROUP_ADMIN | GROUP_OWNER | SUPERUSER)
 
 
-@at_me_group_list.handle()
+@at_me_group_list.handle(
+    parameterless=[RateLimitDepend(RateLimitUtil.PER_M(4))])
 @matcher_exception_try()
 async def _(matcher: Matcher,
             event: v11.GroupMessageEvent,
