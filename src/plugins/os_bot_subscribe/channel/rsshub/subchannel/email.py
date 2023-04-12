@@ -38,7 +38,7 @@ class RsshubEmailAliceChannel(RsshubChannel):
     @property
     def poll_interval(self) -> Tuple[int, int]:
         """请求间隔范围 ms"""
-        return (5000, 6000)
+        return (12000, 15000)
 
     def subscribe_str_to_path(self, subscribe_str: str) -> str:
         arg = subscribe_str.strip()

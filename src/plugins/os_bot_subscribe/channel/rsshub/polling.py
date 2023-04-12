@@ -146,14 +146,14 @@ async def _():
                 channel.channel_subtype)
 
             if len(listeners) > 5:
-                logger.debug("Rsshub轮询开始")
+                logger.debug("Rsshub轮询开始 {} - {}", channel.name, len(listeners))
 
             for listener in listeners:
                 if not session.is_enable_channel(channel):
                     await asyncio.sleep(15)
                     continue
                 if not listener_maps.get(listener, None):
-                    logger.warning("{} 订阅 {} 未绑定推送，跳过更新", channel.channel_id,
+                    logger.warning("{} - {} 订阅 {} 未绑定推送，跳过更新",channel.name,  channel.channel_id,
                                    listener)
                     continue
                 try:

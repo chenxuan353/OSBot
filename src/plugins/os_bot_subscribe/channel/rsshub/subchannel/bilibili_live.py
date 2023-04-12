@@ -35,7 +35,7 @@ class RsshubBilibiliLiveChannel(RsshubChannel):
     @property
     def poll_interval(self) -> Tuple[int, int]:
         """请求间隔范围 ms"""
-        return (5000, 6000)
+        return (8000, 12000)
 
     @property
     def options_cls(self) -> Optional[Type[Options]]:
