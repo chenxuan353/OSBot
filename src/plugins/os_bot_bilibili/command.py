@@ -409,7 +409,7 @@ async def _(matcher: Matcher,
         logger.info("成功开播 {} - {} 分区", user_name, text)
         logger.debug("成功开播 {} - {}", user_name, result)
         # 'change': 1, 'status': 'LIVE'
-        session.live_rtmp_code = result['rtmp']['addr']
+        session.live_rtmp_addr = result['rtmp']['addr']
         session.live_rtmp_code = result['rtmp']['code']
         await session.save()
         finish_msgs = ("开启成功，需要连接信息请使用`推流链接`指令~", "开启成功啦！",
@@ -502,7 +502,7 @@ async def _(matcher: Matcher,
             session: BilibiliSession = SessionDepend(BilibiliSession)):
     await credential_check(matcher, session)
 
-    if not session.live_rtmp_code or not session.live_rtmp_code:
+    if not session.live_rtmp_addr or not session.live_rtmp_code:
         finish_msgs = ('还没有开播哦', '开播后再试试吧', '需要先开播！')
         await matcher.finish(finish_msgs[random.randint(
             0,
@@ -510,7 +510,7 @@ async def _(matcher: Matcher,
 
     result = await bot.send(
         event, "rtmp推流方式(30秒后撤回)\n"
-        f"地址：\n{session.live_rtmp_code}\n"
+        f"地址：\n{session.live_rtmp_addr}\n"
         f"推流码：\n{session.live_rtmp_code}")
 
     if "message_id" not in result:
