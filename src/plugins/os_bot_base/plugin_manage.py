@@ -456,12 +456,12 @@ async def _(matcher: Matcher,
     await matcher.finish(msg)
 
 
-version = "v1.0dev"
+version = "v1.1dev"
 
 help_msg = f"""
 OSBot {version}
 包含多引擎翻译、烤推、转推、转动态等功能~
-维护者：晨轩(3309003591)
+{config.os_bot_maintainer}
 仓库：https://github.com/chenxuan353/OSBot
 觉得好用可以点个star哦~
 

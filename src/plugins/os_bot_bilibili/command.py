@@ -604,7 +604,7 @@ bilibili_help_msg = f"""
 直播间：`开播 分区`、`下播`、`更新直播标题 新标题`
 """.strip()
 
-bilibili_help = on_command("B站功能帮助")
+bilibili_help = on_command("B站功能帮助", aliases={"B站帮助"}, block=True)
 
 
 @bilibili_help.handle(parameterless=[RateLimitDepend(RateLimitUtil.PER_M(1))])

@@ -14,6 +14,7 @@ class Config(BaseSettings):
     """
         # 基础配置
 
+        - `os_bot_maintainer` 维护者
         - `os_data_path` 基础数据路径
         - `os_log_file_debug` 保存调试日志到文件
         - `os_database` 数据库地址，默认使用sqlite3，规范为sql数据库规范。
@@ -39,6 +40,7 @@ class Config(BaseSettings):
     """
     superusers: List[Union[int, str]] = Field(default=[])
 
+    os_bot_maintainer: str = Field(default="")
     os_data_path: str = Field(default=os.path.join(".", "data"))
     os_log_file_debug: bool = Field(default=False)
     os_database: str = Field(default="")
