@@ -198,7 +198,7 @@ async def trans_handle(matcher: Matcher, arg: TransArgs, session: TransSession,
         logger.debug(
             F"{engine.name}引擎翻译({source}->{target})：{text} -> {res.strip()}")
     except EngineError as e:
-        logger.warning(F"翻译引擎异常：{repr(e)}")
+        logger.opt(exception=True).warning(F"翻译引擎异常：{repr(e)}")
         await matcher.finish(F"引擎错误：{e.replay}")
     user_id = await adapter.get_unit_id_from_event(bot, event)
     group_id = await adapter.get_group_id_from_event(
@@ -442,7 +442,7 @@ try:
     require('os_bot_shutup')
     from ..os_bot_shutup.const import STATE_PASSIVE_IGNORE
     stream_spy_state = {STATE_PASSIVE_IGNORE: True}
-except:
+except Exception:
     stream_spy_state = {}
 
 stream_spy = on_message(priority=5,
@@ -471,6 +471,6 @@ async def _(matcher: Matcher,
             res = await engine.trans(source, target, msg)
             res = res.replace("{", "").replace("}", "")
         except EngineError as e:
-            logger.warning(F"翻译引擎异常：{repr(e)}")
+            logger.opt(exception=True).warning(F"翻译引擎异常：{repr(e)}")
             await matcher.finish()
         await matcher.finish(f"翻:{res}")

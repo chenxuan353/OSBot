@@ -15,7 +15,7 @@ from cacheout.memoization import memoize
 from .twitter import AsyncTwitterClient, TwitterUpdate, TwitterTweetModel, TwitterUserModel, TwitterSubscribeModel, TweetTypeEnum, TwitterDatabaseException, AsyncTwitterStream
 from .logger import logger
 from .config import config, TwitterPlugSession, TwitterSession
-from .exception import TwitterPollingSendError
+from .exception import TwitterPollingSendError, TwitterException
 
 from ..os_bot_base.util import get_plugin_session, plug_is_disable, get_session, inhibiting_exception
 from ..os_bot_base.notice import UrgentNotice, BotSend
@@ -91,28 +91,39 @@ class PollTwitterUpdate(TwitterUpdate):
         """
             用户查看用途
         """
-        msg = v11.Message(f"{user.name}@{user.username}")
-        if bot_type == V11Adapter.get_type():
-            if user.profile_image_url:
-                url = user.profile_image_url
-                if url.endswith(("_normal.jpg", "_normal.png")):
-                    url = url[:-len("_normal.jpg")] + url[-4:]
-                msg += v11.Message("\n") + v11.MessageSegment.image(file=url)
-        else:
-            logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
-        msg += f"\n粉丝 {user.followers_count} 关注 {user.following_count}"
-        msg += f"\n推文 {user.tweet_count}"
-        msg += f"\n置顶 {user.pinned_tweet_id}"
-        msg += f"\n---简介---\n{user.description}"
-        tags = []
-        if user.protected:
-            tags.append("推文受保护")
-        if user.verified:
-            tags.append("已验证")
-        if tags:
-            msg += '\n' + "、".join(tags)
-        msg += f"\n建于 {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
-        return msg
+        try:
+            msg = v11.Message(f"{user.name}@{user.username}")
+            if bot_type == V11Adapter.get_type():
+                if user.profile_image_url:
+                    url = user.profile_image_url
+                    if url.endswith(("_normal.jpg", "_normal.png")):
+                        url = url[:-len("_normal.jpg")] + url[-4:]
+                    msg += v11.Message("\n") + v11.MessageSegment.image(file=url)
+            else:
+                logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
+            msg += f"\n粉丝 {user.followers_count} 关注 {user.following_count}"
+            msg += f"\n推文 {user.tweet_count}"
+            msg += f"\n置顶 {user.pinned_tweet_id}"
+            msg += f"\n---简介---\n{user.description}"
+            tags = []
+            if user.protected:
+                tags.append("推文受保护")
+            if user.verified:
+                tags.append("已验证")
+            if tags:
+                msg += '\n' + "、".join(tags)
+            msg += f"\n建于 {user.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+            return msg
+        except Exception as e:
+            try:
+                from tortoise.contrib.pydantic import pydantic_model_creator
+                pmc = pydantic_model_creator(TwitterUserModel)
+                p_user = await pmc.from_tortoise_orm(user)
+                logger.opt(exception=True).error("推特用户信息展示异常：{}", p_user.json())
+            except Exception:
+                logger.opt(exception=True).error("推特用户信息展示异常：{}", user)
+                raise TwitterException("尝试展示推特用户数据时异常", cause=e)
+            raise e
 
     async def tweet_to_message(
         self,
@@ -124,113 +135,123 @@ class PollTwitterUpdate(TwitterUpdate):
         """
             推文查看用途
         """
-        if not relate_tweet and tweet.referenced_tweet_id:
-            relate_tweet = await self.client.model_tweet_get_or_none(
-                tweet.referenced_tweet_id)
-        # 标题及依赖推文
-        msg = v11.Message()
-        if tweet.type == TweetTypeEnum.tweet:
-            msg = f"{tweet.author_name}的推文~"
-            # 附加主推文
-            msg += f"\n{tweet.display_text}"
-            if tweet_trans and tweet.trans_text:
-                msg += f"\n--------"
-                msg += f"\n{tweet.trans_text}"
-        elif tweet.type == TweetTypeEnum.retweet:
-            if tweet.author_id == tweet.referenced_tweet_author_id:
-                msg = f"{tweet.author_name}\n转了自己的推"
-            else:
-                msg = f"{tweet.author_name}转了\n{tweet.referenced_tweet_author_name}的推文"
-            if relate_tweet:
-                msg += f"\n{relate_tweet.display_text}"
-                if tweet_trans and relate_tweet.trans_text:
-                    msg += f"\n------"
-                    msg += f"\n{relate_tweet.trans_text}"
-            else:
-                logger.warning("转推更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
-                               tweet.referenced_tweet_id)
+        try:
+            if not relate_tweet and tweet.referenced_tweet_id:
+                relate_tweet = await self.client.model_tweet_get_or_none(
+                    tweet.referenced_tweet_id)
+            # 标题及依赖推文
+            msg = v11.Message()
+            if tweet.type == TweetTypeEnum.tweet:
+                msg = f"{tweet.author_name}的推文~"
+                # 附加主推文
                 msg += f"\n{tweet.display_text}"
-                msg += "\n>依赖推文缺失\n"
-                return msg
-        elif tweet.type == TweetTypeEnum.quote:
-            if tweet.author_id == tweet.referenced_tweet_author_id:
-                msg = f"{tweet.author_name}\n转评了自己的推文~"
-            else:
-                msg = f"{tweet.author_name}\n转评了\n{tweet.referenced_tweet_author_name}的推文"
-            # 附加主推文
-            msg += f"\n{tweet.display_text}"
-            if tweet_trans and tweet.trans_text:
-                msg += f"\n------"
-                msg += f"\n{tweet.trans_text}"
-            if relate_tweet:
-                msg += f"\n========"
-                msg += f"\n{relate_tweet.display_text}"
-                if tweet_trans and relate_tweet.trans_text:
+                if tweet_trans and tweet.trans_text:
+                    msg += f"\n--------"
+                    msg += f"\n{tweet.trans_text}"
+            elif tweet.type == TweetTypeEnum.retweet:
+                if tweet.author_id == tweet.referenced_tweet_author_id:
+                    msg = f"{tweet.author_name}\n转了自己的推"
+                else:
+                    msg = f"{tweet.author_name}转了\n{tweet.referenced_tweet_author_name}的推文"
+                if relate_tweet:
+                    msg += f"\n{relate_tweet.display_text}"
+                    if tweet_trans and relate_tweet.trans_text:
+                        msg += f"\n------"
+                        msg += f"\n{relate_tweet.trans_text}"
+                else:
+                    logger.warning("转推更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
+                                tweet.referenced_tweet_id)
+                    msg += f"\n{tweet.display_text}"
+                    msg += "\n>依赖推文缺失\n"
+                    return msg
+            elif tweet.type == TweetTypeEnum.quote:
+                if tweet.author_id == tweet.referenced_tweet_author_id:
+                    msg = f"{tweet.author_name}\n转评了自己的推文~"
+                else:
+                    msg = f"{tweet.author_name}\n转评了\n{tweet.referenced_tweet_author_name}的推文"
+                # 附加主推文
+                msg += f"\n{tweet.display_text}"
+                if tweet_trans and tweet.trans_text:
                     msg += f"\n------"
-                    msg += f"\n{relate_tweet.trans_text}"
-            else:
-                logger.warning("转评更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
-                               tweet.referenced_tweet_id)
-                msg += f"\n========\n引用推文数据缺失"
-        elif tweet.type == TweetTypeEnum.replay:
-            if tweet.author_id == tweet.referenced_tweet_author_id:
-                msg = f"{tweet.author_name}\n回复了自己的推"
-            else:
-                msg = f"{tweet.author_name}\n回复了\n{tweet.referenced_tweet_author_name}的推"
-            # 附加主推文
-            msg += f"\n{tweet.display_text}"
-            if tweet_trans and tweet.trans_text:
-                msg += f"\n------"
-                msg += f"\n{tweet.trans_text}"
-            if relate_tweet:
-                msg += f"\n========"
-                msg += f"\n{relate_tweet.display_text}"
-                if tweet_trans and relate_tweet.trans_text:
+                    msg += f"\n{tweet.trans_text}"
+                if relate_tweet:
+                    msg += f"\n========"
+                    msg += f"\n{relate_tweet.display_text}"
+                    if tweet_trans and relate_tweet.trans_text:
+                        msg += f"\n------"
+                        msg += f"\n{relate_tweet.trans_text}"
+                else:
+                    logger.warning("转评更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
+                                tweet.referenced_tweet_id)
+                    msg += f"\n========\n引用推文数据缺失"
+            elif tweet.type == TweetTypeEnum.replay:
+                if tweet.author_id == tweet.referenced_tweet_author_id:
+                    msg = f"{tweet.author_name}\n回复了自己的推"
+                else:
+                    msg = f"{tweet.author_name}\n回复了\n{tweet.referenced_tweet_author_name}的推"
+                # 附加主推文
+                msg += f"\n{tweet.display_text}"
+                if tweet_trans and tweet.trans_text:
                     msg += f"\n------"
-                    msg += f"\n{relate_tweet.trans_text}"
+                    msg += f"\n{tweet.trans_text}"
+                if relate_tweet:
+                    msg += f"\n========"
+                    msg += f"\n{relate_tweet.display_text}"
+                    if tweet_trans and relate_tweet.trans_text:
+                        msg += f"\n------"
+                        msg += f"\n{relate_tweet.trans_text}"
+                else:
+                    logger.warning("回复更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
+                                tweet.referenced_tweet_id)
+                    msg += f"\n========\n引用推文数据缺失"
+            elif tweet.type == TweetTypeEnum.quote_replay:
+                msg = f"{tweet.author_name}\n带推回复了\n{tweet.referenced_tweet_author_name}的推"
+                # 附加主推文
+                msg += f"\n{tweet.display_text}"
+                if tweet_trans and tweet.trans_text:
+                    msg += f"\n------"
+                    msg += f"\n{tweet.trans_text}"
             else:
-                logger.warning("回复更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
-                               tweet.referenced_tweet_id)
-                msg += f"\n========\n引用推文数据缺失"
-        elif tweet.type == TweetTypeEnum.quote_replay:
-            msg = f"{tweet.author_name}\n带推回复了\n{tweet.referenced_tweet_author_name}的推"
-            # 附加主推文
-            msg += f"\n{tweet.display_text}"
-            if tweet_trans and tweet.trans_text:
-                msg += f"\n------"
-                msg += f"\n{tweet.trans_text}"
-        else:
-            logger.warning("异常推文类型({})：{}", tweet.id, tweet.type)
-            msg = f"{tweet.author_name} 的未知类型推文"
-            msg += f"\n{tweet.display_text}"
-        # 拼接图片
-        if tweet.medias:
-            # type photo, GIF, video
-            type = tweet.medias[0].get("type", "")
-            if type.lower() in ("video", "gif"):
-                url = ""
-                variants: Optional[Dict[str,
-                                        str]] = tweet.medias[0].get('variants')
-                if variants:
-                    url = variants.get("url", "")
-                msg += f"\n 包含视频或Gif {url}"
-            if bot_type == V11Adapter.get_type():
-                for media in tweet.medias:
-                    display_url = None
-                    if media.get("type", "").lower() in ("video", "gif"):
-                        display_url = media.get("preview_image_url")
-                    elif media.get("type", "").lower() == "photo":
-                        display_url = media.get("url")
-                    if display_url:
-                        msg += v11.MessageSegment.image(file=display_url)
-                    else:
-                        logger.warning("推文媒体缺失 媒体类型 {} 推送目标 {} 推文 {} ",
-                                       media.get("type", ""), bot_type,
-                                       tweet.id)
-            else:
-                logger.debug("暂未支持的推送适配器 {} 推文 {} ", bot_type, tweet.id)
-        return msg
-
+                logger.warning("异常推文类型({})：{}", tweet.id, tweet.type)
+                msg = f"{tweet.author_name} 的未知类型推文"
+                msg += f"\n{tweet.display_text}"
+            # 拼接图片
+            if tweet.medias:
+                # type photo, GIF, video
+                type = tweet.medias[0].get("type", "")
+                if type.lower() in ("video", "gif"):
+                    url = ""
+                    variants: Optional[Dict[str,
+                                            str]] = tweet.medias[0].get('variants')
+                    if variants:
+                        url = variants.get("url", "")
+                    msg += f"\n 包含视频或Gif {url}"
+                if bot_type == V11Adapter.get_type():
+                    for media in tweet.medias:
+                        display_url = None
+                        if media.get("type", "").lower() in ("video", "gif"):
+                            display_url = media.get("preview_image_url")
+                        elif media.get("type", "").lower() == "photo":
+                            display_url = media.get("url")
+                        if display_url:
+                            msg += v11.MessageSegment.image(file=display_url)
+                        else:
+                            logger.warning("推文媒体缺失 媒体类型 {} 推送目标 {} 推文 {} ",
+                                        media.get("type", ""), bot_type,
+                                        tweet.id)
+                else:
+                    logger.debug("暂未支持的推送适配器 {} 推文 {} ", bot_type, tweet.id)
+            return msg
+        except Exception as e:
+            try:
+                from tortoise.contrib.pydantic import pydantic_model_creator
+                pmc = pydantic_model_creator(TwitterTweetModel)
+                p_tweet = await pmc.from_tortoise_orm(tweet)
+                logger.opt(exception=True).error("推特信息展示异常：{}", p_tweet.json())
+            except Exception:
+                logger.opt(exception=True).error("推特信息展示异常：{}", tweet)
+                raise TwitterException("尝试展示推特数据时异常", cause=e)
+            raise e
     async def push_tweet_message(self,
                                  subscribe: TwitterSubscribeModel,
                                  tweet: TwitterTweetModel,

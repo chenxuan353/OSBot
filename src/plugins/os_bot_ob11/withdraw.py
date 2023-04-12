@@ -88,7 +88,7 @@ async def save_msg_id_v11(bot: BaseBot, e: Optional[Exception], api: str,
         msg_ids[key].append(msg_id)
         if len(msg_ids) > max_size:
             msg_ids[key].pop(0)
-    except:
+    except Exception:
         pass
 
 
@@ -118,7 +118,7 @@ async def save_msg_id_v12(bot: BaseBot, e: Optional[Exception], api: str,
         msg_ids[key].append(msg_id)
         if len(msg_ids) > max_size:
             msg_ids[key].pop(0)
-    except:
+    except Exception:
         pass
 
 
@@ -184,7 +184,7 @@ async def _(
             await delete_message(msg_id)
             remove_msg_id(key, msg_id)
             return
-        except:
+        except Exception:
             await withdraw.finish("撤回失败，可能已超时")
 
     def extract_num(text: str) -> Tuple[int, int]:
@@ -212,7 +212,7 @@ async def _(
         try:
             await delete_message(message_id)
             msg_ids[key].remove(message_id)
-        except:
+        except Exception:
             if not res:
                 res = "撤回失败，可能已超时"
                 if end_num - start_num > 1:

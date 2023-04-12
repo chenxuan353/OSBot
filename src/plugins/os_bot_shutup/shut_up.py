@@ -188,7 +188,7 @@ async def _(bot: Bot, api: str, data: Dict[str, Any]):
             if data.get("user_id") in config.superusers or int(
                     data.get("user_id", 0)) in config.superusers:
                 return
-        except:
+        except Exception:
             pass
     else:
         return

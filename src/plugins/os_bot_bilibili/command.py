@@ -90,7 +90,7 @@ async def _(matcher: Matcher,
                             finish_msgs[random.randint(0,
                                                        len(finish_msgs) - 1)])
                         return
-            except Exception as e:
+            except Exception:
                 logger.opt(exception=True).warning("登录失败")
                 finish_msgs = ('登录失败', '未能成功登录')
                 await bot.send(
@@ -100,7 +100,7 @@ async def _(matcher: Matcher,
             try:
                 credential.raise_for_no_bili_jct()
                 credential.raise_for_no_sessdata()
-            except:
+            except Exception:
                 finish_msgs = ('登录失败', '未能成功登录')
                 await bot.send(
                     mevent, finish_msgs[random.randint(0,

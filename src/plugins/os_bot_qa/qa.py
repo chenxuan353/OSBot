@@ -323,7 +323,7 @@ async def _(matcher: Matcher,
         msg_str_split = msg_str.split("=", maxsplit=1)
         try:
             hit_probability = int(msg_str_split[1])
-        except:
+        except Exception:
             await matcher.finish("设置问题回复概率时`=`后边需要是1-100的整数！")
         if hit_probability <= 0 or hit_probability > 100:
             await matcher.finish("设置问题回复概率时`=`后边需要是1-100的整数！")
@@ -483,7 +483,7 @@ async def _(matcher: Matcher,
         msg_str_split = msg_str.split(">", maxsplit=1)
         try:
             page = int(msg_str_split[1])
-        except:
+        except Exception:
             await matcher.finish("查看问题时`>`后边需要是合法的页码！")
         if page <= 0:
             page = 1
@@ -581,7 +581,7 @@ async def _(matcher: Matcher,
     msg_str_split = msg_str.split(">", maxsplit=1)
     try:
         reply_id = int(msg_str_split[1])
-    except:
+    except Exception:
         await matcher.finish("删除回复时`>`后边需要是合法的回复序号！")
     if reply_id <= 0:
         await matcher.finish("删除回复时`>`后边需要是合法的回复序号！")

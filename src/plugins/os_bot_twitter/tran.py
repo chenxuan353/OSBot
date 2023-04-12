@@ -89,20 +89,20 @@ class TwitterTrans:
         try:
             if self.context:
                 await self.context.close()
-        except:
+        except Exception:
             logger.opt(exception=True).debug("关闭playwright上下文时异常")
         logger.debug("尝试关闭playwright browser")
         try:
             if self.browser:
                 await self.browser.close()
-        except:
+        except Exception:
             logger.opt(exception=True).debug("关闭playwright浏览器时异常")
         logger.debug("尝试关闭playwright")
 
         async def stop_playwright():
             try:
                 await self.playwright.stop()  # type: ignore
-            except:
+            except Exception:
                 logger.opt(exception=True).debug("关闭playwright时异常")
                 return
             logger.debug("成功关闭playwright")

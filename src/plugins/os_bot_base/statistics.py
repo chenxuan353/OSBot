@@ -369,7 +369,7 @@ class ApiCalledSession(Session):
 def any_to_str(obj):
     try:
         return str(obj)
-    except Exception as _:
+    except Exception:
         return f"Type Error:{type(obj)}"
 
 
