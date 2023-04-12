@@ -221,7 +221,8 @@ async def _():
                              seconds_to_dhms(end_time - start_time))
             if len(listeners) <= 3:
                 await asyncio.sleep(5)
-
+            else:
+                await asyncio.sleep(max(random.randint(*channel.poll_interval) / len(urls) / 1000, 1))
     pools = []
 
     for subtype in channel_subtype_map:
