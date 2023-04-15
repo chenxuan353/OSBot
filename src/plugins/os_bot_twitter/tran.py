@@ -88,13 +88,13 @@ class TwitterTrans:
         logger.debug("尝试关闭playwright context")
         try:
             if self.context:
-                await self.context.close()
+                await asyncio.wait_for(self.context.close(), timeout=15)
         except Exception:
             logger.opt(exception=True).debug("关闭playwright上下文时异常")
         logger.debug("尝试关闭playwright browser")
         try:
             if self.browser:
-                await self.browser.close()
+                await asyncio.wait_for(self.browser.close(), timeout=15)
         except Exception:
             logger.opt(exception=True).debug("关闭playwright浏览器时异常")
         logger.debug("尝试关闭playwright")
