@@ -643,7 +643,7 @@ _update_all_listener_lock_task: Optional[asyncio.Future] = None
 @inhibiting_exception()
 def update_all_listener():
     """
-        更新所有用户的时间线（异步）
+        更新所有用户的时间线（自动异步，可等待）
 
         包含多次运行锁，多次运行时若已有实例在运行则返回该实例
     """
@@ -766,6 +766,7 @@ async def _():
                 await asyncio.sleep(30)
                 if stream.is_running():
                     return
+                await update_all_listener()
                 if time() - last_check_send > 3600:
                     # 两次提醒间隔1小时
                     last_check_send = time()

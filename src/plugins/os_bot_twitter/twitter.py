@@ -782,6 +782,13 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         logger.info("推特过滤流已连接！")
         UrgentNotice.add_notice("推特过滤流已连接！")
 
+        @inhibiting_exception()
+        async def delay_run():
+            await asyncio.sleep(10)
+            self.delay_update_all_listener()
+
+        asyncio.gather(delay_run())
+
     async def on_tweet(self, tweet: Tweet):
         await self.client.get_tweet(f"{tweet.id}", use_limit=False)
 
@@ -811,7 +818,8 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
     async def on_connection_error(self):
         # API错误，会导致流暂时断开（tweepy将开始重试） aiohttp.ClientConnectionError,aiohttp.ClientPayloadError
-        logger.warning("推特流式传输连接异常！ (或发生 ClientConnectionError or ClientPayloadError)")
+        logger.warning(
+            "推特流式传输连接异常！ (或发生 ClientConnectionError or ClientPayloadError)")
         self.delay_update_all_listener()
         UrgentNotice.add_notice("推特流式传输连接异常")
 
@@ -860,10 +868,11 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
     def delay_update_all_listener(self):
         from .polling import update_all_listener
-        asyncio.gather(update_all_listener())
+        update_all_listener()
 
 
 # aiohttp.ClientSession = functools.partial(aiohttp.ClientSession, request_class=ProxyClientRequest)
+
 
 class AsyncTwitterStream:
 
