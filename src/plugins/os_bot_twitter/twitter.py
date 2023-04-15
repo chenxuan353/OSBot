@@ -870,8 +870,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         pass
 
 
-aiohttp.ClientSession.__init__ = functools.partial(aiohttp.ClientSession.__init__, request_class=ProxyClientRequest)
-
+# aiohttp.ClientSession = functools.partial(aiohttp.ClientSession, request_class=ProxyClientRequest)
 
 class AsyncTwitterStream:
 
@@ -884,6 +883,8 @@ class AsyncTwitterStream:
             max_retries=inf,  # 无限重试
             proxy=URL(config.os_twitter_proxy),
         )
+        # self.stream.session = aiohttp.ClientSession(  # type: ignore
+        #     request_class=ProxyClientRequest, timeout=aiohttp.ClientTimeout(connect=15, sock_read=300))
 
         self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,referenced_tweets.id.author_id"
         self.tweet_fields = (
