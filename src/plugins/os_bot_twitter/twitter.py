@@ -863,13 +863,6 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         asyncio.gather(update_all_listener())
 
 
-    async def _connect(
-        self, method, url, params=None, headers=None, body=None,
-        oauth_client=None, timeout=21
-    ):
-        pass
-
-
 # aiohttp.ClientSession = functools.partial(aiohttp.ClientSession, request_class=ProxyClientRequest)
 
 class AsyncTwitterStream:
