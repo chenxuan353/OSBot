@@ -793,8 +793,8 @@ async def _():
             async def inner_update():
                 logger.info("推特时间线启动检测开始")
                 strat_deal_time = time()
-                await update_all_listener()
-                logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
+                # await update_all_listener()
+                # logger.info(f"推特时间线启动检测结束 耗时 {time() - strat_deal_time:.2f}s")
                 await asyncio.sleep(15)
                 logger.debug("推特流式监听尝试连接")
                 await stream.connect()
