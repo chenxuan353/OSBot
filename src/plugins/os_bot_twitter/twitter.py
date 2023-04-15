@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from time import time
 from typing import Any, Dict, List, Optional, Tuple, Type
 import aiohttp
@@ -862,6 +863,15 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         asyncio.gather(update_all_listener())
 
 
+    async def _connect(
+        self, method, url, params=None, headers=None, body=None,
+        oauth_client=None, timeout=21
+    ):
+        pass
+
+
+aiohttp.ClientSession = functools.partial(aiohttp.ClientSession, request_class=ProxyClientRequest)
+
 class AsyncTwitterStream:
 
     def __init__(self, client: AsyncTwitterClient) -> None:
@@ -873,8 +883,6 @@ class AsyncTwitterStream:
             max_retries=inf,  # 无限重试
             proxy=URL(config.os_twitter_proxy),
         )
-        self.stream.session = aiohttp.ClientSession(  # type: ignore
-            request_class=ProxyClientRequest, timeout=aiohttp.ClientTimeout(connect=15, sock_read=300))
 
         self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,referenced_tweets.id.author_id"
         self.tweet_fields = (
