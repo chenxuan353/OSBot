@@ -1075,7 +1075,7 @@ async def tweet_tran_deal(matcher: Matcher, bot: Bot, event: v11.MessageEvent,
                 "遇到无法载图可以重试哦", "使用`看推 序号`查看历史推文", "可以用推文列表检查历史推文~",
                 "遇到BUG及时反馈~"
             ]
-            tip = tips[random.randint(0, len(finish_msgs) - 1)]
+            tip = tips[random.randint(0, len(tips) - 1)]
             msg += v11.MessageSegment.text(tip)
         elif not arg.tail:
             msg += v11.MessageSegment.text("推荐使用`看推 序号/链接`查看推文")

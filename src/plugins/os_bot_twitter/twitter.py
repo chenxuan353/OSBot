@@ -10,6 +10,7 @@ from requests_oauthlib import OAuth1Session
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
 from collections import deque
+from math import inf
 
 from .model import TwitterTweetModel, TwitterUserModel, TweetTypeEnum, TwitterSubscribeModel
 from .logger import logger
@@ -791,32 +792,43 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
             except Exception as e:
                 logger.opt(exception=True).error("推特流式传输中转换用户对象异常 {}", e)
 
-    async def on_exception(self, exception):
-        self.connect_error(exception)
-        if isinstance(exception, asyncio.TimeoutError):
-            logger.warning("推特过滤流超时，在15秒后重试")
-            await self.connect_retry(delay=15)
-            return
-        if isinstance(exception, aiohttp.ClientConnectorError):
-            logger.warning("推特过滤流连接异常（连接错误），在15秒后重试")
-            await self.connect_retry(delay=15)
-            return
-        logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
-
     async def on_errors(self, errors):
+        # 流式传输中的错误，不影响流
         logger.warning("推特过滤流错误 errors:{}", errors)
 
-    async def on_closed(self, resp):
-        logger.error("推特过滤流被推特关闭，在15秒后尝试重连 {}", resp)
-        self.connect_error(resp)
-        await self.connect_retry(delay=15)
+    async def on_close(self, resp):
+        # 过滤流被关闭（tweepy将开始重试）
+        logger.warning("推特过滤流被关闭")
+        self.delay_update_all_listener()
 
-    async def on_disconnect(self):
-        logger.info("推特过滤流已断开连接")
-        UrgentNotice.add_notice("推特过滤流已断开连接")
+    async def on_request_error(self, status):
+        # API流链接请求失败，429之类的问题, 是没什么用的on（tweepy将开始重试）
+        logger.error("推特监听流链接异常 reques status {}", status)
+        self.delay_update_all_listener()
 
     async def on_connection_error(self):
+        # API错误，会导致流暂时断开（tweepy将开始重试） aiohttp.ClientConnectionError,aiohttp.ClientPayloadError
         logger.warning("推特流式传输连接失败，连接超时！ (或发生 ClientPayloadError)")
+        self.delay_update_all_listener()
+
+    async def on_exception(self, exception):
+        # 侦听异常，会导致意外关闭
+        logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
+
+        @inhibiting_exception()
+        async def in_func():
+            self.is_retry = True
+            # 自动重连
+            await asyncio.sleep(30)
+            await self.async_stream.connect()
+            self.delay_update_all_listener()
+            self.is_retry = False
+
+        asyncio.gather(in_func())
+
+    async def on_disconnect(self):
+        # 真正关闭后时调用此方法
+        logger.error("推特过滤流已断开连接")
 
     def isrunning(self, ignore_retry: bool = False):
         if not ignore_retry and self.is_retry:
@@ -840,33 +852,9 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     def connect_error_clear(self):
         self.error.clear()
 
-    async def connect_retry(self, delay: int = 5):
-        """
-            连接重试机制（异步）
-
-            delay 延迟几秒执行
-
-            意外断开时的重试 规则 - 至多尝试五次。
-        """
-
-        @inhibiting_exception()
-        async def wait():
-            if self.is_retry:
-                return
-            self.is_retry = True
-            try:
-                await asyncio.sleep(delay)
-                if self.connect_error_count() >= 5:
-                    logger.error("推特过滤流连接失败次数达到五次，已停止尝试，请检查问题！")
-                    self.is_retry = False
-                    return
-                if not self.isrunning(ignore_retry=True):
-                    await self.async_stream.connect()
-                    self.is_retry = False
-            finally:
-                self.is_retry = False
-
-        asyncio.gather(wait())
+    def delay_update_all_listener(self):
+        from .polling import update_all_listener
+        asyncio.gather(update_all_listener())
 
 
 class AsyncTwitterStream:
@@ -877,7 +865,7 @@ class AsyncTwitterStream:
             config.os_twitter_bearer,
             self,
             wait_on_rate_limit=True,
-            max_retries=3,
+            max_retries=inf,  # 无限重试
             proxy=URL(config.os_twitter_proxy),
         )
         self.stream.session = aiohttp.ClientSession(  # type: ignore
@@ -941,9 +929,12 @@ class AsyncTwitterStream:
 
     async def reconnect(self):
         if self.stream.isrunning():
+            self.stream.is_retry = True
             self.stream.disconnect()
-            await asyncio.sleep(10)
+            await asyncio.sleep(30)
+        self.stream.is_retry = True
         await self.connect()
+        self.stream.is_retry = False
 
     def is_running(self):
         return self.stream.isrunning()

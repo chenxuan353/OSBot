@@ -204,8 +204,8 @@ async def _():
                     channel_session.set_subscribe_info(channel, listener, info)
 
                 except BaseException as e:
-                    logger.warning("{}-{} 轮询请求失败:{}", channel.channel_type,
-                                   channel.channel_subtype, str(e))
+                    logger.warning("{}-{} 轮询请求失败:{} - {}", channel.channel_type,
+                                   channel.channel_subtype, type(e), str(e))
                 except Exception as e:
                     logger.opt(exception=True).error("轮询中发生意外的报错")
                 await asyncio.sleep(

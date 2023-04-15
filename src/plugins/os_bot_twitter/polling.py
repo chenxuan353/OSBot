@@ -98,7 +98,8 @@ class PollTwitterUpdate(TwitterUpdate):
                     url = user.profile_image_url
                     if url.endswith(("_normal.jpg", "_normal.png")):
                         url = url[:-len("_normal.jpg")] + url[-4:]
-                    msg += v11.Message("\n") + v11.MessageSegment.image(file=url)
+                    msg += v11.Message("\n") + v11.MessageSegment.image(
+                        file=url)
             else:
                 logger.debug("暂未支持的推送适配器 {} 相关用户 {}", bot_type, user.id)
             msg += f"\n粉丝 {user.followers_count} 关注 {user.following_count}"
@@ -119,7 +120,8 @@ class PollTwitterUpdate(TwitterUpdate):
                 from tortoise.contrib.pydantic import pydantic_model_creator
                 pmc = pydantic_model_creator(TwitterUserModel)
                 p_user = await pmc.from_tortoise_orm(user)
-                logger.opt(exception=True).error("推特用户信息展示异常：{}", p_user.json())
+                logger.opt(exception=True).error("推特用户信息展示异常：{}",
+                                                 p_user.json())
             except Exception:
                 logger.opt(exception=True).error("推特用户信息展示异常：{}", user)
                 raise TwitterException("尝试展示推特用户数据时异常", cause=e)
@@ -160,7 +162,7 @@ class PollTwitterUpdate(TwitterUpdate):
                         msg += f"\n{relate_tweet.trans_text}"
                 else:
                     logger.warning("转推更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
-                                tweet.referenced_tweet_id)
+                                   tweet.referenced_tweet_id)
                     msg += f"\n{tweet.display_text}"
                     msg += "\n>依赖推文缺失\n"
                     return msg
@@ -182,7 +184,7 @@ class PollTwitterUpdate(TwitterUpdate):
                         msg += f"\n{relate_tweet.trans_text}"
                 else:
                     logger.warning("转评更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
-                                tweet.referenced_tweet_id)
+                                   tweet.referenced_tweet_id)
                     msg += f"\n========\n引用推文数据缺失"
             elif tweet.type == TweetTypeEnum.replay:
                 if tweet.author_id == tweet.referenced_tweet_author_id:
@@ -202,7 +204,7 @@ class PollTwitterUpdate(TwitterUpdate):
                         msg += f"\n{relate_tweet.trans_text}"
                 else:
                     logger.warning("回复更新涉及的依赖推文不存在！ 主推文 {} 依赖推文 {}", tweet.id,
-                                tweet.referenced_tweet_id)
+                                   tweet.referenced_tweet_id)
                     msg += f"\n========\n引用推文数据缺失"
             elif tweet.type == TweetTypeEnum.quote_replay:
                 msg = f"{tweet.author_name}\n带推回复了\n{tweet.referenced_tweet_author_name}的推"
@@ -221,10 +223,11 @@ class PollTwitterUpdate(TwitterUpdate):
                 type = tweet.medias[0].get("type", "")
                 if type.lower() in ("video", "gif"):
                     url = ""
-                    variants: Optional[Dict[str,
-                                            str]] = tweet.medias[0].get('variants')
+                    variants: Optional[List[Dict[str,
+                                                 str]]] = tweet.medias[0].get(
+                                                     'variants', [])
                     if variants:
-                        url = variants.get("url", "")
+                        url = variants[0].get("url", "")
                     msg += f"\n 包含视频或Gif {url}"
                 if bot_type == V11Adapter.get_type():
                     for media in tweet.medias:
@@ -237,8 +240,8 @@ class PollTwitterUpdate(TwitterUpdate):
                             msg += v11.MessageSegment.image(file=display_url)
                         else:
                             logger.warning("推文媒体缺失 媒体类型 {} 推送目标 {} 推文 {} ",
-                                        media.get("type", ""), bot_type,
-                                        tweet.id)
+                                           media.get("type", ""), bot_type,
+                                           tweet.id)
                 else:
                     logger.debug("暂未支持的推送适配器 {} 推文 {} ", bot_type, tweet.id)
             return msg
@@ -252,6 +255,7 @@ class PollTwitterUpdate(TwitterUpdate):
                 logger.opt(exception=True).error("推特信息展示异常：{}", tweet)
                 raise TwitterException("尝试展示推特数据时异常", cause=e)
             raise e
+
     async def push_tweet_message(self,
                                  subscribe: TwitterSubscribeModel,
                                  tweet: TwitterTweetModel,
@@ -633,41 +637,63 @@ async def update_all_listen_user():
     logger.debug("已成功更新所有用户信息 共 {} 位", len(ids))
 
 
+_update_all_listener_lock_task: Optional[asyncio.Future] = None
+
+
 @inhibiting_exception()
-async def update_all_listener():
+def update_all_listener():
     """
         更新所有用户的时间线（异步）
-    """
-    listeners = await _model_get_listeners()
-    for listener in listeners:
-        try:
-            user = await client.model_user_get_or_none(listener)
-            if not user:
-                logger.error(" {} 用户信息不存在，已跳过时间线更新", id)
-                continue
-            if user.protected:
-                logger.error(" {} 的时间线，受保护，已跳过时间线更新", listener)
-                continue
-            try:
-                await client.get_timeline(id=listener)
-            except (asyncio.exceptions.TimeoutError, aiohttp.ClientError) as e:
-                await asyncio.sleep(10)
-                await client.get_timeline(id=listener)
-            logger.debug("已更新 {}@{} 的时间线", user.name, user.username)
-        except Exception as e:
-            user = None
-            try:
-                user = await client.model_user_get_or_none(listener)
-            except Exception as e:
-                pass
-            if not user:
-                logger.opt(exception=True).error("更新 {} 时间线时错误", listener)
-            else:
-                logger.opt(exception=True).error("更新 {}@{} 时间线时错误", user.name,
-                                                 user.username)
 
-        # 时间线更新间隔 3s
-        await asyncio.sleep(3)
+        包含多次运行锁，多次运行时若已有实例在运行则返回该实例
+    """
+    global _update_all_listener_lock_task
+
+    if _update_all_listener_lock_task and not _update_all_listener_lock_task.done(
+    ):
+        return _update_all_listener_lock_task
+
+    @inhibiting_exception()
+    async def in_func():
+        global _update_all_listener_lock_task
+        try:
+            listeners = await _model_get_listeners()
+            for listener in listeners:
+                try:
+                    user = await client.model_user_get_or_none(listener)
+                    if not user:
+                        logger.error(" {} 用户信息不存在，已跳过时间线更新", id)
+                        continue
+                    if user.protected:
+                        logger.error(" {} 的时间线，受保护，已跳过时间线更新", listener)
+                        continue
+                    try:
+                        await client.get_timeline(id=listener)
+                    except (asyncio.exceptions.TimeoutError,
+                            aiohttp.ClientError) as e:
+                        await asyncio.sleep(10)
+                        await client.get_timeline(id=listener)
+                    logger.debug("已更新 {}@{} 的时间线", user.name, user.username)
+                except Exception as e:
+                    user = None
+                    try:
+                        user = await client.model_user_get_or_none(listener)
+                    except Exception as e:
+                        pass
+                    if not user:
+                        logger.opt(exception=True).error(
+                            "更新 {} 时间线时错误", listener)
+                    else:
+                        logger.opt(exception=True).error(
+                            "更新 {}@{} 时间线时错误", user.name, user.username)
+
+                # 时间线更新间隔 3s
+                await asyncio.sleep(3)
+        finally:
+            _update_all_listener_lock_task = None
+
+    _update_all_listener_lock_task = asyncio.create_task(in_func())
+    return _update_all_listener_lock_task
 
 
 async def user_follow_and_update(id: str) -> bool:
@@ -740,10 +766,10 @@ async def _():
                 await asyncio.sleep(30)
                 if stream.is_running():
                     return
-                if time() - last_check_send > 7200:
-                    # 两次发送消息间隔至少两小时
-                    await UrgentNotice.send("推特流式监听可能已被关闭，请检查！")
+                if time() - last_check_send > 3600:
+                    # 两次提醒间隔1小时
                     last_check_send = time()
+                    await UrgentNotice.send("推特流式监听未正常运行")
 
             @scheduler.scheduled_job("interval", seconds=30, name="用户信息更新")
             async def _():

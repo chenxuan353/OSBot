@@ -1,9 +1,10 @@
+import asyncio
 from time import time
 from typing import Any, Dict, Optional, List
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
-from bilibili_api import Credential, user
+from bilibili_api import Credential, ResponseCodeException, user
 from bilibili_api import settings
 from .bilibili import BilibiliOprateUtil
 from .exception import BilibiliCookieVaildFailure, BilibiliOprateFailure
@@ -81,14 +82,18 @@ class BilibiliSession(Session):
                                           bili_jct=self.bili_jct)
         bo = BilibiliOprateUtil(self._credential)
         if time() - self.last_vaild > 86400:
-            if await bo.async_check_valid():
-                self.last_vaild = time()
-                await self.save()
-            else:
-                self.bili_jct = None
-                self.sessdata = None
-                await self.save()
-                return None
+            try:
+                if await bo.async_check_valid():
+                    self.last_vaild = time()
+                    await self.save()
+                    await asyncio.sleep(0.3)
+                else:
+                    self.bili_jct = None
+                    self.sessdata = None
+                    await self.save()
+                    return None
+            except ResponseCodeException as e:
+                raise BilibiliOprateFailure(e.msg, cause=e)
         return self._credential
 
     async def get_self_info(self) -> Dict[str, Any]:
@@ -138,7 +143,8 @@ __plugin_meta__ = PluginMetadata(
         "什么都没有~",  # 管理员可以获取的帮助
         META_SESSION_KEY:
         BilibiliSession,
-        META_DEFAULT_SWITCH: False
+        META_DEFAULT_SWITCH:
+        False
     },
 )
 

@@ -12,6 +12,7 @@ from nonebot.adapters.onebot import v11
 from bilibili_api import Credential, Picture, ResponseCodeException
 from bilibili_api.dynamic import BuildDynmaic, send_dynamic, Dynamic
 from bilibili_api.live import LiveRoom
+from .exception import BilibiliOprateFailure
 from .config import BilibiliSession
 from .logger import logger
 from .bilibili import BilibiliOprateUtil, get_qrcode, check_qrcode_events, QrCodeLoginEvents, get_area_list_sub, async_load_url
@@ -90,6 +91,8 @@ async def _(matcher: Matcher,
                             finish_msgs[random.randint(0,
                                                        len(finish_msgs) - 1)])
                         return
+            except ResponseCodeException as e:
+                raise BilibiliOprateFailure(e.msg, cause=e)
             except Exception:
                 logger.opt(exception=True).warning("登录失败")
                 finish_msgs = ('登录失败', '未能成功登录')
@@ -106,6 +109,7 @@ async def _(matcher: Matcher,
                     mevent, finish_msgs[random.randint(0,
                                                        len(finish_msgs) - 1)])
                 return
+            await asyncio.sleep(0.15)
             session.sessdata = credential.sessdata
             session.bili_jct = credential.bili_jct
             user_info = await session.get_self_info()
@@ -328,16 +332,22 @@ async def _(matcher: Matcher,
                 0,
                 len(finish_msgs) - 1)])
 
-        dyn = BuildDynmaic.empty()
-        dyn.add_text(session._tmp_msg)
-        for img_url in session._tmp_imgs:
-            dyn.add_image(await async_load_url(img_url))
-        result = await send_dynamic(dyn, credential)
-        dyn_id = result["dyn_id"]
+        try:
+            dyn = BuildDynmaic.empty()
+            dyn.add_text(session._tmp_msg)
+            for img_url in session._tmp_imgs:
+                dyn.add_image(await async_load_url(img_url))
+                await asyncio.sleep(0.2)
+
+            result = await send_dynamic(dyn, credential)
+        except ResponseCodeException as e:
+            raise BilibiliOprateFailure(e.msg, cause=e)
+        # dyn_id = result["dyn_id"]
         logger.info("动态发布成功：{}", result)
-        dynamic = Dynamic(dynamic_id=dyn_id, credential=credential)
-        dynamic_info = await dynamic.get_info()
-        logger.info("动态信息：{}", dynamic_info)
+        # dynamic = Dynamic(dynamic_id=dyn_id, credential=credential)
+        # await asyncio.sleep(1.5)
+        # dynamic_info = await dynamic.get_info()
+        # logger.info("动态信息：{}", dynamic_info)
 
         session._tmp_mask = None
         session._tmp_msg = None

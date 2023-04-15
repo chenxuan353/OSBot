@@ -5,10 +5,12 @@
 
     仅保留十五天内的日志
 """
+import logging
 import sys
 import os
 import nonebot
 from nonebot import get_driver
+from nonebot.log import LoguruHandler
 
 from typing import TYPE_CHECKING
 from pydantic import BaseSettings, Field
@@ -67,8 +69,7 @@ logger_id = nonebot.logger.add(
     format=default_format,
 )
 logger_file_info_id = nonebot.logger.add(os.path.join(config.os_data_path,
-                                                      "log",
-                                                      "info.log"),
+                                                      "log", "info.log"),
                                          level=nonebot.logger.level("INFO").no,
                                          diagnose=False,
                                          format=default_format,
@@ -104,3 +105,6 @@ if config.os_log_file_debug or config.log_level == "DEBUG":
 
 logger = nonebot.logger.bind()
 logger = logger.patch(__path)
+
+# 将logging中的日志转发至loguru(Info及以上)
+logging.basicConfig(handlers=[LoguruHandler()], level=logging.INFO)
