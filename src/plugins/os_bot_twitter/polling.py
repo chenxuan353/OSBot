@@ -766,7 +766,7 @@ async def _():
                 await asyncio.sleep(30)
                 if stream.is_running():
                     return
-                await update_all_listener()
+                asyncio.gather(update_all_listener())
                 if time() - last_check_send > 3600:
                     # 两次提醒间隔1小时
                     last_check_send = time()
