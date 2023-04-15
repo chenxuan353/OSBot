@@ -870,7 +870,8 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         pass
 
 
-aiohttp.ClientSession = functools.partial(aiohttp.ClientSession, request_class=ProxyClientRequest)
+aiohttp.ClientSession.__init__ = functools.partial(aiohttp.ClientSession.__init__, request_class=ProxyClientRequest)
+
 
 class AsyncTwitterStream:
 
