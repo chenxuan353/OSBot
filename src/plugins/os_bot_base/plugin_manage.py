@@ -21,6 +21,7 @@ from nonebot import get_driver, get_loaded_plugins, on_command
 from nonebot.params import CommandArg, T_State, EventMessage
 from cacheout import LRUCache
 from cacheout.memoization import lru_memoize
+from tortoise.expressions import Q
 
 from .util.rule import only_command
 from .model.plugin_manage import PluginModel, PluginSwitchModel
@@ -427,6 +428,73 @@ async def _(matcher: Matcher,
     await switchModel.save()
     plug_model_cache_clear()
     await matcher.finish(f"{pluginModel.display_name} >启动<")
+
+
+plug_templates = {
+    "搬运组": {
+        "enable": ["B站", "推特", "搬运组"],
+        "disable": [],
+    }
+}
+
+
+class PlugTemplateArg(ArgMatch):
+
+    class Meta(ArgMatch.Meta):
+        name = "插件模版"
+        des = "插件模版"
+
+    template_name: str = Field.Keys("模版名",
+                                    keys=list(plug_templates.keys()),
+                                    ignoreCase=True,
+                                    ignoreQB=True)
+
+    def __init__(self) -> None:
+        super().__init__([self.template_name])
+
+
+apply_plug_template = on_command("应用插件模版", permission=SUPERUSER)
+
+
+@apply_plug_template.handle()
+@matcher_exception_try()
+async def _(matcher: Matcher,
+            bot: Bot,
+            event: Event,
+            arg: PlugTemplateArg = ArgMatchDepend(PlugTemplateArg)):
+    adapter = AdapterFactory.get_adapter(bot)
+    mark = await adapter.mark_group_without_drive(bot, event)
+    plug_template = plug_templates[arg.template_name]
+    enable: List[str] = plug_template["enable"]
+    disable: List[str] = plug_template["disable"]
+    plug_settings = {}
+
+    for plug_name in enable:
+        pluginModel = await get_plugin(plug_name)
+        plug_settings[pluginModel.name] = True
+
+    for plug_name in disable:
+        pluginModel = await get_plugin(plug_name)
+        plug_settings[pluginModel.name] = False
+
+    entity = {"group_mark": mark}
+    await PluginSwitchModel.filter(Q(name__in=list(plug_settings.keys())),
+                                   **entity).delete()
+
+    switchs = []
+
+    for key in plug_settings:
+        switchModel = PluginSwitchModel()
+        switchModel.name = key
+        switchModel.group_mark = mark
+        switchModel.switch = plug_settings[key]
+        switchs.append(switchModel)
+
+    await PluginSwitchModel.bulk_create(switchs)
+
+    await matcher.finish("已完成~" +
+                         (f"\n启用：{'、'.join(enable)}" if enable else "") +
+                         (f"\n禁用：{'、'.join(disable)}" if disable else ""))
 
 
 plug_list = on_command("插件列表", aliases={"pluglist", "功能列表"})
