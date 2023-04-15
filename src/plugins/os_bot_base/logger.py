@@ -10,7 +10,7 @@ import sys
 import os
 import nonebot
 from nonebot import get_driver
-from nonebot.log import LoguruHandler
+from nonebot.log import LoguruHandler as NbLoguruHandler
 
 from typing import TYPE_CHECKING
 from pydantic import BaseSettings, Field
@@ -105,6 +105,31 @@ if config.os_log_file_debug or config.log_level == "DEBUG":
 
 logger = nonebot.logger.bind()
 logger = logger.patch(__path)
+
+
+class LoguruHandler(logging.Handler):  # pragma: no cover
+    """logging 与 loguru 之间的桥梁，将 logging 的日志转发到 loguru。"""
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            level = nonebot.logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        record.name
+        frame, depth = logging.currentframe(), 2
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        nonebot.logger.opt(depth=depth,
+                   exception=record.exc_info).log(level, record.getMessage())
+
+
+def __emit(self, record: logging.LogRecord):
+    pass
+
+
+NbLoguruHandler.emit = __emit
 
 # 将logging中的日志转发至loguru(Info及以上)
 logging.basicConfig(handlers=[LoguruHandler()], level=logging.INFO)

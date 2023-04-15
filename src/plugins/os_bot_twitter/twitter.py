@@ -868,10 +868,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
     def delay_update_all_listener(self):
         from .polling import update_all_listener
-        update_all_listener()
-
-
-# aiohttp.ClientSession = functools.partial(aiohttp.ClientSession, request_class=ProxyClientRequest)
+        asyncio.gather(update_all_listener())
 
 
 class AsyncTwitterStream:
@@ -885,8 +882,15 @@ class AsyncTwitterStream:
             max_retries=inf,  # 无限重试
             proxy=URL(config.os_twitter_proxy),
         )
-        # self.stream.session = aiohttp.ClientSession(  # type: ignore
-        #     request_class=ProxyClientRequest, timeout=aiohttp.ClientTimeout(connect=15, sock_read=300))
+        self.rule_stream = AsyncTweetUpdateStreamingClient(
+            config.os_twitter_bearer,
+            self,
+            wait_on_rate_limit=True,
+            max_retries=3,  # 无限重试
+            proxy=URL(config.os_twitter_proxy),
+        )
+        self.rule_stream.session = aiohttp.ClientSession( # type: ignore
+            request_class=ProxyClientRequest)
 
         self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,referenced_tweets.id.author_id"
         self.tweet_fields = (
@@ -904,12 +908,12 @@ class AsyncTwitterStream:
         try:
             ids = [
                 rule.id for rule in (
-                    await self.stream.get_rules()).data  # type: ignore
+                    await self.rule_stream.get_rules()).data  # type: ignore
             ]
         except TypeError:
             ids = []
         if ids:
-            await self.stream.delete_rules(ids)
+            await self.rule_stream.delete_rules(ids)
 
         listeners_rules = []
         listeners_line = ""
@@ -935,7 +939,7 @@ class AsyncTwitterStream:
                 logger.warning(info)
                 UrgentNotice.add_notice(info)
 
-        await self.stream.add_rules(listeners_rules)
+        await self.rule_stream.add_rules(listeners_rules)
 
     async def connect(self):
         self.stream.filter(expansions=self.tweet_expansions,
