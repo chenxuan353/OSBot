@@ -874,7 +874,7 @@ class AsyncTwitterStream:
             proxy=URL(config.os_twitter_proxy),
         )
         self.stream.session = aiohttp.ClientSession(  # type: ignore
-            request_class=ProxyClientRequest)
+            request_class=ProxyClientRequest, timeout=aiohttp.ClientTimeout(connect=15, sock_read=300))
 
         self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,referenced_tweets.id.author_id"
         self.tweet_fields = (
