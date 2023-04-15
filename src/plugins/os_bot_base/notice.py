@@ -190,7 +190,7 @@ class UrgentNotice:
     def __init__(self) -> None:
         self.onebot_notify: List[int] = []
         self.onebot_group_notify: List[int] = []
-        self.some_notice_list: Deque[str] = deque(maxlen=512)  # 一些可能有用的数据
+        self.some_notice_list: Deque[str] = deque(maxlen=1024)  # 一些可能有用的数据
 
         self.base_path = os.path.join(config.os_data_path, "cache", "notice")
         self.file_base = os.path.join(self.base_path, "notice")

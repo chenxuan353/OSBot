@@ -795,11 +795,13 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     async def on_errors(self, errors):
         # 流式传输中的错误，不影响流
         logger.warning("推特过滤流错误 errors:{}", errors)
+        UrgentNotice.add_notice("推特过滤流错误")
 
     async def on_close(self, resp):
         # 过滤流被关闭（tweepy将开始重试）
         logger.warning("推特过滤流被关闭")
         self.delay_update_all_listener()
+        UrgentNotice.add_notice("推特过滤流被关闭")
 
     async def on_request_error(self, status):
         # API流链接请求失败，429之类的问题, 是没什么用的on（tweepy将开始重试）
@@ -808,12 +810,14 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
 
     async def on_connection_error(self):
         # API错误，会导致流暂时断开（tweepy将开始重试） aiohttp.ClientConnectionError,aiohttp.ClientPayloadError
-        logger.warning("推特流式传输连接失败，连接超时！ (或发生 ClientPayloadError)")
+        logger.warning("推特流式传输连接异常！ (或发生 ClientConnectionError or ClientPayloadError)")
         self.delay_update_all_listener()
+        UrgentNotice.add_notice("推特流式传输连接异常")
 
     async def on_exception(self, exception):
         # 侦听异常，会导致意外关闭
         logger.opt(exception=True).error("推特过滤流异常 e:{}", exception)
+        UrgentNotice.add_notice("推特过滤流出现意外的异常")
 
         @inhibiting_exception()
         async def in_func():
@@ -829,6 +833,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
     async def on_disconnect(self):
         # 真正关闭后时调用此方法
         logger.error("推特过滤流已断开连接")
+        UrgentNotice.add_notice("推特过滤流已断开连接")
 
     def isrunning(self, ignore_retry: bool = False):
         if not ignore_retry and self.is_retry:
