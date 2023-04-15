@@ -25,8 +25,8 @@ from ..os_bot_base.util import AsyncTokenBucket, inhibiting_exception
 class ProxyClientRequest(aiohttp.ClientRequest):
 
     def __init__(self, *args, proxy=None, **kws):
-        super().__init__(*args, proxy=URL(config.os_twitter_proxy),
-                         **kws)  # type: ignore
+        super().__init__(*args, proxy=URL(config.os_twitter_proxy) if config.os_twitter_proxy else None,
+                            **kws)  # type: ignore
 
 
 class TwitterBuckets:
@@ -719,18 +719,20 @@ class AsyncTwitterClient:
             self.client.consumer_key,
             self.client.consumer_secret,
             callback="oob")
-        self.oauth1_user_handler.oauth.proxies = {
-            "http": config.os_twitter_proxy,
-            "https": config.os_twitter_proxy
-        }
+        if config.os_twitter_proxy:
+            self.oauth1_user_handler.oauth.proxies = {
+                "http": config.os_twitter_proxy,
+                "https": config.os_twitter_proxy
+            }
         return self.oauth1_user_handler.get_authorization_url()
 
     async def generate_accesstoken(self, pin: str) -> Tuple[str, str]:
         oauth1_user_handler = self.oauth1_user_handler
-        oauth1_user_handler.oauth.proxies = {
-            "http": config.os_twitter_proxy,
-            "https": config.os_twitter_proxy
-        }
+        if config.os_twitter_proxy:
+            oauth1_user_handler.oauth.proxies = {
+                "http": config.os_twitter_proxy,
+                "https": config.os_twitter_proxy
+            }
         try:
             url = oauth1_user_handler._get_oauth_url('access_token')
             oauth1_user_handler.oauth = OAuth1Session(
@@ -742,10 +744,11 @@ class AsyncTwitterClient:
                 request_token['oauth_token_secret'],
                 verifier=pin,
                 callback_uri=oauth1_user_handler.callback)
-            oauth1_user_handler.oauth.proxies = {
-                "http": config.os_twitter_proxy,
-                "https": config.os_twitter_proxy
-            }
+            if config.os_twitter_proxy:
+                oauth1_user_handler.oauth.proxies = {
+                    "http": config.os_twitter_proxy,
+                    "https": config.os_twitter_proxy
+                }
             resp = oauth1_user_handler.oauth.fetch_access_token(url)
             oauth1_user_handler.access_token = resp['oauth_token']
             oauth1_user_handler.access_token_secret = resp[
@@ -767,6 +770,7 @@ class AsyncTweetUpdateStreamingClient(BaseAsyncStreamingClient):
         super().__init__(bearer_token,
                          return_type=return_type,
                          wait_on_rate_limit=wait_on_rate_limit,
+                         proxy=URL(config.os_twitter_proxy) if config.os_twitter_proxy else None,
                          **kwargs)
         self.async_stream = async_stream
         self.client = async_stream.client
@@ -880,16 +884,14 @@ class AsyncTwitterStream:
             self,
             wait_on_rate_limit=True,
             max_retries=inf,  # 无限重试
-            proxy=URL(config.os_twitter_proxy),
         )
         self.rule_stream = AsyncTweetUpdateStreamingClient(
             config.os_twitter_bearer,
             self,
             wait_on_rate_limit=True,
             max_retries=3,  # 无限重试
-            proxy=URL(config.os_twitter_proxy),
         )
-        self.rule_stream.session = aiohttp.ClientSession( # type: ignore
+        self.rule_stream.session = aiohttp.ClientSession(  # type: ignore
             request_class=ProxyClientRequest)
 
         self.tweet_expansions = "author_id,referenced_tweets.id,in_reply_to_user_id,referenced_tweets.id.author_id"
