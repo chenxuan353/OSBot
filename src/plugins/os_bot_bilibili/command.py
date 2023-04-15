@@ -381,7 +381,7 @@ for area in _area_list:
 bilibili_live_start = on_command(
     "开启直播间",
     aliases={
-        "开始直播", "开始B站直播", "开启B站直播间", "开始b站直播", "开启b站直播间", "开播", "开启直播", "开启直播间"
+        "开始直播", "开始B站直播", "开启B站直播间", "开始b站直播", "开启b站直播间", "开播", "开启直播", "开启直播间", "打开直播间"
     },
     block=True,
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
@@ -413,7 +413,10 @@ async def _(matcher: Matcher,
     if text == "虚拟主播":
         await matcher.finish("当前分区需要人脸识别，无法开播。")
     if text not in collect_area:
-        await matcher.finish("区域不存在")
+        finish_msgs = ('要填写正确的分区！', '分区错误，可以参考直播页的分区列表哦！', '分区不存在X')
+        await matcher.finish(finish_msgs[random.randint(
+            0,
+            len(finish_msgs) - 1)])
     try:
         area_id = collect_area[text]
         liveRoom = LiveRoom(room_display_id=live_info['room_id'],
