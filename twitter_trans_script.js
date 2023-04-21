@@ -780,7 +780,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         addTimeCallback(100);
                     }
                     if (waitTimeCount > timeout) {
-                        reject("等待超时！");
+                        reject("图片加载等待超时！");
                         return;
                     }
                     if (!imgIsAllLoadComplete()) {
@@ -806,7 +806,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     let checkloop = function () {
                         waitTimeCount += 100;
                         if (waitTimeCount > timeout) {
-                            reject("等待超时！");
+                            reject("推特根元素初始化等待超时！");
                             return;
                         }
                         if (CSSAnchor.rootElem() == null) {
@@ -833,7 +833,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     let checkloop = function () {
                         waitTimeCount += 100;
                         if (waitTimeCount > timeout) {
-                            reject("等待超时！");
+                            reject("推文等待超时！");
                             return;
                         }
                         if (CSSAnchor.articles(rootDom).length < waitNum) {
@@ -870,7 +870,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     let checkloop = function () {
                         waitTimeCount += 100;
                         if (waitTimeCount > timeout) {
-                            reject("等待超时！");
+                            reject("加载等待超时！");
                             return;
                         }
                         if (CSSAnchor.twitterNeedWait(rootDom)) {
@@ -919,7 +919,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                         let checkloop = function () {
                             waitTimeCount += 10;
                             if (waitTimeCount > timeout) {
-                                reject("等待超时！");
+                                reject("视频封面等待超时！");
                                 return;
                             }
                             if (!videoImgIsAllLoadComplete()) {

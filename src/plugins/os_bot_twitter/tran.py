@@ -180,6 +180,7 @@ class TwitterTrans:
             if not result:
                 raise TransException("烤推脚本未返回结果！")
             if not result[0]:
+                logger.warning("烤推失败，id {} | {} - {}", tweet_id, result[1], result[2])
                 raise TransException(f"失败了，{result[1]}",
                                      cause=Exception(result))
             logger.debug("烤推完成 {} 正在存档", tweet_id)
