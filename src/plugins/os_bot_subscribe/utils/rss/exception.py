@@ -8,6 +8,11 @@ class RssRequestStatusError(BaseException):
         Rss请求异常（状态码不正确）
     """
 
+class RssRequestIgnore(BaseException):
+    """
+        Rss可忽略异常
+    """
+
 
 class RssRequestFailure(BaseException):
     """

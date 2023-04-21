@@ -13,6 +13,7 @@ from itertools import cycle
 from .subchannel import RsshubChannel, RsshubChannelSession, SubscribeInfoData
 
 from ...utils.rss import RssChannelData
+from ...utils.rss.exception import RssRequestIgnore
 from ..factory import channel_factory
 from ...model import SubscribeModel
 from ...logger import logger
@@ -202,7 +203,9 @@ async def _():
                     info = SubscribeInfoData(title=channel_data.title_full,
                                              des=channel_data.des_full)
                     channel_session.set_subscribe_info(channel, listener, info)
-
+                except RssRequestIgnore as e:
+                    logger.info("{}-{} 轮询请求可忽略异常: {}", channel.channel_type,
+                                   channel.channel_subtype, type(e), str(e))
                 except BaseException as e:
                     logger.warning("{}-{} 轮询请求失败:{} - {}", channel.channel_type,
                                    channel.channel_subtype, type(e), str(e))

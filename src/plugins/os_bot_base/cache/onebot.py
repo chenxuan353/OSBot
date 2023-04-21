@@ -693,6 +693,9 @@ async def _(bot: BaseBot, exception: Optional[Exception], api: str,
 
     # 通过`Api`钩子自动更新缓存
     try:
+        if not result:
+            # 忽视没有返回值的API
+            return
         if "status" in result and result["status"] == "500":
             # 忽视被mock的api
             return

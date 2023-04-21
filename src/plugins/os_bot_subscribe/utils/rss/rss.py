@@ -10,7 +10,7 @@ from requests.exceptions import ConnectTimeout
 from aiohttp.client_exceptions import ClientConnectorError
 from .data import RssChannelData, RssItemData
 from .html_parser import GeneralHTMLParser
-from .exception import RssRequestStatusError, RssRequestFailure, RssParserError
+from .exception import RssRequestStatusError, RssRequestFailure, RssParserError, RssRequestIgnore
 
 
 class RssParse:
@@ -186,11 +186,15 @@ class Rss:
                 timeout=aiohttp.ClientTimeout(total=self.timeout)) as resp:
             code = resp.status
             result = await resp.read()
+            content = str(result, "utf-8")
             if code != 200:
+                if code == 503 and "This path is currently fetching" in content:
+                    raise RssRequestIgnore(
+                        "This path is currently fetching, please come back later!"
+                    )
                 raise RssRequestStatusError(F'url {self.url} 页面错误 {code}',
-                                            cause=Exception(
-                                                str(result, "utf-8")))
-            return str(result, "utf-8")
+                                            cause=Exception(content))
+            return content
 
     async def read(self) -> RssChannelData:
         # 读取页面数据
