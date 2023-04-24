@@ -453,7 +453,9 @@ class PlugTemplateArg(ArgMatch):
         super().__init__([self.template_name])
 
 
-apply_plug_template = on_command("应用插件模版", permission=SUPERUSER)
+apply_plug_template = on_command("应用插件模版",
+                                 aliases={"应用插件模板"},
+                                 permission=SUPERUSER)
 
 
 @apply_plug_template.handle()
