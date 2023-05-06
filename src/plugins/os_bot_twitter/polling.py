@@ -471,6 +471,12 @@ class PollTwitterUpdate(TwitterUpdate):
                 被标记为敏感的推文不参与相关推送
             """
             return
+        
+        if tweet.type == TweetTypeEnum.retweet:
+            """
+                转推类型推文不参与相关推送
+            """
+            return
         user = await self.client.model_user_get_or_none(tweet.author_id)
         if not user:
             return

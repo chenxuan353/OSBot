@@ -232,31 +232,17 @@ async def _(matcher: Matcher,
 
     template = session.enter_notice_template
 
+    template = template.replace("[账号信息]", f"{nick}({event.user_id})")
+    template = template.replace("[账号]", f"{event.user_id}")
+    template = template.replace("[昵称]", f"{nick}")
+
     template_split = template.split("@新人")
     result_msg = v11.Message(template_split.pop(0))
     for template_part in template_split:
         result_msg += v11.MessageSegment.at(
             event.user_id) + v11.Message(template_part)
 
-    template_split = str(result_msg).split("[账号信息]")
-    result_msg = v11.Message(template_split.pop(0))
-    for template_part in template_split:
-        result_msg += v11.MessageSegment.text(
-            f"{nick}({event.user_id})") + v11.Message(template_part)
-
-    template_split = str(result_msg).split("[账号]")
-    result_msg = v11.Message(template_split.pop(0))
-    for template_part in template_split:
-        result_msg += v11.MessageSegment.text(
-            f"{event.user_id}") + v11.Message(template_part)
-
-    template_split = str(result_msg).split("[昵称]")
-    result_msg = v11.Message(template_split.pop(0))
-    for template_part in template_split:
-        result_msg += v11.MessageSegment.text(f"{nick}") + v11.Message(
-            template_part)
-
-    await matcher.finish(result_msg)
+    await matcher.finish(v11.Message(template))
 
 
 @notice_deal.handle()
@@ -286,22 +272,8 @@ async def _(matcher: Matcher,
 
     template = session.leave_notice_template
 
-    template_split = template.split("[账号信息]")
-    result_msg = v11.Message(template_split.pop(0))
-    for template_part in template_split:
-        result_msg += v11.MessageSegment.text(
-            f"{nick}({event.user_id})") + v11.Message(template_part)
+    template = template.replace("[账号信息]", f"{nick}({event.user_id})")
+    template = template.replace("[账号]", f"{event.user_id}")
+    template = template.replace("[昵称]", f"{nick}")
 
-    template_split = str(result_msg).split("[账号]")
-    result_msg = v11.Message(template_split.pop(0))
-    for template_part in template_split:
-        result_msg += v11.MessageSegment.text(
-            f"{event.user_id}") + v11.Message(template_part)
-
-    template_split = str(result_msg).split("[昵称]")
-    result_msg = v11.Message(template_split.pop(0))
-    for template_part in template_split:
-        result_msg += v11.MessageSegment.text(f"{nick}") + v11.Message(
-            template_part)
-
-    await matcher.finish(result_msg)
+    await matcher.finish(v11.Message(template))
