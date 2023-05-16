@@ -493,6 +493,7 @@ async def _(matcher: Matcher,
         switchs.append(switchModel)
 
     await PluginSwitchModel.bulk_create(switchs)
+    plug_model_cache_clear()
 
     await matcher.finish("已完成~" +
                          (f"\n启用：{'、'.join(enable)}" if enable else "") +
