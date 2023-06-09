@@ -183,9 +183,9 @@ async def _(matcher: Matcher,
                 f"{channelUnit.bot_id}" if channelUnit.bot_id else None)
             if not success:
                 failure_count += 1
-                msg = f"向`{state['channel']}`的{channelKey}广播讯息失败"
-                logger.warning(msg)
-                UrgentNotice.add_notice(msg)
+                notice_msg = f"向`{state['channel']}`的{channelKey}广播讯息失败"
+                logger.warning(notice_msg)
+                UrgentNotice.add_notice(notice_msg)
             else:
                 success_count += 1
             if success:
