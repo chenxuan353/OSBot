@@ -878,7 +878,7 @@ class TransArg(ArgMatch):
     tweet_str: str = Field.Regex(
         "推文链接、序号",
         regex=
-        r"(((http|https):\/{2})?(mobile.)?twitter.com(\/(([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?)|[1-9][0-9]*"
+        r"(((http|https):\/{2})?(mobile.)?(twitter|x).com(\/(([~0-9a-zA-Z\#\+\%@\.\/_-]+))?(\?[0-9a-zA-Z\+\%@\/&\[\];=_-]+)?)?)|[1-9][0-9]*"
     )
 
     def __init__(self) -> None:
