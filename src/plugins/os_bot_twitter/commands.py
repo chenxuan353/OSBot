@@ -341,7 +341,9 @@ def deal_tweet_link(msg: str, session: TwitterSession) -> str:
     msg = msg.strip()
     if msg.startswith(('https://twitter.com/', 'http://twitter.com/',
                        'twitter.com/', 'https://mobile.twitter.com/',
-                       'http://mobile.twitter.com/', 'mobile.twitter.com/')):
+                       'http://mobile.twitter.com/', 'mobile.twitter.com/',
+                       'https://mobile.x.com/','http://mobile.x.com/', 'mobile.x.com/',
+                       'https://x.com/','http://x.com/', 'x.com/')):
         msg = msg.split('/')[-1]
         msg = msg.split('?')[0]
         if not msg.isdigit():
