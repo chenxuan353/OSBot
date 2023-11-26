@@ -194,9 +194,7 @@ class BilibiliOprateUtil:
             )
             datas = resp.json()
 
-        if datas["code"] == 0:
-            return True
-        return False
+        return datas["isLogin"]
 
     async def get_self_live_info(self) -> Dict[str, Any]:
         return await get_self_live_info(self.credential)
