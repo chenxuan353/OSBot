@@ -29,10 +29,23 @@ from bilibili_api.live_area import get_area_list_sub as __get_area_list_sub
 from bilibili_api.live import get_self_live_info
 from .exception import BilibiliOprateFailure
 
-LOGIN_API["qrcode"]["get_qrcode_and_token"][
-    "url"] = "https://passport.bilibili.com/qrcode/getLoginUrl"
-LOGIN_API["qrcode"]["get_events"][
-    "url"] = "https://passport.bilibili.com/qrcode/getLoginInfo"
+
+LOGIN_API["qrcode"]["get_qrcode_and_token"] = {
+    "url": "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header",
+    "method": "GET",
+    "verify": False,
+    "comment": "请求二维码及登录密钥"
+}
+LOGIN_API["qrcode"]["get_events"] = {
+    "url": "https://passport.bilibili.com/x/passport-login/web/qrcode/poll",
+    "method": "GET",
+    "verify": False,
+    "data": {
+        "qrcode_key": "str: 登陆密钥",
+        "source": "main-fe-header"
+    },
+    "comment": "获取最新信息"
+}
 
 
 async def make_qrcode(url) -> str:
@@ -47,14 +60,13 @@ async def get_qrcode() -> Tuple[str, str]:
     """获取登录二维码 返回值 (二维码文件路径,验证密钥)"""
     api = LOGIN_API["qrcode"]["get_qrcode_and_token"]
     async with httpx.AsyncClient() as client:
-        resp = await client.get(api["url"])
+        resp = await client.get(api["url"], follow_redirects=True)
         resp_json = resp.json()
     qrcode_login_data = resp_json["data"]
-    login_key: str = qrcode_login_data["oauthKey"]
+    login_key: str = qrcode_login_data["qrcode_key"]
     qrcode = qrcode_login_data["url"]
     qrcode_image = await make_qrcode(qrcode)
     return (qrcode_image, login_key)
-
 
 async def check_qrcode_events(
         login_key) -> Tuple[QrCodeLoginEvents, Union[str, "Credential"]]:
@@ -68,11 +80,11 @@ async def check_qrcode_events(
         Tuple[QrCodeLoginEvents, str|Credential]: 状态(第一项）和信息（第二项）（如果成功登录信息为凭据类）
     """
     events_api = LOGIN_API["qrcode"]["get_events"]
-    data = {"oauthKey": login_key}
+    params = {"qrcode_key": login_key}
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
+        resp = await client.get(
             events_api["url"],
-            data=data,
+            params=params,
             cookies={
                 "buvid3": str(uuid.uuid1()),
                 "Domain": ".bilibili.com"
@@ -82,13 +94,13 @@ async def check_qrcode_events(
     events: Dict[str, Any] = resp_json
     if "code" in events.keys() and events["code"] == -412:
         raise LoginError(events["message"])
-    if events["data"] == -4:
+    if events["data"]["code"] == 86101:
         return QrCodeLoginEvents.SCAN, events["message"]
-    elif events["data"] == -5:
+    elif events["data"]["code"] == 86090:
         return QrCodeLoginEvents.CONF, events["message"]
-    elif events["data"] == -2:
+    elif events["data"]["code"] == 86038:
         raise BilibiliOprateFailure("登录超时")
-    elif isinstance(events["data"], dict):
+    elif events["data"]["code"] == 0:
         url: str = events["data"]["url"]
         cookies_list = url.split("?")[1].split("&")
         sessdata = ""

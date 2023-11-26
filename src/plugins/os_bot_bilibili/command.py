@@ -30,7 +30,7 @@ PermManage.register("B级人员",
                     only_super_oprate=False)
 
 bilibili_login = on_command("B站登录",
-                            aliases={"B站登入", "b站登入", "b站登录"},
+                            aliases={"B站登入","B站登陆",  "b站登入", "b站登录", "b站登陆", "登录B站", "登入B站", "登陆B站", "登录b站", "登入b站", "登陆b站"},
                             block=True,
                             rule=only_command(),
                             permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
