@@ -86,7 +86,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 推文集锚点
         articles(rootDom) {
-            return rootDom.querySelectorAll("ARTICLEs");
+            return rootDom.querySelectorAll("ARTICLE");
         },
         // 敏感内容锚点
         articleHides(rootDom) {
