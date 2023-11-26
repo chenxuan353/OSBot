@@ -1212,10 +1212,13 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                     Logger.debug("翻译标识注入成功");
                     let imgs = tempDom.querySelectorAll("img");
                     imgs.forEach(function(img){
-                        if(!img.style.height){
-                            img.style.height = "3em";
+                        if(!img.style.maxHeight){
+                            img.style.maxHeight = "3em";
                         }
-                    })
+                        if(!img.style.minHeight){
+                            img.style.minHeight = "100%";
+                        }
+                    });
                     Logger.debug("翻译标识图片样式设定成功");
                     return tempDom;
                 };
