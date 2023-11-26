@@ -94,7 +94,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 媒体锚点
         articleVideo(rootDom) {
-            return rootDom.querySelectorAll("div[data-testid=videoPlayer]");
+            return rootDom.querySelectorAll("div[data-testid=videoComponent]");
         },
         // 媒体内需等待元素锚点
         articleVideoWait(rootDom) {
@@ -176,7 +176,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 底部转推喜欢分享(需移除)
         articleRTLKBar(rootDom){
-            return rootDom.querySelector("DIV[role=group].r-18u37iz.r-1w6e6rj");
+            return rootDom.querySelector("DIV.r-3qxfft");
         },
         // 时间锚点
         articleTime(rootDom) {
@@ -206,8 +206,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 需要等待的元素
         twitterNeedWait(rootDom) {
-            let dom = rootDom.querySelector("[role=progressbar]");
-            return dom;
+            //let dom = rootDom.querySelector("[role=progressbar]");
+            //return dom;
+            return null;
         },
     };
 
