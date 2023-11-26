@@ -81,12 +81,12 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 根元素锚点
         rootElem(rootDom = document) {
             return rootDom.querySelector(
-                "section[aria-labelledby].css-1dbjc4n",
+                "section[aria-labelledby]",
             );
         },
         // 推文集锚点
         articles(rootDom) {
-            return rootDom.querySelectorAll("ARTICLE.css-1dbjc4n");
+            return rootDom.querySelectorAll("ARTICLEs");
         },
         // 敏感内容锚点
         articleHides(rootDom) {
@@ -117,9 +117,9 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 文本备选锚点(纯图片时可用)
         articleBackupTexts(rootDom) {
             // 此锚点不稳定
-            let rtnDomBoxs = rootDom.querySelectorAll("div[class='css-1dbjc4n r-1s2bzr4']");
+            let rtnDomBoxs = rootDom.querySelectorAll("div[class='css-175oi2r r-1s2bzr4']");
             if(rtnDomBoxs.length == 0){
-                rtnDomBoxs = rootDom.querySelectorAll("div[class='css-1dbjc4n']:empty");
+                rtnDomBoxs = rootDom.querySelectorAll("div[class='css-175oi2r']:empty");
             }
             let rtnDoms = [];
             rtnDomBoxs.forEach(function(domBox){
