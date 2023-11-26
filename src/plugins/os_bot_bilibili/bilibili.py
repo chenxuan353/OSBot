@@ -194,7 +194,10 @@ class BilibiliOprateUtil:
             )
             datas = resp.json()
 
-        return datas["isLogin"]
+        real_data = datas.get("data")
+        if real_data is None:
+            real_data = datas.get("result")
+        return real_data["isLogin"]
 
     async def get_self_live_info(self) -> Dict[str, Any]:
         return await get_self_live_info(self.credential)
