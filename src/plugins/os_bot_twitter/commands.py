@@ -1515,7 +1515,7 @@ async def _(matcher: Matcher):
     os.system(
         "nohup sh -c 'git fetch && git checkout origin/master -- twitter_trans_script.js' >/dev/null 2>&1 &"
     )
-    await matcher.send("已自动执行更新脚本")
+    await matcher.send("执行更新脚本，请等待……")
     await asyncio.sleep(15)
     await twitterTransManage.reload_script()
     await matcher.finish("更新完成")

@@ -171,8 +171,8 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 转推喜欢数量检索锚点（需移除）
         articleRetweetLike(rootDom) {
-            // r-tzz3ar r-1yzf0co
-            return rootDom.querySelector("div.r-tzz3ar");
+            // div.css-175oi2r.r-18u37iz.r-1w6e6rj
+            return rootDom.querySelector("div.css-175oi2r.r-18u37iz.r-1w6e6rj");
         },
         // 底部转推喜欢分享(需移除)
         articleRTLKBar(rootDom){
@@ -180,7 +180,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 时间锚点
         articleTime(rootDom) {
-            return rootDom.querySelector("div.r-1r5su4o");
+            return rootDom.querySelector("div.r-k4xj1c");
         },
         // 翻译标识锚点
         transNotice(rootDom) {
@@ -189,6 +189,10 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         // 弹框锚点(登录提示框)(需移除)
         twitterDialog() {
             return document.querySelector("div[role=dialog]");
+        },
+        // 弹框锚点(登录提示框)(需移除)
+        twitterMask() {
+            return document.querySelector("div[data-testid=mask]");
         },
         // 底部登录栏(需移除)
         twitterBottomBar() {
@@ -206,9 +210,19 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
         },
         // 需要等待的元素
         twitterNeedWait(rootDom) {
-            //let dom = rootDom.querySelector("[role=progressbar]");
-            //return dom;
-            return null;
+            let collect_doms = [];
+            let doms = rootDom.querySelectorAll("[role=progressbar]");
+            for(let i = 0; i < doms.length; i++){
+                if(doms[i].style.visibility === "hidden" || 
+                    doms[i].style.display === "none"
+                ){
+                    continue;
+                }
+                // 存在未隐藏的等待元素
+                // collect_doms.push(doms[i]);
+                return true;
+            }
+            return false;
         },
     };
 
@@ -1745,6 +1759,13 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
             }
             // 移除登录提示框
             dom = TweetHtml.CSSAnchor.twitterDialog();
+            if (dom) {
+                // 恢复滚动条
+                document.querySelector("html").style.overflowY = "scroll";
+                dom.remove();
+            }
+            // 移除遮罩层
+            dom = TweetHtml.CSSAnchor.twitterMask();
             if (dom) {
                 // 恢复滚动条
                 document.querySelector("html").style.overflowY = "scroll";
