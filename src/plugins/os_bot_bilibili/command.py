@@ -52,9 +52,8 @@ async def _(matcher: Matcher,
             mevent: v11.MessageEvent,
             adapter: Adapter = AdapterDepend(),
             session: BilibiliSession = SessionDepend(BilibiliSession)):
-    bo = BilibiliOprateUtil(
-        Credential(sessdata=session.sessdata, bili_jct=session.bili_jct))
-    if await bo.async_check_valid():
+    credential = await session.get_credential()
+    if credential:
         await matcher.finish("已经登录，若存在问题请使用`B站登出`指令后再试！")
 
     async def login_wait():
@@ -77,6 +76,7 @@ async def _(matcher: Matcher,
                     await asyncio.sleep(5)
                     if session.sessdata:
                         logger.debug("登录等待已失效……")
+                        await bot.send(mevent,"登录等待失效，请联系管理员！")
                         return
 
                     event, data = await check_qrcode_events(login_key)
@@ -85,7 +85,7 @@ async def _(matcher: Matcher,
                         break
                     logger.debug("B站登录检查：{} {}", event, data)
                     if time() - start_time > 165:
-                        finish_msgs = ('登录超时！', '二维码失效了……', '大失败！')
+                        finish_msgs = ('登录超时！', '二维码失效了……', '没有确认登录哦！')
                         await bot.send(
                             mevent,
                             finish_msgs[random.randint(0,
@@ -95,7 +95,7 @@ async def _(matcher: Matcher,
                 raise BilibiliOprateFailure(e.msg, cause=e)
             except Exception:
                 logger.opt(exception=True).warning("登录失败")
-                finish_msgs = ('登录失败', '未能成功登录')
+                finish_msgs = ('登录失败', '登录异常')
                 await bot.send(
                     mevent, finish_msgs[random.randint(0,
                                                        len(finish_msgs) - 1)])
