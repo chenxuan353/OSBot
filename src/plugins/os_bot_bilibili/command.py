@@ -139,6 +139,7 @@ async def _(matcher: Matcher,
             adapter: Adapter = AdapterDepend(),
             session: BilibiliSession = SessionDepend(BilibiliSession)):
     if not session.sessdata and not session.bili_jct:
+        await session.logout()
         await matcher.finish("还没有登录过哦")
 
     async with session:
