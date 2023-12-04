@@ -540,7 +540,7 @@ async def _(matcher: Matcher,
 
 bilibili_login_user = on_command(
     "B站登录用户",
-    aliases={"查看B站登录用户", "查看b站登录用户", "b站登录用户"},
+    aliases={"查看B站登录用户", "查看b站登录用户", "b站登录用户","B站登陆用户","查看B站登陆用户", "查看b站登陆用户", "b站登陆用户"},
     block=True,
     rule=only_command(),
     permission=SUPERUSER | GROUP_ADMIN | GROUP_OWNER
