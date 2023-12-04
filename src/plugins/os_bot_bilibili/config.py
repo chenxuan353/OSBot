@@ -76,6 +76,7 @@ class BilibiliSession(Session):
     async def get_credential(self) -> Optional[Credential]:
         """获取验证类，返回None意味着未登录或验证失败"""
         if not self.sessdata and not self.bili_jct:
+            await self.logout()
             return None
         if not self._credential:
             self._credential = Credential(sessdata=self.sessdata,
@@ -88,8 +89,7 @@ class BilibiliSession(Session):
                     await self.save()
                     await asyncio.sleep(0.3)
                 else:
-                    self.bili_jct = None
-                    self.sessdata = None
+                    await self.logout()
                     await self.save()
                     return None
             except ResponseCodeException as e:

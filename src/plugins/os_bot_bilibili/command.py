@@ -56,71 +56,69 @@ async def _(matcher: Matcher,
     if credential:
         await matcher.finish("已经登录，若存在问题请使用`B站登出`指令后再试！")
 
-    @inhibiting_exception()
     async def login_wait():
         async with session:
-            start_time = time()
-            qrcode_image, login_key = await get_qrcode()
-
-            with open(qrcode_image, mode="rb") as f:
-                filedata = f.read()
-            b64 = str(base64.b64encode(filedata), "utf-8")
-            filedata = None
-            qrcode_tips = ["请在3分钟内扫描，并确认~", "呐，要在三分钟之内确认哦！", "三分钟内扫码确认哦~"]
-            qrcode_tip = qrcode_tips[random.randint(0, len(qrcode_tips) - 1)]
-            await bot.send(
-                mevent,
-                v11.MessageSegment.text(qrcode_tip) +
-                v11.MessageSegment.image(f"base64://{b64}"))
             try:
-                while True:
-                    await asyncio.sleep(5)
-                    if session.sessdata:
-                        logger.debug("登录等待已失效……")
-                        await bot.send(mevent,"登录等待失效，请联系管理员！")
-                        return
+                start_time = time()
+                qrcode_image, login_key = await get_qrcode()
 
-                    event, data = await check_qrcode_events(login_key)
-                    if event == QrCodeLoginEvents.DONE:
-                        credential: Credential = data  # type: ignore
-                        break
-                    logger.debug("B站登录检查：{} {}", event, data)
-                    if time() - start_time > 165:
-                        finish_msgs = ('登录超时！', '二维码失效了……', '没有确认登录哦！')
-                        await bot.send(
-                            mevent,
-                            finish_msgs[random.randint(0,
-                                                       len(finish_msgs) - 1)])
-                        return
-            except ResponseCodeException as e:
-                raise BilibiliOprateFailure(e.msg, cause=e)
-            except Exception:
-                logger.opt(exception=True).warning("登录失败")
-                finish_msgs = ('登录失败', '登录异常')
+                with open(qrcode_image, mode="rb") as f:
+                    filedata = f.read()
+                b64 = str(base64.b64encode(filedata), "utf-8")
+                filedata = None
+                qrcode_tips = ["请在3分钟内扫描，并确认~", "呐，要在三分钟之内确认哦！", "三分钟内扫码确认哦~"]
+                qrcode_tip = qrcode_tips[random.randint(0, len(qrcode_tips) - 1)]
                 await bot.send(
-                    mevent, finish_msgs[random.randint(0,
-                                                       len(finish_msgs) - 1)])
-                return
-            try:
+                    mevent,
+                    v11.MessageSegment.text(qrcode_tip) +
+                    v11.MessageSegment.image(f"base64://{b64}"))
+                try:
+                    while True:
+                        await asyncio.sleep(5)
+                        if session.sessdata:
+                            logger.debug("登录等待已失效……")
+                            await bot.send(mevent,"登录等待失效，请联系管理员！")
+                            return
+
+                        event, data = await check_qrcode_events(login_key)
+                        if event == QrCodeLoginEvents.DONE:
+                            credential: Credential = data  # type: ignore
+                            break
+                        logger.debug("B站登录检查：{} {}", event, data)
+                        if time() - start_time > 165:
+                            finish_msgs = ('登录超时！', '二维码失效了……', '没有确认登录哦！')
+                            await bot.send(
+                                mevent,
+                                finish_msgs[random.randint(0,
+                                                        len(finish_msgs) - 1)])
+                            return
+                except ResponseCodeException as e:
+                    raise BilibiliOprateFailure(e.msg, cause=e)
+
                 credential.raise_for_no_bili_jct()
                 credential.raise_for_no_sessdata()
-            except Exception:
-                finish_msgs = ('登录失败', '未能成功登录')
+
+                await asyncio.sleep(0.15)
+
+                session.sessdata = credential.sessdata
+                session.bili_jct = credential.bili_jct
+                session._credential = credential
+                session.last_vaild = time()
+                logger.debug("扫码登录成功，获取登录信息...")
+                user_info = await session.get_self_info()
+                user_name = user_info['name']
+                logger.info("B站用户 {} 登录成功", user_name)
+                finish_msgs = ('登录成功~', '成功啦！', f'欢迎您{user_name}！')
+                await bot.send(
+                    mevent, finish_msgs[random.randint(0,
+                                                    len(finish_msgs) - 1)])
+            except Exception as e:
+                logger.opt(exception=True).warning("B站登录异常")
+                finish_msgs = ('B站登录好像出了一些问题……', 'B站登录异常！')
                 await bot.send(
                     mevent, finish_msgs[random.randint(0,
                                                        len(finish_msgs) - 1)])
                 return
-            await asyncio.sleep(0.15)
-            session.sessdata = credential.sessdata
-            session.bili_jct = credential.bili_jct
-            user_info = await session.get_self_info()
-            user_name = user_info['name']
-            logger.info("B站用户 {} 登录成功", user_name)
-            finish_msgs = ('登录成功~', '成功啦！', f'欢迎您{user_name}！')
-            await bot.send(
-                mevent, finish_msgs[random.randint(0,
-                                                   len(finish_msgs) - 1)])
-
     asyncio.gather(login_wait())
 
 
