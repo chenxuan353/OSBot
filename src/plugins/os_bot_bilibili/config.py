@@ -1,6 +1,7 @@
 import asyncio
 from time import time
 from typing import Any, Dict, Optional, List
+from venv import logger
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
@@ -89,6 +90,7 @@ class BilibiliSession(Session):
                     await self.save()
                     await asyncio.sleep(0.3)
                 else:
+                    logger.debug(f"B站登录状态校验失败 -> {self.key}")
                     await self.logout()
                     await self.save()
                     return None
