@@ -21,7 +21,7 @@ from ..os_bot_base.depends import SessionDepend
 from ..os_bot_base import matcher_exception_try, Adapter, AdapterDepend
 from ..os_bot_base import only_command
 from ..os_bot_base.permission import PermManage, perm_check_permission
-from ..os_bot_base.util import RateLimitDepend, RateLimitUtil
+from ..os_bot_base.util import RateLimitDepend, RateLimitUtil, inhibiting_exception
 
 PermManage.register("B级人员",
                     "操作B站相关功能",
@@ -56,6 +56,7 @@ async def _(matcher: Matcher,
     if credential:
         await matcher.finish("已经登录，若存在问题请使用`B站登出`指令后再试！")
 
+    @inhibiting_exception()
     async def login_wait():
         async with session:
             start_time = time()
