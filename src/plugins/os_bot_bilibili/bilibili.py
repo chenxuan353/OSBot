@@ -28,6 +28,7 @@ from bilibili_api.utils.network_httpx import request
 from bilibili_api.live_area import get_area_list_sub as __get_area_list_sub
 from bilibili_api.live import get_self_live_info
 from .exception import BilibiliOprateFailure
+from .logger import logger
 
 
 LOGIN_API["qrcode"]["get_qrcode_and_token"] = {
@@ -90,6 +91,7 @@ async def check_qrcode_events(
                 "Domain": ".bilibili.com"
             },
         )
+        logger.debug(f"检查登录状态 响应 -> {resp.text}")
         resp_json = resp.json()
     events: Dict[str, Any] = resp_json
     if "code" in events.keys() and events["code"] == -412:
@@ -192,6 +194,7 @@ class BilibiliOprateUtil:
                 api["url"],
                 cookies=self.credential.get_cookies(),
             )
+            logger.debug(f"校验登录状态 响应 -> {resp.text}")
             datas = resp.json()
 
         real_data = datas.get("data", {})
