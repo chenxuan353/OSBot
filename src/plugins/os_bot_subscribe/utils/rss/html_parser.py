@@ -41,7 +41,7 @@ class GeneralHTMLParser(HTMLParser):
     def handle_starttag(self, tag: str, attrs: Dict[str, str]):
         if tag not in self.allow_tags:
             return
-        if tag in ["p", "h1", "h2", "h3", "h4", "h5", "li", "tr"]:
+        if tag in ["p", "h1", "h2", "h3", "h4", "h5", "li", "tr", "br"]:
             self.message = self.handle_rstrip(self.message)
             self.message += self.handle_text("\n") or ""
         elif tag == "a":
