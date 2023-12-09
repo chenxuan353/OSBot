@@ -101,10 +101,12 @@ class RsshubChannel(BaseChannel):
     async def rss_text_to_send_message(self, text: str) -> v11.Message:
         """将rss html文本转换为待发送消息"""
 
-        parser = GeneralHTMLParser()
+        # parser = GeneralHTMLParser()
         
-        parser.feed(text)
-        return parser.message
+        # parser.feed(text)
+        # return parser.message
+
+        return text # type: ignore
 
     async def test_path(self, path: str):
         """通过标准rss path测试连通性 如果一切正常则返回None，如果出现错误，则返回错误原因。"""

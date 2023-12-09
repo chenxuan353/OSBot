@@ -65,7 +65,7 @@ class GeneralHTMLParser(HTMLParser):
         pass
 
     def handle_startendtag(self, tag: str, attrs: Dict[str, str]):
-        if self.lasttag not in self.allow_tags:
+        if tag not in self.allow_tags:
             return
         if tag == "br":
             self.message = self.handle_rstrip(self.message)
