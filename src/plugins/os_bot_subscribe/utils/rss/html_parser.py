@@ -96,3 +96,7 @@ class GeneralHTMLParser(HTMLParser):
         if src:
             self.message += self.handle_image(src) or ""
             self.images.append(src)
+
+    def feed(self, data: str) -> None:
+        data = data.replace("<br>", "<br/>")
+        return super().feed(data)
