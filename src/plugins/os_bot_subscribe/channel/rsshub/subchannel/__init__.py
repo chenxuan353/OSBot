@@ -1,4 +1,5 @@
 import random
+import re
 from nonebot.adapters.onebot import v11
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 from ....utils.rss import Rss, RssChannelData, GeneralHTMLParser
@@ -105,7 +106,7 @@ class RsshubChannel(BaseChannel):
         
         # parser.feed(text)
         # return parser.message
-
+        text = re.sub('\n+','\n', text)
         return text # type: ignore
 
     async def test_path(self, path: str):

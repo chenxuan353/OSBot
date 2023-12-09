@@ -112,7 +112,7 @@ class RsshubEmailAliceChannel(RsshubChannel):
 
             msg = "{0}更新了~\n{1}".format(
                 now_data.title_full, await
-                self.rss_text_to_send_message(data.des_full.replace("\n\n", "")))
+                self.rss_text_to_send_message(data.des_full))
 
             for subscribe in subscribes:
                 try:
