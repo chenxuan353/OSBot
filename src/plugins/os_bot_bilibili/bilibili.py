@@ -62,6 +62,7 @@ async def get_qrcode() -> Tuple[str, str]:
     api = LOGIN_API["qrcode"]["get_qrcode_and_token"]
     async with httpx.AsyncClient() as client:
         resp = await client.get(api["url"], follow_redirects=True)
+        logger.debug(f"获取登录二维码 响应 -> {resp.text}")
         resp_json = resp.json()
     qrcode_login_data = resp_json["data"]
     login_key: str = qrcode_login_data["qrcode_key"]
