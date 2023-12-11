@@ -5,7 +5,7 @@ from bilibili_api import Credential, Picture
 from bilibili_api.login_func import API
 
 # Picture patch
-
+HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.bilibili.com"}
 
 def __set_picture_meta_from_bytes(self: Picture, imgtype: str):
     img = Image.open(io.BytesIO(self.content))
@@ -34,6 +34,7 @@ async def upload_file(self: Picture, credential: Credential) -> "Picture":
     async with httpx.AsyncClient() as client:
         resp = await client.get(
             self.url,
+            headers=HEADERS,
             cookies=credential.get_cookies(),
         )
         self.content = resp.read()

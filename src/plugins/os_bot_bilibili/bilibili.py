@@ -15,6 +15,7 @@
     - `Picture.upload_file` 将非异步加载图片方法改为异步
 """
 import os
+import random
 import tempfile
 import uuid
 import httpx
@@ -30,6 +31,18 @@ from bilibili_api.live import get_self_live_info
 from .exception import BilibiliOprateFailure
 from .logger import logger
 
+
+def randUserAgent():
+    UAs = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36',
+        'Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2919.83 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2866.71 Safari/537.36',
+        'Mozilla/5.0 (X11; Ubuntu; Linux i686 on x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2820.59 Safari/537.36',
+    ]
+    return UAs[random.randint(0, len(UAs) - 1)]
+
+HEADERS = {"User-Agent": randUserAgent(), "Referer": "https://www.bilibili.com"}
 
 LOGIN_API["qrcode"]["get_qrcode_and_token"] = {
     "url": "https://passport.bilibili.com/x/passport-login/web/qrcode/generate?source=main-fe-header",
@@ -61,7 +74,7 @@ async def get_qrcode() -> Tuple[str, str]:
     """获取登录二维码 返回值 (二维码文件路径,验证密钥)"""
     api = LOGIN_API["qrcode"]["get_qrcode_and_token"]
     async with httpx.AsyncClient() as client:
-        resp = await client.get(api["url"], follow_redirects=True)
+        resp = await client.get(api["url"], follow_redirects=True, headers=HEADERS})
         logger.debug(f"获取登录二维码 响应 -> {resp.text}")
         resp_json = resp.json()
     qrcode_login_data = resp_json["data"]
@@ -91,6 +104,7 @@ async def check_qrcode_events(
                 "buvid3": str(uuid.uuid1()),
                 "Domain": ".bilibili.com"
             },
+            headers=HEADERS
         )
         logger.debug(f"检查登录状态 响应 -> {resp.text}")
         resp_json = resp.json()
