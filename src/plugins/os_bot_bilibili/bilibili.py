@@ -207,11 +207,16 @@ class BilibiliOprateUtil:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 api["url"],
+                headers=HEADERS,
                 cookies=self.credential.get_cookies(),
             )
             logger.debug(f"校验登录状态 响应 -> {resp.text}")
             datas = resp.json()
 
+        if datas.get("code") == -412:
+            logger.warning(f"校验登录状态API触发412！ 响应 -> {resp.text}")
+            return True
+        
         real_data = datas.get("data", {})
         return real_data.get("isLogin", False)
 
