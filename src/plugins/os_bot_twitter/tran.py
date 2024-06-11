@@ -158,6 +158,7 @@ class TwitterTrans:
                                                screenshot_filename)
             logger.debug("烤推开始 {} 存档文件 {}", tweet_id, screenshot_filename)
             assert self.context
+            await self.context.add_cookies([{'name': 'night_mode', 'value': '0', 'domain': '.x.com', 'path': '/'}])
             page = await self.context.new_page()
             await page.goto(
                 f"https://twitter.com/{tweet_username}/status/{tweet_id}")
