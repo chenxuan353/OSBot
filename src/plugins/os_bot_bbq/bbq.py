@@ -63,7 +63,7 @@ async def _(matcher: Matcher,
             if f'{member["user_id"]}' == f"{event.user_id}":
                 # 跳过自己
                 continue
-            card: str = member["card"]
+            card: str = member["card"] or member["nickname"]
             if "请假" in card:
                 continue
             if "[" in card:
