@@ -501,7 +501,7 @@ var GLOBAL_TOOL = (typeof playwright_config != "undefined" &&
                 //emoji置换回调
                 return {
                     title: "Emoji: " + icon + variant,
-                    style: "height: 1em;width: 1em;margin: 0.05em 0.1em;vertical-align: -0.1em;",
+                    style: "height: 1em;width: 1em;margin: 0.05em 0.1em;vertical-align: -0.1em;display: inline;",
                 };
             };
 
