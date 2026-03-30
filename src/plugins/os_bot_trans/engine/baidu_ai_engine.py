@@ -7,6 +7,7 @@ from nonebot import get_driver
 from . import Engine, EngineError
 from ..exception import RatelimitException
 from ...os_bot_base.util import AsyncTokenBucket
+from ..logger import logger
 
 
 class Config(BaseSettings):
@@ -170,6 +171,7 @@ class BaiduAiEngine(Engine):
         except EngineError as e:
             raise e
         except Exception as e:
+            logger.exception(e)
             raise BaiduAiEngineError(f"网络连接异常：{e}", replay="网络连接异常")
 
 

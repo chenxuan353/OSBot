@@ -231,8 +231,16 @@ class TencentAiEngine(Engine):
             raise TencentAiEngineError(
                 F" 参数 ({source}-{target}) {content} | 错误代码 {errmsg}({errcode})",
                 replay=f"API错误：{errmsg}({errcode})")
-        return res["Response"]["TargetText"]
-
+        try:
+            choices = res["Response"]["Choices"]
+            remsgs = []
+            for choice in choices:
+                remsgs.append(choice["Message"]["Content"])
+            return "\n".join(remsgs)
+        except Exception as e:
+            raise TencentAiEngineError(
+                F"响应异常 待翻内容 ({source}-{target}) {content} 响应 {res} 错误 {e}",
+                replay="网络状态异常！")
 
 """
     腾讯引擎
