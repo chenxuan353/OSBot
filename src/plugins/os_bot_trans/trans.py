@@ -18,6 +18,7 @@ from .engine.google_engine import GoogleEngine
 from .engine.tencent_engine import TencentEngine
 from .engine.baidu_engine import BaiduEngine
 from .engine.baidu_ai_engine import BaiduAiEngine
+from .engine.tencent_ai_engine import TencentAiEngine
 
 from ..os_bot_base.depends import SessionDepend, ArgMatchDepend
 from ..os_bot_base import ArgMatch, Field, matcher_exception_try, Adapter, AdapterDepend, AdapterFactory
@@ -33,7 +34,8 @@ _engines: List["Engine"] = [
     CaiyunEngine(),
     TencentEngine(),
     BaiduEngine(),
-    BaiduAiEngine()
+    BaiduAiEngine(),
+    TencentAiEngine()
 ]
 
 engines: Dict[str, "Engine"] = {}
@@ -63,7 +65,7 @@ def getLangCN(lang: str):
     return base_langs[lang][0]
 
 
-engine_help = "目前支持的引擎：谷歌、腾讯、百度、百度AI、彩云(彩云小译)"
+engine_help = "目前支持的引擎：谷歌、腾讯、智能腾讯、百度、智能百度、彩云(彩云小译)"
 
 
 class TransArgs(ArgMatch):

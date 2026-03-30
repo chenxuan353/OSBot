@@ -62,11 +62,11 @@ class BaiduAiEngine(Engine):
             "sv": "swe",
             "vi": "vie",
         }
-        super().__init__(name="百度AI",
+        super().__init__(name="智能百度",
                          enable=config.trans_baidu_ai_enable,
                          allow_dict=allowDict,
                          change_dict=change_dict,
-                         alias=["baiduai", "bdai", "baiai"])
+                         alias=["aibaidu", "aibd", "aibai", "ai百度", "AI百度"])
         self._secret_id = config.trans_baidu_ai_id
         self._secret_key = config.trans_baidu_ai_secret
         if self.enable and (not self._secret_id or not self._secret_key):
