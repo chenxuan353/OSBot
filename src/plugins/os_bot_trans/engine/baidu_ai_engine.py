@@ -103,7 +103,7 @@ class BaiduAiEngine(Engine):
             "90107": ["认证未通过或未生效", "请前往我的认证查看认证进度"],
             "20003": ["请求内容存在安全风险", "请检查请求文本是否涉及反动，暴力等相关内容"]
         }
-        return errstr[code]
+        return errstr[str(code)]
 
     async def baidu_trans_request(self, source: str, target: str, text: str):
         endpoint = 'https://fanyi-api.baidu.com'
