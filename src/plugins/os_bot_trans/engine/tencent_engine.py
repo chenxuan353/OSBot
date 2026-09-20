@@ -1,26 +1,17 @@
-import hashlib
-import hmac
-import json
-import time
-import random
-import aiohttp
-from datetime import datetime
-import base64
-
-from . import Engine, EngineError
 from pydantic import BaseSettings, Field
 from nonebot import get_driver
-from ..exception import RatelimitException
-from ...os_bot_base.util import AsyncTokenBucket
+
+from .tokenhub_engine import TokenHubEngine
 
 
 class Config(BaseSettings):
     # Your Config Here
     trans_tencent_enable: bool = Field(default=False)
-    trans_tencent_region: str = Field(default="ap-guangzhou")
+    trans_tencent_api_base: str = Field(
+        default="https://tokenhub.tencentmaas.com/v1")
     trans_tencent_ratelimit: int = Field(default=5)
-    trans_tencent_id: str = Field(default="")
-    trans_tencent_key: str = Field(default="")
+    trans_tencent_api_key: str = Field(default="")
+    trans_tencent_model: str = Field(default="hy-mt2-lite")
 
     class Config:
         extra = "ignore"
@@ -30,14 +21,13 @@ global_config = get_driver().config
 config = Config(**global_config.dict())
 
 
-class TencentEngineError(EngineError):
+class TencentEngine(TokenHubEngine):
     """
-        腾讯引擎引起的错误
+        腾讯引擎
+
+        腾讯云 TMT 接口下线后，改用内网转发的 TokenHub(混元翻译模型)接口，
+        语言表沿用原 TMT 的支持范围。
     """
-    pass
-
-
-class TencentEngine(Engine):
 
     def __init__(self) -> None:
         super().__init__(
@@ -73,175 +63,18 @@ class TencentEngine(Engine):
                 "ar": ["en"],
                 "hi": ["en"]
             },
-            change_dict={
-                "zh-cn": "zh",
-                "zh-tw": "zh-TW"
-            },
-            alias=["tc", "tencent"])
-        self._region = config.trans_tencent_region
-        self._secret_id = config.trans_tencent_id
-        self._secret_key = config.trans_tencent_key
-        if self.enable and (not self._secret_id or not self._secret_key):
-            raise EngineError("请设置密钥后再启用此引擎！")
-        self.bucket = AsyncTokenBucket(
-            config.trans_tencent_ratelimit, 1, 0,
-            int(config.trans_tencent_ratelimit) or 1)
-
-    @staticmethod
-    def tencentApiSign_V3_PostHeaders(secret_id: str, secret_key: str,
-                                      host: str, action: str, version: str,
-                                      region: str, params: dict):
-        service = host[:host.find(".")]
-        algorithm = "TC3-HMAC-SHA256"
-        timestamp = int(time.time())
-        date = datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%d")
-        # ************* 步骤 1：拼接规范请求串 *************
-        http_request_method = "POST"
-        canonical_uri = "/"
-        canonical_querystring = ""
-        ct = "application/json; charset=utf-8"
-        payload = json.dumps(params)
-        canonical_headers = "content-type:%s\nhost:%s\n" % (ct, host)
-        signed_headers = "content-type;host"
-        hashed_request_payload = hashlib.sha256(
-            payload.encode("utf-8")).hexdigest()
-        canonical_request = (http_request_method + "\n" + canonical_uri +
-                             "\n" + canonical_querystring + "\n" +
-                             canonical_headers + "\n" + signed_headers + "\n" +
-                             hashed_request_payload)
-
-        # ************* 步骤 2：拼接待签名字符串 *************
-        credential_scope = date + "/" + service + "/" + "tc3_request"
-        hashed_canonical_request = hashlib.sha256(
-            canonical_request.encode("utf-8")).hexdigest()
-        string_to_sign = (algorithm + "\n" + str(timestamp) + "\n" +
-                          credential_scope + "\n" + hashed_canonical_request)
-
-        # ************* 步骤 3：计算签名 *************
-        # 计算签名摘要函数
-        def sign(key, msg):
-            return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
-
-        secret_date = sign(("TC3" + secret_key).encode("utf-8"), date)
-        secret_service = sign(secret_date, service)
-        secret_signing = sign(secret_service, "tc3_request")
-        signature = hmac.new(secret_signing, string_to_sign.encode("utf-8"),
-                             hashlib.sha256).hexdigest()
-
-        # ************* 步骤 4：拼接 Authorization *************
-        authorization = (algorithm + " " + "Credential=" + secret_id + "/" +
-                         credential_scope + ", " + "SignedHeaders=" +
-                         signed_headers + ", " + "Signature=" + signature)
-
-        return {
-            "Host": host,
-            "Content-Type": "application/json; charset=utf-8",
-            "Authorization": authorization,
-            "X-TC-Action": action,
-            "X-TC-Timestamp": str(timestamp),
-            "X-TC-Version": version,
-            "X-TC-Region": region
-        }
-
-    @staticmethod
-    def tencentApiSign_V1_GetParams(secret_id: str, secret_key: str, host: str,
-                                    action: str, version: str, region: str,
-                                    params: dict):
-
-        def get_string_to_sign(method, endpoint, params):
-            s = method + endpoint + "/?"
-            query_str = "&".join("%s=%s" % (k, params[k])
-                                 for k in sorted(params))
-            return s + query_str
-
-        def sign_str(key, s, method):
-            hmac_str = hmac.new(key.encode("utf8"), s.encode("utf8"),
-                                method).digest()
-            return base64.b64encode(hmac_str)
-
-        data = {
-            'Action': action,
-            'Nonce': random.randrange(9999, 99999),
-            'Region': region,
-            'SecretId': secret_id,
-            'Timestamp': int(time.time()),
-            'Version': version
-        }
-        for key in params:
-            data[key] = params[key]
-        s = get_string_to_sign("GET", host, data)
-        data["Signature"] = sign_str(secret_key, s, hashlib.sha1)
-        return data
-
-    async def tencent_TextTranslate(self,
-                                    source: str,
-                                    target: str,
-                                    text: str,
-                                    useV3: bool = False):
-        args = {
-            "secret_id": self._secret_id,
-            "secret_key": self._secret_key,
-            "host": "tmt.tencentcloudapi.com",
-            "action": "TextTranslate",
-            "version": "2018-03-21",
-            "region": self._region,
-            "params": {
-                "ProjectId": 0,
-                "Source": source,
-                "Target": target,
-                "SourceText": text,
-            }
-        }
-        url = "https://" + args["host"]
-        if useV3:
-            v3headers = self.tencentApiSign_V3_PostHeaders(**args)
-            req = aiohttp.request("post",
-                                  url,
-                                  headers=v3headers,
-                                  data=json.dumps(args["params"]))
-
-        else:
-            v1params = self.tencentApiSign_V1_GetParams(**args)
-            req = aiohttp.request("get", url, params=v1params)
-        async with req as resp:
-            code = resp.status
-            if code != 200:
-                raise TencentEngineError(
-                    F"网络异常 - {code} 待翻内容 ({source}-{target}){text}",
-                    replay=f"网络异常 {code}")
-            res = json.loads(await resp.read())
-            return res
-
-    async def trans(self, source: str, target: str, content: str) -> str:
-        if not self.enable:
-            raise EngineError("引擎未启用", replay="引擎未启用")
-        if not await self.bucket.wait_consume(1, 5):
-            raise RatelimitException("速率限制！")
-        source = self.conversion_lang(source)
-        target = self.conversion_lang(target)
-        try:
-            res = await self.tencent_TextTranslate(source,
-                                                   target,
-                                                   content,
-                                                   useV3=True)
-        except EngineError as e:
-            raise e
-        except Exception as e:
-            raise TencentEngineError(
-                F"网络连接异常 待翻内容 ({source}-{target}) {content} 错误 {e}",
-                replay="网络状态异常！")
-        if "Error" in res["Response"]:
-            errmsg = res['Response']['Error']['Message']
-            errcode = res['Response']['Error']['Code']
-            raise TencentEngineError(
-                F" 参数 ({source}-{target}) {content} | 错误代码 {errmsg}({errcode})",
-                replay=f"API错误：{errmsg}({errcode})")
-        return res["Response"]["TargetText"]
+            alias=["tc", "tencent"],
+            api_base=config.trans_tencent_api_base,
+            api_key=config.trans_tencent_api_key,
+            model=config.trans_tencent_model,
+            ratelimit=config.trans_tencent_ratelimit)
 
 
 """
     腾讯引擎
-    支持的语言列表
+
+    接入 TokenHub 的 OpenAI 兼容接口(hy-mt2-lite)，语言表沿用原腾讯云 TMT 的
+    支持范围：
 
         源语言，支持：
     auto：自动识别（识别为一种语言）
@@ -264,60 +97,6 @@ class TencentEngine(Engine):
     ar：阿拉伯语
     hi：印地语
 
-    Target	是	String	目标语言，各源语言的目标语言支持列表如下
-
-    zh（简体中文）：
-
-    en（英语）、ja（日语）、ko（韩语）、fr（法语）、es（西班牙语）、it（意大利语）、de（德语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）、vi（越南语）、id（印尼语）、th（泰语）、ms（马来语）
-    zh-TW（繁体中文）：
-
-    en（英语）、ja（日语）、ko（韩语）、fr（法语）、es（西班牙语）、it（意大利语）、de（德语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）、vi（越南语）、id（印尼语）、th（泰语）、ms（马来语）
-    en（英语）：
-
-    zh（中文）、ja（日语）、ko（韩语）、fr（法语）、es（西班牙语）、it（意大利语）、de（德语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）、vi（越南语）、id（印尼语）、th（泰语）、ms（马来语）、ar（阿拉伯语）、hi（印地语）
-    ja（日语）：
-
-    zh（中文）、en（英语）、ko（韩语）
-    ko（韩语）：
-
-    zh（中文）、en（英语）、ja（日语）
-    fr（法语）：
-
-    zh（中文）、en（英语）、es（西班牙语）、it（意大利语）、de（德语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）
-    es（西班牙语）：
-
-    zh（中文）、en（英语）、fr（法语）、it（意大利语）、de（德语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）
-    it（意大利语）：
-
-    zh（中文）、en（英语）、fr（法语）、es（西班牙语）、de（德语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）
-    de（德语）：
-
-    zh（中文）、en（英语）、fr（法语）、es（西班牙语）、it（意大利语）、tr（土耳其语）、ru（俄语）、pt（葡萄牙语）
-    tr（土耳其语）：
-
-    zh（中文）、en（英语）、fr（法语）、es（西班牙语）、it（意大利语）、de（德语）、ru（俄语）、pt（葡萄牙语）
-    ru（俄语）：
-
-    zh（中文）、en（英语）、fr（法语）、es（西班牙语）、it（意大利语）、de（德语）、tr（土耳其语）、pt（葡萄牙语）
-    pt（葡萄牙语）：
-
-    zh（中文）、en（英语）、fr（法语）、es（西班牙语）、it（意大利语）、de（德语）、tr（土耳其语）、ru（俄语）
-    vi（越南语）：
-
-    zh（中文）、en（英语）
-    id（印尼语）：
-
-    zh（中文）、en（英语）
-    th（泰语）：
-
-    zh（中文）、en（英语）
-    ms（马来语）：
-
-    zh（中文）、en（英语）
-    ar（阿拉伯语）：
-
-    en（英语）
-    hi（印地语）：
-
-    en（英语）
+    目标语言的支持范围与语言表`allow_dict`一致，详见该表。
+    新接口由模型自动识别源语言，请求中只需要给出目标语言。
 """
